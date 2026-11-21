@@ -126,6 +126,21 @@ void main() {
       );
     });
 
+    test('matches the bare host it actually wrote to the server URL', () {
+      // A v1 vault blob holds `Uri.host`, never the URL. Compared whole
+      // against the servers' URLs, every one was dropped (review, Nov 22).
+      final restored = ServerImportMerge.apply(
+        existing: [
+          server('a', 'One'),
+          server('b', 'Elsewhere', url: other),
+        ],
+        imported: [
+          {'supabaseUrl': Uri.parse(host).host, 'keyVersion': 'v1'},
+        ],
+      );
+      expect(restored.map((s) => s.id), ['a']);
+    });
+
     test('and cannot invent one the device has never seen', () {
       final restored = ServerImportMerge.apply(
         existing: const [],

@@ -10,10 +10,12 @@ mixin _SupabaseBackupTransferMixin on Cubit<SupabaseBackupState> {
   VaultCubit get _vaultCubit;
   Timer? get _autoBackupTimer;
   set _autoBackupTimer(Timer? value);
+  bool get _wrapChangeInFlight;
   CloudMerge Function(ServerManifest)? get _mergeCloudServers;
 
   /// Implemented by the cubit.
-  Future<void> _uploadBackup({required String successMessage});
+  Future<bool> _uploadBackup({required String successMessage});
+  void _raiseConflict(String backupJson);
 
   /// Manual "save to cloud" action from settings.
   ///
@@ -22,7 +24,8 @@ mixin _SupabaseBackupTransferMixin on Cubit<SupabaseBackupState> {
   /// is the conflict resolver, and it is the only thing that overwrites.
   Future<void> saveBackupToCloud() async {
     emit(state.copyWith(isProcessing: true, clearMessage: true));
-    await pullFromCloud();
+    final pulled = await _pull();
+    if (pulled.copy == _CloudCopy.other) return;
     await _uploadBackup(successMessage: 'Backup saved to cloud successfully.');
   }
 
@@ -34,15 +37,21 @@ mixin _SupabaseBackupTransferMixin on Cubit<SupabaseBackupState> {
 
     _autoBackupTimer?.cancel();
     _autoBackupTimer = Timer(_autoBackupDebounce, () async {
+      // A password change is between its two halves; back up after it.
+      if (_wrapChangeInFlight) {
+        autoBackup();
+        return;
+      }
       // Read before write. The upload is an upsert of one object, so without
       // this a device writes its own list over whatever the other one put
       // there — and a server joined on a phone lasts until the laptop's next
-      // backup. See [BackupMerge] for what "combine" means here.
-      //
-      // `thenPush: false` because the push is the next thing this function
-      // does. Asking for one here would schedule another `autoBackup`, which
-      // would pull, find the cloud still behind, and schedule another.
-      await pullFromCloud();
+      // backup. See [BackupMerge] for what "combine" means here. And it is
+      // what keeps this upload off another identity's backup: that is never
+      // overwritten except by the person choosing to.
+      final pulled = await _pull();
+      if (pulled.copy != _CloudCopy.ours && pulled.copy != _CloudCopy.none) {
+        return;
+      }
 
       final export = await _vaultCubit.exportBackup();
       if (!export.success || export.content == null) {
@@ -63,17 +72,19 @@ mixin _SupabaseBackupTransferMixin on Cubit<SupabaseBackupState> {
   /// Folds the cloud's server list into this device's.
   ///
   /// Returns true when the rail changed. Silent about failure on purpose:
-  /// offline, or a backup this seed cannot open, both mean "carry on with
-  /// what is here" rather than "stop".
+  /// offline means "carry on with what is here" rather than "stop". A backup
+  /// of another identity is the exception: it is said, and backing up stops
+  /// until the person chooses ([_raiseConflict]) — after a restart this is
+  /// what asks again.
   ///
-  /// [thenPush] also sends what this device knows *back*, when the merge
-  /// finds the cloud behind. That is the only thing that rescues a change
-  /// made with no network: the upload it scheduled failed once and nothing
-  /// retried it, so the order sat on the device it was made on until some
-  /// unrelated edit happened to trigger another backup. Coming back to the
-  /// app is now a retry. Callers inside [autoBackup] leave it false — the
-  /// push is the next thing that function does anyway, and asking for one
-  /// there is an endless loop.
+  /// [thenPush] also sends what this device knows *back*, when the cloud is
+  /// behind: an older server list, older wraps, or no backup at all. That is
+  /// the only thing that rescues a change made with no network: the upload it
+  /// scheduled failed once and nothing retried it, so the change sat on the
+  /// device it was made on until some unrelated edit happened to trigger
+  /// another backup. Coming back to the app is now a retry. [autoBackup]
+  /// pulls without it — the push is the next thing that function does
+  /// anyway, and asking for one there is an endless loop.
   ///
   /// It still cannot converge in one hop. Nothing serialises the read against
   /// the write — Storage has no compare-and-swap — so two devices merging
@@ -82,27 +93,77 @@ mixin _SupabaseBackupTransferMixin on Cubit<SupabaseBackupState> {
   /// next reorder settles it. Closing it properly means moving the vault out
   /// of a bucket and into a row, where Postgres can refuse the second write.
   Future<bool> pullFromCloud({bool thenPush = false}) async {
-    if (!state.isSignedIn) return false;
-    if (_vaultCubit.state.status != AuthStatus.unlocked) return false;
+    final pulled = await _pull();
+    if (thenPush && pulled.cloudStale) autoBackup();
+    return pulled.railChanged;
+  }
+
+  Future<({_CloudCopy copy, bool railChanged, bool cloudStale})> _pull() async {
+    const skipped = (
+      copy: _CloudCopy.unknown,
+      railChanged: false,
+      cloudStale: false,
+    );
+    if (!state.isSignedIn) return skipped;
+    if (_vaultCubit.state.status != AuthStatus.unlocked) return skipped;
     final merge = _mergeCloudServers;
-    if (merge == null) return false;
+    if (merge == null) return skipped;
 
     final response = await _repo.downloadBackup();
-    if (!response.success) return false;
+    if (!response.success) return skipped;
     final backupJson = response.data as String?;
-    if (backupJson == null) return false;
+    if (backupJson == null) {
+      // Nothing there: a first upload that failed was never tried again.
+      return (copy: _CloudCopy.none, railChanged: false, cloudStale: true);
+    }
+    if (!await _vaultCubit.isBackupOfThisVault(backupJson)) {
+      _raiseConflict(backupJson);
+      return (copy: _CloudCopy.other, railChanged: false, cloudStale: false);
+    }
 
+    final wraps = await _vaultCubit.syncWraps(backupJson);
+    final wrapsStale = wraps == WrapsSync.localNewer;
     final theirs = await _vaultCubit.readServerManifest(backupJson);
-    if (theirs == null) return false;
+    if (theirs == null) {
+      return (
+        copy: _CloudCopy.ours,
+        railChanged: false,
+        cloudStale: wrapsStale,
+      );
+    }
 
     final outcome = merge(theirs);
-    for (final host in outcome.joined) {
-      unawaited(_vaultCubit.noteJoinedHost(host.url, version: host.version));
+    if (outcome.joined.isNotEmpty) {
+      // One at a time: each is a read and a write of the same stored list,
+      // and run together they lost each other's hosts.
+      unawaited(() async {
+        for (final host in outcome.joined) {
+          await _vaultCubit.noteJoinedHost(host.url, version: host.version);
+        }
+      }());
     }
-    if (thenPush && outcome.cloudStale) autoBackup();
-    return outcome.railChanged;
+    return (
+      copy: _CloudCopy.ours,
+      railChanged: outcome.railChanged,
+      cloudStale: outcome.cloudStale || wrapsStale,
+    );
   }
 
   void clearMessage() =>
       emit(state.copyWith(clearMessage: true, needsEmailConfirmation: false));
+}
+
+/// What [_SupabaseBackupTransferMixin._pull] found in the cloud.
+enum _CloudCopy {
+  /// Not looked at: signed out, locked, or the account unreachable.
+  unknown,
+
+  /// No backup on the account yet.
+  none,
+
+  /// A backup of this vault.
+  ours,
+
+  /// A backup of another identity.
+  other,
 }

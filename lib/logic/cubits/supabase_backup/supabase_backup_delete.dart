@@ -59,6 +59,7 @@ mixin _SupabaseBackupDeleteMixin on Cubit<SupabaseBackupState> {
       final rewrapped = await _vaultCubit.changeVaultPassword(
         oldPassword: keys.vaultPassword,
         newPassword: password,
+        newWrapEmail: null,
       );
       if (!rewrapped.success) {
         HelperMethods.printDebug(

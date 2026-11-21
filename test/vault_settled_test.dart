@@ -13,6 +13,9 @@ class _SlowStorage extends SecureStorageRepository {
   final seed = Completer<String?>();
 
   @override
+  Future<void> finishInterruptedReplace() async {}
+
+  @override
   Future<String?> getMasterSeed() => seed.future;
 
   @override

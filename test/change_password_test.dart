@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/api_response.dart';
+import 'package:rift/data/classes/encrypted_seed.dart';
 import 'package:rift/data/repositories/supabase_backup_repository.dart';
 import 'package:rift/logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import 'package:rift/logic/cubits/vault/vault_cubit.dart';
@@ -54,6 +55,9 @@ class _FakeRepo implements SupabaseBackupRepository {
   }
 
   @override
+  Future<APIResponse> downloadBackup() async => APIResponse.success(null);
+
+  @override
   User? get currentUser => null;
   @override
   bool get isSignedIn => false;
@@ -75,6 +79,35 @@ class _FakeVault extends VaultCubit {
 
   _FakeVault({required this.wrappedUnder});
 
+  String? wrapEmail;
+
+  @override
+  Future<String?> seedWrapEmail() async => wrapEmail;
+
+  @override
+  Future<void> noteSeedWrapEmail(String email) async => wrapEmail = email;
+
+  @override
+  Future<bool> isBackupOfThisVault(String backupJson) async => true;
+
+  @override
+  Future<WrapsSync> syncWraps(String backupJson) async => WrapsSync.same;
+
+  @override
+  Future<({EncryptedSeed? blob, String? email})> storedSeedWrap() async => (
+    blob: EncryptedSeed(ciphertext: wrappedUnder, iv: '', salt: ''),
+    email: wrapEmail,
+  );
+
+  @override
+  Future<void> restoreSeedWrap(
+    ({EncryptedSeed? blob, String? email}) wrap,
+  ) async {
+    rewraps.add((from: wrappedUnder, to: wrap.blob!.ciphertext));
+    wrappedUnder = wrap.blob!.ciphertext;
+    wrapEmail = wrap.email;
+  }
+
   @override
   Future<bool> verifyVaultPassword(String password) async =>
       password == wrappedUnder;
@@ -83,6 +116,7 @@ class _FakeVault extends VaultCubit {
   Future<({bool success, String? error})> changeVaultPassword({
     required String oldPassword,
     required String newPassword,
+    required String? newWrapEmail,
   }) async {
     if (rewrapFails) return (success: false, error: 'nope');
     if (oldPassword != wrappedUnder) {

@@ -292,6 +292,9 @@ class _Storage extends SecureStorageRepository {
   final List<String> joinedHosts = [];
 
   @override
+  Future<void> finishInterruptedReplace() async {}
+
+  @override
   Future<String?> getMasterSeed() async =>
       CryptoRepository.toBase64(Uint8List(32));
 

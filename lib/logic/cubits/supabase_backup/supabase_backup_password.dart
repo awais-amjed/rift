@@ -24,20 +24,44 @@ mixin _SupabaseBackupPasswordMixin on Cubit<SupabaseBackupState> {
 
   String? get _pendingOldVaultPassword;
   set _pendingOldVaultPassword(String? value);
+  set _wrapChangeInFlight(bool value);
 
-  Future<void> _uploadBackup({required String successMessage});
+  Future<bool> _uploadBackup({required String successMessage});
 
-  /// The vault-blob password for [typed], which is not always [typed].
+  /// What the seed blob may be wrapped under for [typed], most likely first.
   ///
   /// On an account it is `KDF(typed, "vault")`, so the server never sees
   /// anything that opens the backup. In privacy mode there is no account and
   /// no email to salt with, and the typed password guards the seed directly.
-  Future<String> _vaultPasswordFor(String typed) async {
-    final email = state.email;
-    if (!state.isSignedIn || email == null) return typed;
+  /// Which one holds is the vault's record ([VaultCubit.seedWrapEmail]), not
+  /// whether a session happens to be open: after the account was signed out
+  /// elsewhere the seed was still the account's, and Change password and
+  /// Replace recovery key refused the right password for good.
+  Future<List<String>> _vaultPasswordsFor(String typed) async {
+    final email =
+        await _vaultCubit.seedWrapEmail() ??
+        (state.isSignedIn ? state.email : null);
+    if (email == null) return [typed];
     final keys = await _crypto.deriveAccountKeys(email: email, password: typed);
-    return keys.vaultPassword;
+    return [keys.vaultPassword, typed];
   }
+
+  /// What a new password [typed] wraps the seed under, and for which account.
+  Future<({String password, String? email})> _newVaultPasswordFor(
+    String typed,
+  ) async {
+    final email = state.email;
+    if (!state.isSignedIn || email == null) {
+      return (password: typed, email: null);
+    }
+    final keys = await _crypto.deriveAccountKeys(email: email, password: typed);
+    return (password: keys.vaultPassword, email: email);
+  }
+
+  /// Said when the change is made but the cloud copy could not follow yet.
+  /// The next pull sees this device's wraps are newer and pushes them.
+  static const _cloudCatchesUp =
+      'Your cloud backup will catch up when Rift can reach it.';
 
   /// Step one: prove the current password, then ask for a code if there is an
   /// address to send one to.
@@ -49,9 +73,14 @@ mixin _SupabaseBackupPasswordMixin on Cubit<SupabaseBackupState> {
   Future<void> beginPasswordChange({required String currentPassword}) async {
     emit(state.copyWith(isProcessing: true, clearMessage: true));
 
-    final oldVaultPassword = await _vaultPasswordFor(currentPassword);
-    final ok = await _vaultCubit.verifyVaultPassword(oldVaultPassword);
-    if (!ok) {
+    String? oldVaultPassword;
+    for (final candidate in await _vaultPasswordsFor(currentPassword)) {
+      if (await _vaultCubit.verifyVaultPassword(candidate)) {
+        oldVaultPassword = candidate;
+        break;
+      }
+    }
+    if (oldVaultPassword == null) {
       emit(
         state.copyWith(
           isProcessing: false,
@@ -114,51 +143,75 @@ mixin _SupabaseBackupPasswordMixin on Cubit<SupabaseBackupState> {
 
     emit(state.copyWith(isProcessing: true, clearMessage: true));
 
-    final newVaultPassword = await _vaultPasswordFor(newPassword);
+    final next = await _newVaultPasswordFor(newPassword);
+    final previous = await _vaultCubit.storedSeedWrap();
 
-    // 1. Local first: re-wrap the seed under the new password.
-    final rewrapped = await _vaultCubit.changeVaultPassword(
-      oldPassword: oldVaultPassword,
-      newPassword: newVaultPassword,
-    );
-    if (!rewrapped.success) {
-      emit(state.copyWith(isProcessing: false, error: rewrapped.error));
-      return;
-    }
-
-    if (state.isSignedIn) {
-      final email = state.email!;
-      final keys = await _crypto.deriveAccountKeys(
-        email: email,
-        password: newPassword,
+    _wrapChangeInFlight = true;
+    try {
+      // 1. Local first: re-wrap the seed under the new password.
+      final rewrapped = await _vaultCubit.changeVaultPassword(
+        oldPassword: oldVaultPassword,
+        newPassword: next.password,
+        newWrapEmail: next.email,
       );
-      final updated = await _repo.updatePassword(
-        password: keys.authPassword,
-        nonce: code ?? '',
-      );
-
-      if (!updated.success) {
-        // 3. Put the seed back. Without this the account password and the
-        // blob that has to open with it would have drifted apart, and the
-        // person would be left signing in fine and unable to read anything.
-        await _vaultCubit.changeVaultPassword(
-          oldPassword: newVaultPassword,
-          newPassword: oldVaultPassword,
-        );
-        emit(state.copyWith(isProcessing: false, error: updated.error));
+      if (!rewrapped.success) {
+        emit(state.copyWith(isProcessing: false, error: rewrapped.error));
         return;
       }
 
-      _accountVaultPassword = newVaultPassword;
+      if (state.isSignedIn) {
+        final email = state.email!;
+        final keys = await _crypto.deriveAccountKeys(
+          email: email,
+          password: newPassword,
+        );
+        final updated = await _repo.updatePassword(
+          password: keys.authPassword,
+          nonce: code ?? '',
+        );
+
+        if (!updated.success &&
+            !await _landedAnyway(updated, email, keys.authPassword)) {
+          // 3. Put the seed back. Without this the account password and the
+          // blob that has to open with it would have drifted apart, and the
+          // person would be left signing in fine and unable to read anything.
+          await _vaultCubit.restoreSeedWrap(previous);
+          emit(
+            state.copyWith(
+              isProcessing: false,
+              error: _isNoAnswer(updated)
+                  ? "Couldn't reach your account, so the password is "
+                        'unchanged. If the new one signs you in anyway, '
+                        'change it again here with the old one as the '
+                        'current password.'
+                  : updated.error,
+            ),
+          );
+          return;
+        }
+
+        _accountVaultPassword = next.password;
+      }
+    } finally {
+      _wrapChangeInFlight = false;
     }
 
     _pendingOldVaultPassword = null;
     emit(state.copyWith(passwordChange: PasswordChangeStage.idle));
 
     // 4. The stored backup still holds the old seed blob. Until this lands,
-    // a restore on another device would want the old password.
+    // a restore on another device would want the old password. A failure
+    // here is not the change failing: it is made, and the cloud follows.
     if (state.isSignedIn) {
-      await _uploadBackup(successMessage: 'Password changed.');
+      if (!await _uploadBackup(successMessage: 'Password changed.') &&
+          !state.cloudBackupConflict) {
+        emit(
+          state.copyWith(
+            clearMessage: true,
+            successMessage: 'Password changed. $_cloudCatchesUp',
+          ),
+        );
+      }
       return;
     }
     emit(
@@ -176,21 +229,43 @@ mixin _SupabaseBackupPasswordMixin on Cubit<SupabaseBackupState> {
   Future<({bool success, String? error})> replaceRecoveryKey({
     required String password,
   }) async {
-    final vaultPassword = await _vaultPasswordFor(password);
-    final result = await _vaultCubit.regenerateRecoveryKey(
-      password: vaultPassword,
-    );
-    if (!result.success) {
-      return (success: false, error: result.error);
+    ({bool success, String? error, String? key})? result;
+    for (final candidate in await _vaultPasswordsFor(password)) {
+      result = await _vaultCubit.regenerateRecoveryKey(password: candidate);
+      if (result.success || result.error != 'Wrong password') break;
+    }
+    if (result == null || !result.success) {
+      return (success: false, error: result?.error);
     }
 
     // The stored backup still carries the old wrap, and a recovery key that
-    // only works against this device is not a recovery key.
+    // only works against this device is not a recovery key. Should this
+    // upload fail, the next pull finds this device's wraps newer and pushes.
     if (state.isSignedIn) {
       await _uploadBackup(successMessage: 'Recovery key replaced.');
     }
     return (success: true, error: null);
   }
+
+  /// Whether a password update that came back without an answer reached the
+  /// account anyway, asked by signing in with the new verifier.
+  ///
+  /// A timed-out update can still have landed. Rolled back regardless, the
+  /// account took the new password and the seed went back under the old one:
+  /// signing in worked and nothing opened.
+  Future<bool> _landedAnyway(
+    APIResponse updated,
+    String email,
+    String authPassword,
+  ) async {
+    if (!_isNoAnswer(updated)) return false;
+    final check = await _repo.signIn(email: email, password: authPassword);
+    return check.success;
+  }
+
+  static bool _isNoAnswer(APIResponse r) =>
+      r.errorCode == ErrorCode.serverUnreachable ||
+      r.errorCode == ErrorCode.serverTimeout;
 
   /// Abandon a change in progress, forgetting the proved password with it.
   void cancelPasswordChange() {

@@ -5,17 +5,42 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
   SecureStorageRepository get _storage;
 
   /// Implemented by [_VaultRecoveryMixin].
-  Future<String> _issueRecoveryKey(String masterSeedB64);
+  Future<({String key, EncryptedSeed blob})> _wrapUnderNewRecoveryKey(
+    String masterSeedB64,
+  );
+
+  /// Implemented by [VaultCubit].
+  Future<void> _touchWraps({String? seedWrapEmail});
 
   // ── Account creation ──────────────────────────────────────
 
   /// Creates a new vault from a password.
   /// Stores an [EncryptedSeed] (Argon2id-protected master seed) and an
   /// [EncryptedVault] (HMAC-protected server list) in secure storage.
-  Future<void> createVault(String password) async {
+  ///
+  /// [accountEmail] is the account whose derived password [password] is, when
+  /// it is one (a first sign-in with no backup), and null for privacy mode.
+  ///
+  /// Everything is derived before anything is written, and written as one
+  /// record: the seed used to be saved before the recovery key's second of
+  /// Argon2id, so a kill in it left a working vault whose recovery key nobody
+  /// was ever shown.
+  Future<void> createVault(String password, {String? accountEmail}) async {
     emit(state.copyWith(isProcessing: true, clearError: true));
 
     try {
+      // Never over a vault that is there. Onboarding only runs with none, but
+      // a storage read that failed once looked like none.
+      if (await _storage.getMasterSeed() != null) {
+        emit(
+          state.copyWith(
+            isProcessing: false,
+            error: 'This device already has a vault.',
+          ),
+        );
+        return;
+      }
+
       final masterSeed = _crypto.generateMasterSeed();
       final masterSeedB64 = CryptoRepository.toBase64(masterSeed);
       final salt = _crypto.generateSalt();
@@ -37,31 +62,36 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
         key: vaultKey,
       );
 
-      await _storage.saveMasterSeed(masterSeedB64);
-      await _storage.saveEncryptedSeed(
-        EncryptedSeed(
-          ciphertext: CryptoRepository.toBase64(encSeed.ciphertext),
-          iv: CryptoRepository.toBase64(encSeed.iv),
-          salt: CryptoRepository.toBase64(salt),
-        ),
-      );
-      await _storage.saveEncryptedVault(
-        EncryptedVault(
-          ciphertext: CryptoRepository.toBase64(encVault.ciphertext),
-          iv: CryptoRepository.toBase64(encVault.iv),
-        ),
-      );
-
       // Issued here rather than offered later, because a recovery key is only
       // worth anything if it exists before the password is forgotten — and
       // nobody goes looking for one while they still remember it.
-      final recoveryKey = await _issueRecoveryKey(masterSeedB64);
+      final recovery = await _wrapUnderNewRecoveryKey(masterSeedB64);
+
+      await _storage.replaceVault(
+        StoredVault(
+          masterSeed: masterSeedB64,
+          joinedServers: const [],
+          seed: EncryptedSeed(
+            ciphertext: CryptoRepository.toBase64(encSeed.ciphertext),
+            iv: CryptoRepository.toBase64(encSeed.iv),
+            salt: CryptoRepository.toBase64(salt),
+          ),
+          vault: EncryptedVault(
+            ciphertext: CryptoRepository.toBase64(encVault.ciphertext),
+            iv: CryptoRepository.toBase64(encVault.iv),
+          ),
+          recovery: recovery.blob,
+          pendingRecoveryKey: recovery.key,
+          wrapsAt: DateTime.now().millisecondsSinceEpoch,
+          seedWrapEmail: accountEmail,
+        ),
+      );
 
       emit(
         VaultState(
           status: AuthStatus.unlocked,
           masterSeed: masterSeedB64,
-          pendingRecoveryKey: recoveryKey,
+          pendingRecoveryKey: recovery.key,
         ),
       );
     } catch (e) {
@@ -69,7 +99,7 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
       emit(
         state.copyWith(
           isProcessing: false,
-          error: 'Failed to create vault: $e',
+          error: 'Could not create the vault. Try again.',
         ),
       );
     }
@@ -108,9 +138,12 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
   /// The master seed (and therefore every derived identity) is unchanged —
   /// only the [EncryptedSeed] blob is rewritten with a fresh salt. Fails
   /// without side effects if [oldPassword] doesn't decrypt the current blob.
+  /// [newWrapEmail] is the account [newPassword] is derived for, or null when
+  /// it is a privacy-mode password.
   Future<({bool success, String? error})> changeVaultPassword({
     required String oldPassword,
     required String newPassword,
+    required String? newWrapEmail,
   }) async {
     try {
       final currentSeed = await _storage.getEncryptedSeed();
@@ -145,6 +178,7 @@ mixin _VaultCreationMixin on Cubit<VaultState> {
           salt: CryptoRepository.toBase64(newSalt),
         ),
       );
+      await _touchWraps(seedWrapEmail: newWrapEmail);
 
       return (success: true, error: null);
     } on SecretBoxAuthenticationError {

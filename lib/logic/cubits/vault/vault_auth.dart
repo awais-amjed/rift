@@ -5,23 +5,48 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
 
   /// Implemented by [_VaultRecoveryMixin].
   Future<String?> loadPendingRecoveryKey();
+  Future<void> settlePendingRecoveryKey({
+    required String masterSeedB64,
+    required String pending,
+  });
   SessionRepository get _session;
 
   // ── Startup check ─────────────────────────────────────────
 
   /// Checks for an existing vault in secure storage and sets initial auth status.
+  ///
+  /// A read that fails is [AuthStatus.unreadable], never [AuthStatus.fresh]:
+  /// a locked keyring said "no vault" here once, and onboarding then offered
+  /// to make a new one over the seed that was there all along.
   Future<void> checkVaultStatus() async {
+    if (state.status == AuthStatus.unreadable) {
+      emit(const VaultState());
+    }
     try {
+      await _storage.finishInterruptedReplace();
       final masterSeed = await _storage.getMasterSeed();
       if (masterSeed != null) {
         // A key generated but never acknowledged outlives the process that
         // generated it — the app was closed on the screen showing it, and it
         // has to come back or the blob is unopenable by anyone.
+        final pending = await loadPendingRecoveryKey();
+        if (pending != null) {
+          try {
+            await settlePendingRecoveryKey(
+              masterSeedB64: masterSeed,
+              pending: pending,
+            );
+          } catch (e) {
+            // The vault is readable; only the mend failed, and the next
+            // start tries again.
+            HelperMethods.printDebug('[Vault] recovery key not settled: $e');
+          }
+        }
         emit(
           VaultState(
             status: AuthStatus.unlocked,
             masterSeed: masterSeed,
-            pendingRecoveryKey: await loadPendingRecoveryKey(),
+            pendingRecoveryKey: pending,
           ),
         );
       } else {
@@ -29,7 +54,7 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
       }
     } catch (e) {
       HelperMethods.printDebug('[Vault] checkVaultStatus error: $e');
-      emit(VaultState(status: AuthStatus.fresh, error: e.toString()));
+      emit(VaultState(status: AuthStatus.unreadable, error: e.toString()));
     }
   }
 

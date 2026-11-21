@@ -92,11 +92,32 @@ class _FakeVault extends VaultCubit {
   String? importedWithRecoveryKey;
   String? rewrappedUnder;
 
+  String? wrapEmail;
+
+  @override
+  Future<String?> seedWrapEmail() async => wrapEmail;
+
+  @override
+  Future<void> noteSeedWrapEmail(String email) async => wrapEmail = email;
+
+  @override
+  Future<bool> isBackupOfThisVault(String backupJson) async => true;
+
+  @override
+  Future<WrapsSync> syncWraps(String backupJson) async => WrapsSync.same;
+
+  @override
+  Future<String?> opensWithRecoveryKey({
+    required String backupJson,
+    required String recoveryKey,
+  }) async => importSucceeds ? null : 'That recovery key does not match';
+
   @override
   Future<({bool success, String? error})> importBackup({
     required String jsonContent,
     String? password,
     String? recoveryKey,
+    String? accountEmail,
   }) async {
     importedWithRecoveryKey = recoveryKey;
     if (!importSucceeds) {
@@ -108,6 +129,7 @@ class _FakeVault extends VaultCubit {
   @override
   Future<({bool success, String? error})> rewrapSeed({
     required String newPassword,
+    required String? wrapEmail,
   }) async {
     rewrappedUnder = newPassword;
     return (success: true, error: null);
@@ -273,12 +295,13 @@ void main() {
           newPassword: newPassword,
         );
 
-        // The password is already set by this point and that is deliberate: the
-        // key cannot be checked without downloading the backup, and the backup
-        // needs a session. Being signed in is what makes a second attempt
-        // possible.
-        expect(cubit.state.isSignedIn, isTrue);
+        // Checked against the downloaded backup before the password is
+        // touched: a mistyped key used to leave the password changed and the
+        // code spent.
+        expect(repo.updateCalled, isFalse);
+        expect(vault.importedWithRecoveryKey, isNull);
         expect(cubit.state.error, contains('does not match'));
+        expect(cubit.state.accountRecovery, isNot(AccountRecoveryStage.idle));
         expect(repo.uploads, 0);
       },
     );

@@ -13,6 +13,8 @@ import 'encrypted_vault.dart';
 ///   recovery         → AES-GCM( Argon2id(recoveryKey, salt2),   masterSeed )
 ///   vault            → AES-GCM( HMAC(masterSeed, "vault:v1"), joined_servers )
 ///   encryptedServers → AES-GCM( HMAC(masterSeed, "vault:v1"), servers JSON )
+///   wraps            → AES-GCM( HMAC(masterSeed, "vault:v1"),
+///                               { at, seed, recovery, seed_email } )
 /// ```
 ///
 /// `seed` and `recovery` hold the *same* master seed under two independent
@@ -32,6 +34,7 @@ import 'encrypted_vault.dart';
 class BackupFile extends Equatable {
   /// v3 added [recovery]. Older files still load — [recovery] is null and the
   /// password is the only way in, which is exactly what those files meant.
+  /// [wraps] is optional inside v3: a client that predates it ignores it.
   static const int currentVersion = 3;
 
   final int version;
@@ -49,12 +52,23 @@ class BackupFile extends Equatable {
   /// accounts whose key was never generated.
   final EncryptedSeed? recovery;
 
+  /// [seed] and [recovery] again, with when they were made and which
+  /// account's password wraps the seed, sealed under the vault key.
+  ///
+  /// Sealed so that only a holder of the seed can write it: a device adopts
+  /// the wraps in here when they are newer than its own, and a central that
+  /// could hand it any pair it liked could take the password and the recovery
+  /// key away from it. Null on backups written before it existed, which are
+  /// then older than any device's own wraps. See `VaultCubit.compareWraps`.
+  final EncryptedVault? wraps;
+
   const BackupFile({
     required this.version,
     required this.seed,
     required this.vault,
     this.encryptedServers,
     this.recovery,
+    this.wraps,
   });
 
   Map<String, dynamic> toJson() => {
@@ -64,6 +78,7 @@ class BackupFile extends Equatable {
     if (encryptedServers != null)
       'encrypted_servers': encryptedServers!.toJson(),
     if (recovery != null) 'recovery': recovery!.toJson(),
+    if (wraps != null) 'wraps': wraps!.toJson(),
   };
 
   factory BackupFile.fromJson(Map<String, dynamic> json) => BackupFile(
@@ -78,6 +93,9 @@ class BackupFile extends Equatable {
     recovery: json['recovery'] != null
         ? EncryptedSeed.fromJson(json['recovery'] as Map<String, dynamic>)
         : null,
+    wraps: json['wraps'] != null
+        ? EncryptedVault.fromJson(json['wraps'] as Map<String, dynamic>)
+        : null,
   );
 
   String toJsonString() => jsonEncode(toJson());
@@ -86,5 +104,12 @@ class BackupFile extends Equatable {
       BackupFile.fromJson(jsonDecode(s) as Map<String, dynamic>);
 
   @override
-  List<Object?> get props => [version, seed, vault, encryptedServers, recovery];
+  List<Object?> get props => [
+    version,
+    seed,
+    vault,
+    encryptedServers,
+    recovery,
+    wraps,
+  ];
 }

@@ -8,6 +8,7 @@ import '../screens/home/home_screen.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/recovery_key/recovery_key_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/vault_unreadable/vault_unreadable_screen.dart';
 
 /// The app's routes, and the redirect that sends a new user to onboarding and
 /// an unacknowledged recovery key to its own screen. It re-runs whenever the
@@ -21,6 +22,7 @@ class AppRoutes {
   static const String onboarding = '/onboarding';
   static const String recoveryKey = '/recovery-key';
   static const String settings = '/settings';
+  static const String vaultUnreadable = '/vault-unreadable';
 
   static GoRouter router(VaultCubit vaultCubit) => GoRouter(
     initialLocation: home,
@@ -31,9 +33,16 @@ class AppRoutes {
       final vaultState = vaultCubit.state;
       final isOnboarding = state.matchedLocation == onboarding;
       final isRecoveryKey = state.matchedLocation == recoveryKey;
+      final isUnreadable = state.matchedLocation == vaultUnreadable;
 
       // Still checking — don't redirect yet.
       if (vaultState.status == AuthStatus.unknown) return null;
+
+      // Storage did not answer: not onboarding, which would make a vault over
+      // the one that may well be there.
+      if (vaultState.status == AuthStatus.unreadable) {
+        return isUnreadable ? null : vaultUnreadable;
+      }
 
       // Fresh user → must onboard.
       if (vaultState.status == AuthStatus.fresh) {
@@ -48,7 +57,7 @@ class AppRoutes {
         if (vaultState.pendingRecoveryKey != null) {
           return isRecoveryKey ? null : recoveryKey;
         }
-        return (isOnboarding || isRecoveryKey) ? home : null;
+        return (isOnboarding || isRecoveryKey || isUnreadable) ? home : null;
       }
 
       return null;
@@ -62,6 +71,10 @@ class AppRoutes {
       GoRoute(
         path: recoveryKey,
         builder: (context, state) => const RecoveryKeyScreen(),
+      ),
+      GoRoute(
+        path: vaultUnreadable,
+        builder: (context, state) => const VaultUnreadableScreen(),
       ),
       GoRoute(
         path: settings,

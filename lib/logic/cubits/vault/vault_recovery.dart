@@ -11,14 +11,13 @@ mixin _VaultRecoveryMixin on Cubit<VaultState> {
   CryptoRepository get _crypto;
   SecureStorageRepository get _storage;
 
-  /// Wrap [masterSeedB64] under a freshly generated recovery key.
-  ///
-  /// Returns the key in display form. It is stored as "pending" at the same
-  /// time, which is what makes the acknowledgement screen survive being closed
-  /// — see [SecureStorageRepository.savePendingRecoveryKey]. The caller shows
-  /// it once; after [acknowledgeRecoveryKey] nothing on this device can
-  /// produce it again.
-  Future<String> _issueRecoveryKey(String masterSeedB64) async {
+  Future<void> _touchWraps({String? seedWrapEmail, bool keepEmail});
+
+  /// Wrap [masterSeedB64] under a freshly generated recovery key, writing
+  /// nothing. Returns the key in display form and the wrap.
+  Future<({String key, EncryptedSeed blob})> _wrapUnderNewRecoveryKey(
+    String masterSeedB64,
+  ) async {
     final key = _crypto.generateRecoveryKey();
     final normalized = _crypto.normalizeRecoveryKey(key)!;
 
@@ -31,7 +30,57 @@ mixin _VaultRecoveryMixin on Cubit<VaultState> {
       plaintext: masterSeedB64,
       key: recoveryKey,
     );
+    return (
+      key: key,
+      blob: EncryptedSeed(
+        ciphertext: CryptoRepository.toBase64(wrapped.ciphertext),
+        iv: CryptoRepository.toBase64(wrapped.iv),
+        salt: CryptoRepository.toBase64(salt),
+      ),
+    );
+  }
 
+  /// Wrap [masterSeedB64] under a freshly generated recovery key and store it.
+  ///
+  /// Returns the key in display form. It is stored as "pending" at the same
+  /// time, which is what makes the acknowledgement screen survive being closed
+  /// — see [SecureStorageRepository.savePendingRecoveryKey]. The caller shows
+  /// it once; after [acknowledgeRecoveryKey] nothing on this device can
+  /// produce it again.
+  Future<String> _issueRecoveryKey(String masterSeedB64) async {
+    final fresh = await _wrapUnderNewRecoveryKey(masterSeedB64);
+    // The key before the wrap: a kill between the two leaves a key to show
+    // and the old wrap, which [settlePendingRecoveryKey] mends on the next
+    // start. The other way round it left a wrap no key anyone saw opens.
+    await _storage.savePendingRecoveryKey(fresh.key);
+    await _storage.saveRecoverySeed(fresh.blob);
+    await _touchWraps(keepEmail: true);
+    return fresh.key;
+  }
+
+  /// Load any unacknowledged key so the router can insist on showing it.
+  Future<String?> loadPendingRecoveryKey() => _storage.getPendingRecoveryKey();
+
+  /// Makes the stored recovery wrap the one [pending] opens, when a kill came
+  /// between saving the key and saving its wrap. Runs at start only while a
+  /// key waits to be acknowledged, so its second of Argon2id is rare.
+  Future<void> settlePendingRecoveryKey({
+    required String masterSeedB64,
+    required String pending,
+  }) async {
+    final blob = await _storage.getRecoverySeed();
+    if (blob != null) {
+      final opened = await unwrapWithRecoveryKey(
+        blob: blob,
+        recoveryKey: pending,
+      );
+      if (opened.masterSeedB64 == masterSeedB64) return;
+    }
+    final normalized = _crypto.normalizeRecoveryKey(pending);
+    if (normalized == null) return;
+    final salt = _crypto.generateSalt();
+    final key = await _crypto.deriveVaultKey(password: normalized, salt: salt);
+    final wrapped = await _crypto.encrypt(plaintext: masterSeedB64, key: key);
     await _storage.saveRecoverySeed(
       EncryptedSeed(
         ciphertext: CryptoRepository.toBase64(wrapped.ciphertext),
@@ -39,12 +88,8 @@ mixin _VaultRecoveryMixin on Cubit<VaultState> {
         salt: CryptoRepository.toBase64(salt),
       ),
     );
-    await _storage.savePendingRecoveryKey(key);
-    return key;
+    await _touchWraps(keepEmail: true);
   }
-
-  /// Load any unacknowledged key so the router can insist on showing it.
-  Future<String?> loadPendingRecoveryKey() => _storage.getPendingRecoveryKey();
 
   /// The person says they have written it down. Take our copy away.
   ///
@@ -111,21 +156,32 @@ mixin _VaultRecoveryMixin on Cubit<VaultState> {
     }
   }
 
-  /// The password wrap as stored, for putting back with [restoreSeedBlob]
-  /// when a [rewrapSeed] has to be undone.
-  Future<EncryptedSeed?> storedSeedBlob() => _storage.getEncryptedSeed();
+  /// The password wrap as stored, with the account it is for, for putting
+  /// back with [restoreSeedWrap] when a change has to be undone.
+  Future<({EncryptedSeed? blob, String? email})> storedSeedWrap() async => (
+    blob: await _storage.getEncryptedSeed(),
+    email: await _storage.getSeedWrapEmail(),
+  );
 
-  Future<void> restoreSeedBlob(EncryptedSeed blob) =>
-      _storage.saveEncryptedSeed(blob);
+  Future<void> restoreSeedWrap(
+    ({EncryptedSeed? blob, String? email}) wrap,
+  ) async {
+    final blob = wrap.blob;
+    if (blob == null) return;
+    await _storage.saveEncryptedSeed(blob);
+    await _touchWraps(seedWrapEmail: wrap.email);
+  }
 
   /// Re-wrap the in-memory master seed under [newPassword].
   ///
   /// Unlike [changeVaultPassword] this proves nothing first, because in the
   /// one flow that needs it there is nothing left to prove: the seed is
   /// already in hand, having just been unwrapped with a recovery key. The
-  /// vault must be unlocked, which is the actual precondition.
+  /// vault must be unlocked, which is the actual precondition. [wrapEmail] is
+  /// the account [newPassword] is derived for, null for a typed one.
   Future<({bool success, String? error})> rewrapSeed({
     required String newPassword,
+    required String? wrapEmail,
   }) async {
     final masterSeedB64 = state.masterSeed;
     if (masterSeedB64 == null) {
@@ -147,6 +203,7 @@ mixin _VaultRecoveryMixin on Cubit<VaultState> {
           salt: CryptoRepository.toBase64(salt),
         ),
       );
+      await _touchWraps(seedWrapEmail: wrapEmail);
       return (success: true, error: null);
     } catch (e) {
       HelperMethods.printDebug('[Vault] rewrapSeed error: $e');

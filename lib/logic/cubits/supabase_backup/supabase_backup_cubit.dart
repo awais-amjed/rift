@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthState, User;
 
+import '../../../data/classes/api_response.dart';
 import '../../../data/classes/notice.dart';
 import '../../../data/enums/auth_status.dart';
 import '../../../data/enums/error_code.dart';
@@ -92,6 +93,18 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
 
   @override
   Timer? _autoBackupTimer;
+
+  /// Set while a password change or reset is between re-wrapping the seed
+  /// here and GoTrue answering. An automatic backup waits it out: uploaded in
+  /// that window, a wrap the account might yet refuse reached the cloud, and
+  /// putting the old one back here did not put it back there.
+  @override
+  bool _wrapChangeInFlight = false;
+
+  /// The address whose recovery code made the session account recovery is
+  /// in, so a wrong recovery key can be tried again without a new code.
+  @override
+  String? _recoveryVerifiedFor;
 
   StreamSubscription<AuthState>? _authSub;
   StreamSubscription<VaultState>? _vaultSub;
@@ -242,8 +255,6 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
     final backupJson = downloadResponse.data as String?;
     final vaultUnlocked = _vaultCubit.state.status == AuthStatus.unlocked;
 
-    if (vaultUnlocked) await _wrapSeedUnderAccount();
-
     if (backupJson != null) {
       if (!vaultUnlocked) {
         await _importPendingBackup(backupJson);
@@ -251,12 +262,15 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
         // This identity's own backup — from here, or another device holding
         // the same seed. Nothing to choose between: combined and uploaded the
         // way every later backup is.
+        await _wrapSeedUnderAccount();
         await pullFromCloud();
         await _uploadBackup(successMessage: 'Account connected. Backup saved.');
       } else {
         // Two different identities: the user must choose (see resolvers).
-        _pendingCloudBackup = backupJson;
-        emit(state.copyWith(isProcessing: false, cloudBackupConflict: true));
+        // Nothing is re-wrapped until they have: this vault's own password
+        // stopped opening it here the moment the account's was put on it,
+        // whichever they went on to keep.
+        _raiseConflict(backupJson, tell: false);
       }
       return;
     }
@@ -265,7 +279,10 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
     if (!vaultUnlocked) {
       // Brand-new user: create the vault with the derived password so the
       // account password is the only password they ever have.
-      await _vaultCubit.createVault(_accountVaultPassword!);
+      await _vaultCubit.createVault(
+        _accountVaultPassword!,
+        accountEmail: state.email,
+      );
       if (_vaultCubit.state.status != AuthStatus.unlocked) {
         emit(
           state.copyWith(
@@ -275,6 +292,8 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
         );
         return;
       }
+    } else {
+      await _wrapSeedUnderAccount();
     }
     await _uploadBackup(successMessage: 'Account connected. Backup saved.');
   }
@@ -288,11 +307,22 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
   ///
   /// The seed is in memory, so nothing has to be proved first. The check
   /// costs one Argon2id run per sign-in, and the re-wrap a second, once.
+  @override
   Future<void> _wrapSeedUnderAccount() async {
     final derived = _accountVaultPassword;
-    if (derived == null) return;
-    if (await _vaultCubit.verifyVaultPassword(derived)) return;
-    final result = await _vaultCubit.rewrapSeed(newPassword: derived);
+    final email = state.email;
+    if (derived == null || email == null) return;
+    if (await _vaultCubit.verifyVaultPassword(derived)) {
+      // Wrapped for the account before that was recorded.
+      if (await _vaultCubit.seedWrapEmail() != email) {
+        await _vaultCubit.noteSeedWrapEmail(email);
+      }
+      return;
+    }
+    final result = await _vaultCubit.rewrapSeed(
+      newPassword: derived,
+      wrapEmail: email,
+    );
     if (!result.success) {
       HelperMethods.printDebug(
         '[SupabaseBackup] re-wrap under the account failed: ${result.error}',
@@ -302,8 +332,52 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
 
   // ── Shared internals ──────────────────────────────────────
 
+  /// Puts this device's vault in the cloud. True when it got there.
+  ///
+  /// Looks first, unless [_replaceCloudBackup] — the one answer to a conflict that is
+  /// meant to overwrite. A backup of another identity is never replaced by
+  /// anything else: it raises the conflict again. It used to be replaced by
+  /// whatever upload came next — a server joined before the question was
+  /// answered, a restart that forgot it was asked, the vault made after a
+  /// reset — and the other identity was gone. A backup of this one first
+  /// lends this device any newer wraps it holds ([VaultCubit.syncWraps]), so
+  /// this upload does not put old ones back.
   @override
-  Future<void> _uploadBackup({required String successMessage}) async {
+  Future<bool> _uploadBackup({required String successMessage}) =>
+      _upload(successMessage: successMessage, replaceCloud: false);
+
+  /// The conflict's "keep this device": the one upload that does not look.
+  @override
+  Future<bool> _replaceCloudBackup({required String successMessage}) =>
+      _upload(successMessage: successMessage, replaceCloud: true);
+
+  Future<bool> _upload({
+    required String successMessage,
+    required bool replaceCloud,
+  }) async {
+    if (!replaceCloud) {
+      final cloud = await _repo.downloadBackup();
+      if (!cloud.success) {
+        emit(
+          state.copyWith(
+            isProcessing: false,
+            error:
+                cloud.error ??
+                "Couldn't reach your account to check its backup.",
+          ),
+        );
+        return false;
+      }
+      final cloudJson = cloud.data as String?;
+      if (cloudJson != null) {
+        if (!await _vaultCubit.isBackupOfThisVault(cloudJson)) {
+          _raiseConflict(cloudJson);
+          return false;
+        }
+        await _vaultCubit.syncWraps(cloudJson);
+      }
+    }
+
     final export = await _vaultCubit.exportBackup();
     if (!export.success || export.content == null) {
       emit(
@@ -312,7 +386,7 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
           error: export.error ?? 'Failed to export backup',
         ),
       );
-      return;
+      return false;
     }
 
     final response = await _repo.uploadBackup(export.content!);
@@ -321,8 +395,53 @@ class SupabaseBackupCubit extends Cubit<SupabaseBackupState>
         '[SupabaseBackup] uploadBackup failed: ${response.error}',
       );
       emit(state.copyWith(isProcessing: false, error: response.error));
-      return;
+      return false;
     }
     emit(state.copyWith(isProcessing: false, successMessage: successMessage));
+    return true;
+  }
+
+  /// The account's backup is another identity's: hold it for the person to
+  /// choose, and stop backing up until they have. [tell] puts up a notice,
+  /// for when this is found away from the page that asks.
+  @override
+  void _raiseConflict(String backupJson, {bool tell = true}) {
+    _pendingCloudBackup = backupJson;
+    final already = state.cloudBackupConflict;
+    emit(
+      state.copyWith(
+        isProcessing: false,
+        cloudBackupConflict: true,
+        notice: (tell && !already)
+            ? Notice.info(
+                'Backups paused',
+                "Your account's cloud backup holds a different identity "
+                    "from this device's. Choose which to keep in Settings, "
+                    'under Account & backup.',
+                duration: Notice.long,
+              )
+            : null,
+      ),
+    );
+  }
+
+  /// Makes sure the cloud holds this device's vault, before signing the
+  /// device out wipes it. True only when a fresh download proves it.
+  ///
+  /// "Sign out of this device" promises that signing back in restores
+  /// everything, and that is only true when the backup is this vault's. A
+  /// first upload that failed, or a backup of another identity, made that
+  /// promise false, and the wipe that followed lost the seed for good.
+  Future<bool> confirmCloudHoldsVault() async {
+    if (!state.isSignedIn) return false;
+    if (_vaultCubit.state.status != AuthStatus.unlocked) return false;
+    emit(state.copyWith(isProcessing: true, clearMessage: true));
+    await pullFromCloud();
+    if (!await _uploadBackup(successMessage: 'Backup saved.')) return false;
+    final check = await _repo.downloadBackup();
+    final json = check.success ? check.data as String? : null;
+    final held = json != null && await _vaultCubit.isBackupOfThisVault(json);
+    emit(state.copyWith(isProcessing: false));
+    return held;
   }
 }

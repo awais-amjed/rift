@@ -151,8 +151,9 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
 
   /// Whether this identity has joined a server at [host] before. Leaving one
   /// keeps the host, since the profile stays on the server.
-  Future<bool> _joinedHost(String host) async =>
-      (await getJoinedServers()).any((s) => s.url == host);
+  Future<bool> _joinedHost(String host) async => (await getJoinedServers()).any(
+    (s) => VaultCubit.joinedHostOf(s.url) == host,
+  );
 
   /// Sign in to the server at [url] and register there, with central's pass
   /// for [url] if [withPass].

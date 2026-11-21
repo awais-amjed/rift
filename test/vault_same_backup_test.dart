@@ -14,6 +14,9 @@ class _SeedStorage extends SecureStorageRepository {
   _SeedStorage(this.seed);
 
   @override
+  Future<void> finishInterruptedReplace() async {}
+
+  @override
   Future<String?> getMasterSeed() async => seed;
 
   @override

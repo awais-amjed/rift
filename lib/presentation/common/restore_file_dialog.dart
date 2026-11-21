@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../data/constants.dart';
+import '../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../logic/cubits/vault/vault_cubit.dart';
 import '../../logic/helper_methods.dart';
 import '../theme/app_text.dart';
@@ -10,6 +11,7 @@ import '../theme/theme_context.dart';
 import 'app_button.dart';
 import 'app_modal.dart';
 import 'app_text_field.dart';
+import 'confirm_dialog.dart';
 import 'message_banner.dart';
 
 /// Dialog for restoring a vault from an exported backup file.
@@ -21,6 +23,11 @@ import 'message_banner.dart';
 /// one and then the other would mean reporting whichever failed last as the
 /// reason — telling somebody their recovery key is wrong when what they typed
 /// was a password.
+///
+/// The password is a different matter. A file exported on an account has its
+/// seed wrapped under the password derived for that account, so the account's
+/// email is asked for beside it, and filled in when this device is signed in:
+/// without it such a file opened only with the recovery key.
 class RestoreFileDialog extends StatefulWidget {
   const RestoreFileDialog({super.key});
 
@@ -30,14 +37,23 @@ class RestoreFileDialog extends StatefulWidget {
 
 class _RestoreFileDialogState extends State<RestoreFileDialog> {
   final _passwordController = TextEditingController();
+  final _emailController = TextEditingController();
   XFile? _file;
   String? _error;
   bool _isProcessing = false;
   bool _useRecoveryKey = false;
 
   @override
+  void initState() {
+    super.initState();
+    _emailController.text =
+        context.read<SupabaseBackupCubit>().state.email ?? '';
+  }
+
+  @override
   void dispose() {
     _passwordController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -78,10 +94,36 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
     try {
       final vault = context.read<VaultCubit>();
       final content = await file.readAsString();
+
+      // Over a vault that is here, a file of another identity replaces it,
+      // and that is asked first: it used to happen without a word.
+      if (vault.state.masterSeed != null &&
+          !await vault.isBackupOfThisVault(content)) {
+        if (!mounted) return;
+        final replace = await showConfirmDialog(
+          context: context,
+          title: "Replace this device's identity?",
+          message:
+              'This backup is a different identity from the one on this '
+              'device. Restoring it replaces the keys here, and with them '
+              'which servers and messages this device can open. Save a '
+              'backup file of this vault first if you may want it back.',
+          confirmLabel: 'Replace',
+          icon: Icons.swap_horiz_rounded,
+          isDestructive: true,
+        );
+        if (!replace || !mounted) {
+          if (mounted) setState(() => _isProcessing = false);
+          return;
+        }
+      }
+
+      final email = _emailController.text.trim();
       final result = await vault.importBackup(
         jsonContent: content,
         password: _useRecoveryKey ? null : _passwordController.text,
         recoveryKey: _useRecoveryKey ? _passwordController.text : null,
+        accountEmail: _useRecoveryKey || email.isEmpty ? null : email,
       );
 
       if (!mounted) return;
@@ -124,7 +166,7 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
           const SizedBox(height: 16),
           AppTextField(
             controller: _passwordController,
-            label: _useRecoveryKey ? 'Recovery key' : 'Vault password',
+            label: _useRecoveryKey ? 'Recovery key' : 'Password',
             hint: _useRecoveryKey
                 ? 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX'
                 : 'Password used when the backup was created',
@@ -135,6 +177,16 @@ class _RestoreFileDialogState extends State<RestoreFileDialog> {
             enabled: !_isProcessing,
             onEditingComplete: _isProcessing ? null : _restore,
           ),
+          if (!_useRecoveryKey) ...[
+            const SizedBox(height: 12),
+            AppTextField(
+              controller: _emailController,
+              label: 'Account email',
+              hint: 'Only if the backup was made signed in to an account',
+              enabled: !_isProcessing,
+              onEditingComplete: _isProcessing ? null : _restore,
+            ),
+          ],
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerLeft,

@@ -31,7 +31,9 @@ class VaultState {
   /// invite's Join step, Add server) lands on top of setup, asking to join a
   /// server before there is an identity to join with.
   bool get stillSettingUp =>
-      status == AuthStatus.fresh || pendingRecoveryKey != null;
+      status == AuthStatus.fresh ||
+      status == AuthStatus.unreadable ||
+      pendingRecoveryKey != null;
 
   VaultState copyWith({
     AuthStatus? status,

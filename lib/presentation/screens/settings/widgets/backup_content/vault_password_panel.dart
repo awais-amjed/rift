@@ -41,9 +41,9 @@ class _VaultPasswordPanelState extends State<VaultPasswordPanel> {
         const SectionTitle(label: 'Unlock cloud backup'),
         const SizedBox(height: 4),
         Text(
-          'This backup is protected by a separately chosen vault password '
-          '(privacy mode). Enter it once — it will be re-encrypted under '
-          'your account password afterwards.',
+          'Enter the password this backup was made with: your account '
+          'password, or the vault password it had in privacy mode. A privacy '
+          'mode one is put under your account password afterwards.',
           style: AppText.secondary.copyWith(
             color: theme.textTertiary,
             height: 1.5,
@@ -52,8 +52,8 @@ class _VaultPasswordPanelState extends State<VaultPasswordPanel> {
         const SizedBox(height: 16),
         AppTextField(
           controller: _passwordController,
-          label: 'Vault password',
-          hint: 'Enter your vault password',
+          label: 'Password',
+          hint: 'The password this backup was made with',
           obscureText: true,
           enabled: !isProcessing,
           onEditingComplete: isProcessing

@@ -37,6 +37,17 @@ mixin _SupabaseBackupAuthMixin on Cubit<SupabaseBackupState> {
       emit(state.copyWith(error: CentralHandle.rule));
       return;
     }
+    // Here and not only on the forms: Settings' sign-up form checks nothing,
+    // and this password is the one that opens the backup.
+    if (password.length < minPasswordLength) {
+      emit(
+        state.copyWith(
+          error:
+              'Use at least $minPasswordLength characters for your password.',
+        ),
+      );
+      return;
+    }
     emit(state.copyWith(isProcessing: true, clearMessage: true));
 
     final availability = await _repo.isHandleAvailable(normalizedHandle);
@@ -191,14 +202,19 @@ mixin _SupabaseBackupAuthMixin on Cubit<SupabaseBackupState> {
     );
   }
 
-  /// Signs out of the central server. The local vault is untouched.
+  /// The shortest password an account takes, as onboarding and Change
+  /// password ask.
+  static const int minPasswordLength = 8;
+
+  /// Signs out of the central server. The local vault is untouched. True
+  /// once the session is gone from this device.
   ///
   /// This device's push registration goes first, while the session can still
   /// delete it. A token stays with the account that registered it (central
   /// refuses another account's claim on it), so one left behind went on
   /// waking this phone for the account that left, and the next account to
   /// sign in here was never rung.
-  Future<void> signOut() async {
+  Future<bool> signOut() async {
     _intentionalSignOut = true;
     emit(state.copyWith(isProcessing: true, clearMessage: true));
     final token = PushService.isSupported
@@ -213,16 +229,21 @@ mixin _SupabaseBackupAuthMixin on Cubit<SupabaseBackupState> {
       }
     }
     final response = await _repo.signOut();
-    if (!response.success) {
+    // GoTrue drops the session here before it tells the server, so a failure
+    // offline still signed this device out. Read as a failure, the page went
+    // on saying signed in.
+    if (!response.success && _repo.currentUser != null) {
       HelperMethods.printDebug(
         '[SupabaseBackup] signOut failed: ${response.error}',
       );
+      _intentionalSignOut = false;
       emit(state.copyWith(isProcessing: false, error: response.error));
-      return;
+      return false;
     }
     _accountVaultPassword = null;
     _pendingCloudBackup = null;
     _autoBackupTimer?.cancel();
     emit(const SupabaseBackupState());
+    return true;
   }
 }

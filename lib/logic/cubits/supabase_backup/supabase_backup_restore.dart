@@ -10,7 +10,8 @@ mixin _SupabaseBackupRestoreMixin on Cubit<SupabaseBackupState> {
   set _pendingCloudBackup(String? value);
 
   /// Implemented by the cubit and the transfer mixin respectively.
-  Future<void> _uploadBackup({required String successMessage});
+  Future<bool> _replaceCloudBackup({required String successMessage});
+  Future<void> _wrapSeedUnderAccount();
   void autoBackup();
 
   /// Downloads the cloud backup and imports it into the vault.
@@ -59,6 +60,8 @@ mixin _SupabaseBackupRestoreMixin on Cubit<SupabaseBackupState> {
         password: derived,
       );
       if (result.success) {
+        final email = state.email;
+        if (email != null) await _vaultCubit.noteSeedWrapEmail(email);
         _pendingCloudBackup = null;
         emit(
           state.copyWith(
@@ -74,7 +77,12 @@ mixin _SupabaseBackupRestoreMixin on Cubit<SupabaseBackupState> {
     emit(state.copyWith(isProcessing: false, needsVaultPassword: true));
   }
 
-  /// Completes a pending import with a manually entered vault password.
+  /// Completes a pending import with a password typed into the prompt.
+  ///
+  /// The account's own password is tried as well as the one typed: the
+  /// prompt is also where a restore lands after a restart, when the derived
+  /// password is no longer in memory, and it refused the account password
+  /// there.
   Future<void> submitVaultPassword(String vaultPassword) async {
     final backupJson = _pendingCloudBackup;
     if (backupJson == null) return;
@@ -83,6 +91,7 @@ mixin _SupabaseBackupRestoreMixin on Cubit<SupabaseBackupState> {
     final result = await _vaultCubit.importBackup(
       jsonContent: backupJson,
       password: vaultPassword,
+      accountEmail: state.email,
     );
     if (result.success) {
       _pendingCloudBackup = null;
@@ -93,8 +102,11 @@ mixin _SupabaseBackupRestoreMixin on Cubit<SupabaseBackupState> {
           successMessage: 'Backup restored from your account.',
         ),
       );
-      // Re-encrypt under the derived password so future restores are silent.
-      await _reencryptUnderAccountPassword(vaultPassword);
+      // Re-encrypt under the derived password so future restores are silent,
+      // when what opened it was a privacy-mode password and not the account's.
+      if (await _vaultCubit.seedWrapEmail() == null) {
+        await _reencryptUnderAccountPassword(vaultPassword);
+      }
     } else {
       emit(
         state.copyWith(
@@ -106,6 +118,9 @@ mixin _SupabaseBackupRestoreMixin on Cubit<SupabaseBackupState> {
   }
 
   /// Conflict resolver: keep the local vault, overwriting the cloud backup.
+  ///
+  /// The one upload that may replace another identity's backup, and so the
+  /// point where this vault takes the account's password.
   Future<void> keepLocalVault() async {
     _pendingCloudBackup = null;
     emit(
@@ -115,7 +130,8 @@ mixin _SupabaseBackupRestoreMixin on Cubit<SupabaseBackupState> {
         clearMessage: true,
       ),
     );
-    await _uploadBackup(
+    await _wrapSeedUnderAccount();
+    await _replaceCloudBackup(
       successMessage: 'Cloud backup replaced with this device\'s vault.',
     );
   }
@@ -156,6 +172,7 @@ mixin _SupabaseBackupRestoreMixin on Cubit<SupabaseBackupState> {
     final result = await _vaultCubit.changeVaultPassword(
       oldPassword: oldPassword,
       newPassword: derived,
+      newWrapEmail: state.email,
     );
     if (!result.success) {
       HelperMethods.printDebug(

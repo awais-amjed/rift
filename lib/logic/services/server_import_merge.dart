@@ -49,9 +49,12 @@ class ServerImportMerge {
       // and nothing about which servers on it, and the honest reading is to
       // keep every one this device already knows there. Picking one and
       // discarding its neighbours is what the URL match used to do.
+      // It recorded them as bare hosts, so a server here is matched by its
+      // URL's host: compared whole, every one was dropped.
       if (id == null) {
         for (final server in existing) {
-          if (server.supabaseUrl == url) {
+          if (server.supabaseUrl == url ||
+              Uri.tryParse(server.supabaseUrl)?.host == url) {
             keep(server.copyWith(keyVersion: keyVersion, tokenIssuedAt: stale));
           }
         }

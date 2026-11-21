@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../classes/encrypted_seed.dart';
 import '../classes/encrypted_vault.dart';
+import '../classes/stored_vault.dart';
 
 /// Repository wrapping platform-secure key/value storage.
 ///
@@ -46,6 +47,9 @@ class SecureStorageRepository {
       'joined_servers',
       'recovery_seed',
       'pending_recovery_key',
+      'wraps_at',
+      'seed_wrap_email',
+      'vault_journal',
     ])
       '$namespacePrefix$name',
   };
@@ -56,11 +60,95 @@ class SecureStorageRepository {
   String get _keyJoinedServers => '${namespacePrefix}joined_servers';
   String get _keyRecoverySeed => '${namespacePrefix}recovery_seed';
   String get _keyPendingRecoveryKey => '${namespacePrefix}pending_recovery_key';
+  String get _keyWrapsAt => '${namespacePrefix}wraps_at';
+  String get _keySeedWrapEmail => '${namespacePrefix}seed_wrap_email';
+  String get _keyVaultJournal => '${namespacePrefix}vault_journal';
 
   final FlutterSecureStorage _storage;
 
+  /// `resetOnError: false` because the plugin's default answers a value it
+  /// cannot decrypt on Android by deleting *everything* it holds and reading
+  /// back null: a keystore hiccup became a device with no vault, which the app
+  /// then offered to create afresh. A read that fails now throws, and the
+  /// vault says it cannot read its keys instead (`AuthStatus.unreadable`).
   SecureStorageRepository({FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
+    : _storage =
+          storage ??
+          const FlutterSecureStorage(
+            aOptions: AndroidOptions(resetOnError: false),
+          );
+
+  // ── Whole vault ──────────────────────────────────────────
+
+  /// Replaces every stored value of the vault with [vault], as one change.
+  ///
+  /// The record is written whole into one value first and taken away last,
+  /// so a kill anywhere between leaves either the old vault untouched or the
+  /// journal for [finishInterruptedReplace] to apply on the next start.
+  Future<void> replaceVault(StoredVault vault) async {
+    await _storage.write(
+      key: _keyVaultJournal,
+      value: jsonEncode(vault.toJson()),
+    );
+    await _apply(vault);
+    await _storage.delete(key: _keyVaultJournal);
+  }
+
+  /// Applies a [replaceVault] that a kill cut short. Called before the vault
+  /// is read at start; does nothing when there was none.
+  Future<void> finishInterruptedReplace() async {
+    final raw = await _storage.read(key: _keyVaultJournal);
+    if (raw == null) return;
+    await _apply(StoredVault.fromJson(jsonDecode(raw) as Map<String, dynamic>));
+    await _storage.delete(key: _keyVaultJournal);
+  }
+
+  Future<void> _apply(StoredVault v) async {
+    await _saveJoinedServers(v.joinedServers);
+    await saveEncryptedSeed(v.seed);
+    await saveEncryptedVault(v.vault);
+    if (v.recovery != null) {
+      await saveRecoverySeed(v.recovery!);
+    } else {
+      await deleteRecoverySeed();
+    }
+    if (v.pendingRecoveryKey != null) {
+      await savePendingRecoveryKey(v.pendingRecoveryKey!);
+    } else {
+      await clearPendingRecoveryKey();
+    }
+    await saveWrapsAt(v.wrapsAt);
+    await saveSeedWrapEmail(v.seedWrapEmail);
+    // Last: a seed present is what makes a start read the vault as there.
+    await saveMasterSeed(v.masterSeed);
+  }
+
+  // ── Wraps ─────────────────────────────────────────────────
+
+  /// When the seed and recovery wraps last changed here, in milliseconds.
+  ///
+  /// Each device uploads the wraps it holds, so without a clock a phone that
+  /// never heard of a new recovery key put the old one back in the cloud on
+  /// its next backup. A backup carries the clock with the wraps, and the
+  /// newer pair wins on both sides (`VaultCubit.compareWraps`). 0 means
+  /// unknown: older than anything that carries one.
+  Future<int> getWrapsAt() async =>
+      int.tryParse(await _storage.read(key: _keyWrapsAt) ?? '') ?? 0;
+
+  Future<void> saveWrapsAt(int at) =>
+      _storage.write(key: _keyWrapsAt, value: '$at');
+
+  /// The account whose derived password wraps the seed, or null when the
+  /// password typed into privacy mode wraps it directly.
+  ///
+  /// Kept because the email is the salt of that derivation and the session
+  /// that knew it can end: after the account was signed out elsewhere, Change
+  /// password refused the right password for good.
+  Future<String?> getSeedWrapEmail() => _storage.read(key: _keySeedWrapEmail);
+
+  Future<void> saveSeedWrapEmail(String? email) => email == null
+      ? _storage.delete(key: _keySeedWrapEmail)
+      : _storage.write(key: _keySeedWrapEmail, value: email);
 
   // ── Recovery key ─────────────────────────────────────────
 
@@ -72,6 +160,8 @@ class SecureStorageRepository {
   /// nullable rather than an error.
   Future<void> saveRecoverySeed(EncryptedSeed seed) =>
       _storage.write(key: _keyRecoverySeed, value: jsonEncode(seed.toJson()));
+
+  Future<void> deleteRecoverySeed() => _storage.delete(key: _keyRecoverySeed);
 
   Future<EncryptedSeed?> getRecoverySeed() async {
     final raw = await _storage.read(key: _keyRecoverySeed);
@@ -199,5 +289,8 @@ class SecureStorageRepository {
     _storage.delete(key: _keyJoinedServers),
     _storage.delete(key: _keyRecoverySeed),
     _storage.delete(key: _keyPendingRecoveryKey),
+    _storage.delete(key: _keyWrapsAt),
+    _storage.delete(key: _keySeedWrapEmail),
+    _storage.delete(key: _keyVaultJournal),
   ]);
 }

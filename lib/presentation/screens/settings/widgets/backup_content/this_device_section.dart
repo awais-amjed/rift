@@ -35,8 +35,14 @@ class ThisDeviceSection extends StatelessWidget {
   });
 
   /// Signs out of the account AND removes the vault + server list from this
-  /// device, returning to onboarding. The cloud backup is untouched, so
-  /// signing back in restores everything.
+  /// device, returning to onboarding.
+  ///
+  /// Only once a fresh download shows the cloud holds this vault
+  /// ([SupabaseBackupCubit.confirmCloudHoldsVault]): the dialog promises that
+  /// signing back in restores everything, and a backup that never uploaded,
+  /// or one of another identity, made the wipe after it permanent. Nor after
+  /// a sign-out that did not happen, which left this device's session on an
+  /// account whose vault it had just thrown away.
   Future<void> _signOutOfDevice(BuildContext context) async {
     final confirmed = await showConfirmDialog(
       context: context,
@@ -56,7 +62,24 @@ class ThisDeviceSection extends StatelessWidget {
     final vaultCubit = context.read<VaultCubit>();
     final navigator = Navigator.of(context);
 
-    await backupCubit.signOut();
+    if (!await backupCubit.confirmCloudHoldsVault()) {
+      if (!context.mounted) return;
+      final anyway = await showConfirmDialog(
+        context: context,
+        title: "Your backup isn't confirmed",
+        message:
+            "Rift couldn't confirm that your cloud backup holds this vault. "
+            'If you sign out now and it does not, this identity and your '
+            'servers are lost for good. Save a backup file first, or try '
+            'again when you are online.',
+        confirmLabel: 'Sign out anyway',
+        icon: Icons.warning_amber_rounded,
+        isDestructive: true,
+      );
+      if (!anyway || !context.mounted) return;
+    }
+
+    if (!await backupCubit.signOut()) return;
     await serverCubit.reset();
     await vaultCubit.resetVault();
 

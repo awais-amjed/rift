@@ -48,6 +48,9 @@ class _FakeRepo implements SupabaseBackupRepository {
   }
 
   @override
+  Future<APIResponse> downloadBackup() async => APIResponse.success(null);
+
+  @override
   Future<APIResponse> uploadBackup(String backupJson) async {
     uploads++;
     return APIResponse.success(null);
@@ -78,9 +81,24 @@ class _FakeVault extends VaultCubit {
 
   String get wrappedUnder => blob.ciphertext;
 
+  String? wrapEmail;
+
+  @override
+  Future<String?> seedWrapEmail() async => wrapEmail;
+
+  @override
+  Future<void> noteSeedWrapEmail(String email) async => wrapEmail = email;
+
+  @override
+  Future<bool> isBackupOfThisVault(String backupJson) async => true;
+
+  @override
+  Future<WrapsSync> syncWraps(String backupJson) async => WrapsSync.same;
+
   @override
   Future<({bool success, String? error})> rewrapSeed({
     required String newPassword,
+    required String? wrapEmail,
   }) async {
     if (rewrapFails) return (success: false, error: 'nope');
     blob = EncryptedSeed(ciphertext: newPassword, iv: '', salt: '');
@@ -88,10 +106,13 @@ class _FakeVault extends VaultCubit {
   }
 
   @override
-  Future<EncryptedSeed?> storedSeedBlob() async => blob;
+  Future<({EncryptedSeed? blob, String? email})> storedSeedWrap() async =>
+      (blob: blob, email: wrapEmail);
 
   @override
-  Future<void> restoreSeedBlob(EncryptedSeed blob) async => this.blob = blob;
+  Future<void> restoreSeedWrap(
+    ({EncryptedSeed? blob, String? email}) wrap,
+  ) async => blob = wrap.blob!;
 
   @override
   Future<({bool success, String? error})> reissueRecoveryKey() async {

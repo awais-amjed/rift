@@ -111,8 +111,9 @@ class _RecoveryKeyPanelState extends State<RecoveryKeyPanel> {
           const SizedBox(height: 12),
           const MessageBanner(
             message:
-                'The old key stops working immediately, including on backups '
-                'already saved. You will be shown the new one once.',
+                'The old key stops working here and in your cloud backup. '
+                'Backup files saved before keep opening with it. You will be '
+                'shown the new one once.',
             kind: MessageBannerKind.caution,
           ),
           const SizedBox(height: 14),

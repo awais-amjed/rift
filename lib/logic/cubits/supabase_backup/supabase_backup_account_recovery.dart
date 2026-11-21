@@ -21,6 +21,8 @@ mixin _SupabaseBackupAccountRecoveryMixin on Cubit<SupabaseBackupState> {
   VaultCubit get _vaultCubit;
 
   set _accountVaultPassword(String? value);
+  String? get _recoveryVerifiedFor;
+  set _recoveryVerifiedFor(String? value);
 
   /// Open the recovery flow, carrying over whatever address was typed.
   ///
@@ -66,16 +68,16 @@ mixin _SupabaseBackupAccountRecoveryMixin on Cubit<SupabaseBackupState> {
     );
   }
 
-  /// Finish: prove the address, set a new password, and open the vault with
-  /// the recovery key.
+  /// Finish: prove the address, open the backup with the recovery key, and
+  /// only then set a new password.
   ///
   /// Ordered so nothing irreversible happens before the recoverable parts are
-  /// known to work. In particular the recovery key is checked against the real
-  /// backup *after* the password is set, because there is no way to check it
-  /// before downloading the backup, and the backup needs a session. A wrong
-  /// key at that point leaves the account usable with its new password and the
-  /// vault still waiting — which is recoverable by trying again, unlike any
-  /// other ordering.
+  /// known to work. The code's session is enough to download the backup, so
+  /// the key is checked against it, in memory, before the password changes. It
+  /// used to be checked after: a mistyped key left the password changed and
+  /// the code spent, and trying again asked for that code once more. A code
+  /// proved once is not asked for again ([_recoveryVerifiedFor]), so a wrong
+  /// key can simply be typed again.
   Future<void> completeAccountRecovery({
     required String code,
     required String recoveryKey,
@@ -95,13 +97,35 @@ mixin _SupabaseBackupAccountRecoveryMixin on Cubit<SupabaseBackupState> {
 
     emit(state.copyWith(isProcessing: true, clearMessage: true));
 
-    final verified = await _repo.verifyRecoveryCode(
-      email: email,
-      token: code.trim(),
-    );
-    if (!verified.success) {
-      emit(state.copyWith(isProcessing: false, error: verified.error));
+    if (_recoveryVerifiedFor != email || _repo.currentUser == null) {
+      final verified = await _repo.verifyRecoveryCode(
+        email: email,
+        token: code.trim(),
+      );
+      if (!verified.success) {
+        emit(state.copyWith(isProcessing: false, error: verified.error));
+        return;
+      }
+      _recoveryVerifiedFor = email;
+    }
+
+    final downloaded = await _repo.downloadBackup();
+    if (!downloaded.success) {
+      emit(state.copyWith(isProcessing: false, error: downloaded.error));
       return;
+    }
+    final backupJson = downloaded.data as String?;
+
+    // The key against the real backup, before anything is changed.
+    if (backupJson != null) {
+      final opened = await _vaultCubit.opensWithRecoveryKey(
+        backupJson: backupJson,
+        recoveryKey: recoveryKey,
+      );
+      if (opened != null) {
+        emit(state.copyWith(isProcessing: false, error: opened));
+        return;
+      }
     }
 
     // The session from the code is itself the proof, so no nonce here.
@@ -114,14 +138,8 @@ mixin _SupabaseBackupAccountRecoveryMixin on Cubit<SupabaseBackupState> {
       emit(state.copyWith(isProcessing: false, error: updated.error));
       return;
     }
+    _recoveryVerifiedFor = null;
 
-    final downloaded = await _repo.downloadBackup();
-    if (!downloaded.success) {
-      emit(state.copyWith(isProcessing: false, error: downloaded.error));
-      return;
-    }
-
-    final backupJson = downloaded.data as String?;
     if (backupJson == null) {
       // Nothing stored: the account is recovered and there is no vault to
       // open. Signing in normally will make one.
@@ -158,6 +176,7 @@ mixin _SupabaseBackupAccountRecoveryMixin on Cubit<SupabaseBackupState> {
     // device would have to come through recovery all over again.
     final rewrapped = await _vaultCubit.rewrapSeed(
       newPassword: keys.vaultPassword,
+      wrapEmail: email,
     );
     if (!rewrapped.success) {
       emit(state.copyWith(isProcessing: false, error: rewrapped.error));
@@ -175,13 +194,20 @@ mixin _SupabaseBackupAccountRecoveryMixin on Cubit<SupabaseBackupState> {
     await _uploadBackup(successMessage: 'Account recovered.');
   }
 
-  /// Leave the recovery flow.
-  void cancelAccountRecovery() => emit(
-    state.copyWith(
-      accountRecovery: AccountRecoveryStage.idle,
-      clearMessage: true,
-    ),
-  );
+  /// Leave the recovery flow. A session a proved code opened, for a recovery
+  /// that went no further, is let go with it.
+  Future<void> cancelAccountRecovery() async {
+    final halfway = _recoveryVerifiedFor != null;
+    _recoveryVerifiedFor = null;
+    emit(
+      state.copyWith(
+        accountRecovery: AccountRecoveryStage.idle,
+        clearMessage: true,
+      ),
+    );
+    if (halfway) await signOut();
+  }
 
-  Future<void> _uploadBackup({required String successMessage});
+  Future<bool> _uploadBackup({required String successMessage});
+  Future<bool> signOut();
 }

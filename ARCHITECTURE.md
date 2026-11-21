@@ -94,14 +94,35 @@ These properties are load-bearing:
   in the profile's folder under Local AppData (`ProfileSecureStorage`), not the
   plugin's own file in Roaming AppData, which a domain copies to every PC the
   person signs in to.
+- **Storage that cannot be read is not "no vault".** A locked keyring, or a
+  keystore error, is `AuthStatus.unreadable`: a screen that says so and tries
+  again, never onboarding, which would make a new identity over the one there.
+  On Android the plugin is told not to wipe itself on a read error
+  (`resetOnError: false`), which was its default. Creating or restoring a vault
+  writes every stored value as one record (`SecureStorageRepository.replaceVault`,
+  a journal a start finishes), so a kill midway cannot leave one vault's seed
+  beside another's wraps (review, Nov 22 2026).
 
 `rift_crypto` implements all of it, with no Flutter in it, and is the
 **reference implementation**: the wire vectors are generated from it, and the
 TypeScript and Rust bot SDKs are held to those vectors without reading a line of it.
 
-A **backup file** is portable JSON carrying three client-side-encrypted blobs.
+A **backup file** is portable JSON carrying client-side-encrypted blobs: the
+seed under the password, the seed under the recovery key, the server list, and
+those two wraps again, sealed under the seed's vault key with when they last
+changed and which account's password wraps the seed (`BackupFile.wraps`).
 Losing both the password and the recovery key loses all of it, and that is the
 trade being made rather than a gap.
+
+**The newer wraps win, wherever they meet.** Each device uploads the wraps it
+holds, so a phone that never heard of a recovery key replaced on the desktop put
+the old one back with its next backup: the new key stopped working and the retired
+one worked again. Now a device that meets a backup of its own vault with newer
+wraps adopts them (`VaultCubit.syncWraps`), and one holding newer wraps than the
+cloud pushes them. Only wraps sealed under the seed count, so a central cannot
+hand a device a pair of its choosing. Backups from before this carry no clock and
+are older than any device's own. Found in review and fixed Nov 22 2026, not yet
+seen across two real devices.
 
 ---
 
@@ -135,8 +156,11 @@ what encrypts the vault blob. Central holds a password verifier and a ciphertext
 it cannot open, and neither half yields the other. A vault made in privacy mode
 keeps its own password until the device signs in; from then on its seed is
 wrapped by the account password like any other, so a new device restores with
-nothing else typed. And a device signing in to a backup of its own vault — the
-same seed — combines the two rather than asking which identity to keep.
+nothing else typed. The vault keeps the account's email beside the wrap
+(`VaultCubit.seedWrapEmail`), since it is the salt of that derivation and the
+session that knew it can end; a file restored by hand asks for it beside the
+password. And a device signing in to a backup of its own vault — the same seed —
+combines the two rather than asking which identity to keep.
 
 A device whose vault is *another* identity's waits for the answer. Until the
 person picks one, Rift DMs publish nothing and read nothing: the account's
@@ -147,6 +171,15 @@ friends sealed to a vault that restoring the backup then threw away (found in
 review, Nov 21 2026). Keeping this device's vault replaces the backup, and the keys
 go up after it; restoring the backup replaces the seed in place, and Rift DMs set
 themselves up again under it.
+
+**Another identity's backup is overwritten only by that answer.** Every other
+upload looks first and stops at one, asking again instead
+(`SupabaseBackupCubit._uploadBackup`). The question used to live only in memory,
+so a server joined before it was answered, a restart, or the vault made after a
+reset uploaded over the other identity. The seed is not put under the account's
+password until the answer either. "Sign out of this device" wipes the vault only
+once a fresh download proves the backup is this vault, or the person says to
+anyway; Reset vault signs out of the account first (review, Nov 22 2026).
 
 A **recovery key**, shown once at vault creation, is the second door. Central
 cannot reset a password into a readable vault — resetting the credential half

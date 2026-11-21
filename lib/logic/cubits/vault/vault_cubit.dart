@@ -8,6 +8,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 import '../../../data/classes/backup_file.dart';
 import '../../../data/classes/encrypted_seed.dart';
 import '../../../data/classes/encrypted_vault.dart';
+import '../../../data/classes/stored_vault.dart';
 import '../../../data/enums/auth_status.dart';
 import '../../../data/enums/error_code.dart';
 import '../../../data/repositories/secure_storage_repository.dart';
@@ -96,11 +97,49 @@ class VaultCubit extends Cubit<VaultState>
   // ── Vault persistence helpers ─────────────────────────────
 
   /// Adds a joined server entry and re-encrypts the vault blob.
+  ///
+  /// The list holds hosts. A host learnt from the cloud arrived as the server's
+  /// URL, so it is cut down to one here, or `_joinedHost` never matched it.
   @override
   Future<void> _addServerToVault(String host, {String version = 'v1'}) async {
-    await _storage.addJoinedServer(host, version);
+    await _storage.addJoinedServer(joinedHostOf(host), version);
     await _syncVaultBlob();
   }
+
+  /// [entry] as the host the joined list records, whether it was stored as
+  /// one or, before Nov 22 2026, as a whole URL.
+  static String joinedHostOf(String entry) {
+    if (!entry.contains('://')) return entry;
+    final host = Uri.tryParse(entry)?.host ?? '';
+    return host.isEmpty ? entry : host;
+  }
+
+  // ── Wraps ─────────────────────────────────────────────────
+
+  /// Marks the seed or recovery wrap as just changed, so a backup carrying an
+  /// older pair cannot put it back (`compareWraps`). [seedWrapEmail] is the
+  /// account the seed is now wrapped for, null for a typed password; a change
+  /// to the recovery wrap alone keeps the stored one ([keepEmail]).
+  @override
+  Future<void> _touchWraps({
+    String? seedWrapEmail,
+    bool keepEmail = false,
+  }) async {
+    final last = await _storage.getWrapsAt();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await _storage.saveWrapsAt(now > last ? now : last + 1);
+    if (!keepEmail) await _storage.saveSeedWrapEmail(seedWrapEmail);
+  }
+
+  /// The account whose derived password wraps the seed here, or null when a
+  /// typed password does. Its email is the salt of that derivation, which is
+  /// why it is kept after the session that knew it has gone.
+  Future<String?> seedWrapEmail() => _storage.getSeedWrapEmail();
+
+  /// Records that the seed is wrapped for [email]'s account, for a wrap made
+  /// before that was recorded.
+  Future<void> noteSeedWrapEmail(String email) =>
+      _storage.saveSeedWrapEmail(email);
 
   /// Records a host this identity has joined *elsewhere*, learnt from the
   /// cloud copy rather than from registering here.
@@ -151,6 +190,14 @@ class VaultCubit extends Cubit<VaultState>
       '[VaultCubit] resetVault() — wiping secure storage',
     );
     await _storage.deleteAll();
+    await _forgetIdentity();
+    emit(const VaultState(status: AuthStatus.fresh));
+  }
+
+  /// Takes away what this device kept of the identity that is leaving it:
+  /// by a reset, or by a backup of another identity restored over it.
+  @override
+  Future<void> _forgetIdentity() async {
     _identityCache.clear();
     _chatIdentityCache.clear();
     // Decrypted attachment bytes outlive the cubits that fetched them, so the
@@ -158,11 +205,10 @@ class VaultCubit extends Cubit<VaultState>
     await MediaStore.attachments.clear();
     // The pictures this device has seen say whom it has seen, on disk too.
     await MediaStore.images.clear();
-    // So do the conversations saved on this device, which the seed being
-    // wiped here is the only key to.
+    // So do the conversations saved on this device, which the seed going
+    // away is the only key to.
     await MessageCache.instance.clear();
     // And the clips of calls it kept, sealed under the same seed.
     await ClipLibrary.instance.wipe();
-    emit(const VaultState(status: AuthStatus.fresh));
   }
 }

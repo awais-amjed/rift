@@ -6,6 +6,7 @@ import '../../../data/constants.dart';
 import '../../../logic/cubits/app/app_cubit.dart';
 import '../../../logic/cubits/server/server_cubit.dart';
 import '../../../logic/cubits/settings_place/settings_place_cubit.dart';
+import '../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../logic/cubits/vault/vault_cubit.dart';
 import '../../../logic/services/host_platform.dart';
@@ -100,6 +101,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       isDestructive: true,
     );
     if (!confirmed || !mounted) return;
+    // Out of the account too. Left signed in, the vault made after the reset
+    // was this account's next backup, over the identity the dialog says the
+    // cloud keeps.
+    final backup = context.read<SupabaseBackupCubit>();
+    if (backup.state.isSignedIn && !await backup.signOut()) return;
+    if (!mounted) return;
     await context.read<ServerCubit>().reset();
     if (!mounted) return;
     await context.read<VaultCubit>().resetVault();

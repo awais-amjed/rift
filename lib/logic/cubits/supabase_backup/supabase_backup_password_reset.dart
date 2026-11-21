@@ -22,8 +22,16 @@ mixin _SupabaseBackupPasswordResetMixin on Cubit<SupabaseBackupState> {
   VaultCubit get _vaultCubit;
 
   set _accountVaultPassword(String? value);
+  set _wrapChangeInFlight(bool value);
 
-  Future<void> _uploadBackup({required String successMessage});
+  Future<bool> _uploadBackup({required String successMessage});
+
+  /// Implemented by [_SupabaseBackupPasswordMixin].
+  Future<bool> _landedAnyway(
+    APIResponse updated,
+    String email,
+    String authPassword,
+  );
 
   /// Step one: email a code to the address on the account.
   Future<void> beginPasswordReset() async {
@@ -60,25 +68,32 @@ mixin _SupabaseBackupPasswordResetMixin on Cubit<SupabaseBackupState> {
     );
 
     // 1. Local first, keeping the old wrap to put back.
-    final previous = await _vaultCubit.storedSeedBlob();
-    final rewrapped = await _vaultCubit.rewrapSeed(
-      newPassword: keys.vaultPassword,
-    );
-    if (!rewrapped.success) {
-      emit(state.copyWith(isProcessing: false, error: rewrapped.error));
-      return;
-    }
+    final previous = await _vaultCubit.storedSeedWrap();
+    _wrapChangeInFlight = true;
+    try {
+      final rewrapped = await _vaultCubit.rewrapSeed(
+        newPassword: keys.vaultPassword,
+        wrapEmail: email,
+      );
+      if (!rewrapped.success) {
+        emit(state.copyWith(isProcessing: false, error: rewrapped.error));
+        return;
+      }
 
-    // 2. GoTrue checks the code here, and refuses the password without it.
-    final updated = await _repo.updatePassword(
-      password: keys.authPassword,
-      nonce: code,
-    );
-    if (!updated.success) {
-      // 3. Back to the wrap the account's password still opens.
-      if (previous != null) await _vaultCubit.restoreSeedBlob(previous);
-      emit(state.copyWith(isProcessing: false, error: updated.error));
-      return;
+      // 2. GoTrue checks the code here, and refuses the password without it.
+      final updated = await _repo.updatePassword(
+        password: keys.authPassword,
+        nonce: code,
+      );
+      if (!updated.success &&
+          !await _landedAnyway(updated, email, keys.authPassword)) {
+        // 3. Back to the wrap the account's password still opens.
+        await _vaultCubit.restoreSeedWrap(previous);
+        emit(state.copyWith(isProcessing: false, error: updated.error));
+        return;
+      }
+    } finally {
+      _wrapChangeInFlight = false;
     }
     _accountVaultPassword = keys.vaultPassword;
 
@@ -93,11 +108,20 @@ mixin _SupabaseBackupPasswordResetMixin on Cubit<SupabaseBackupState> {
 
     emit(state.copyWith(passwordChange: PasswordChangeStage.idle));
 
-    // 4. The stored backup still holds the old wraps.
-    await _uploadBackup(
-      successMessage: reissued.success
-          ? 'Password changed.'
-          : 'Password changed. Replace your recovery key from this page.',
-    );
+    // 4. The stored backup still holds the old wraps. Should this fail, the
+    // next pull finds this device's wraps newer and pushes them.
+    final done = reissued.success
+        ? 'Password changed.'
+        : 'Password changed. Replace your recovery key from this page.';
+    if (!await _uploadBackup(successMessage: done) &&
+        !state.cloudBackupConflict) {
+      emit(
+        state.copyWith(
+          clearMessage: true,
+          successMessage:
+              '$done Your cloud backup will catch up when Rift can reach it.',
+        ),
+      );
+    }
   }
 }
