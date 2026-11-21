@@ -33,7 +33,9 @@ class _CallClipOpenerState extends State<CallClipOpener> {
     final seen = AppSeenListener.seenFrom(context);
     if (seen == _seen) return;
     _seen = seen;
-    _openNext();
+    // Told inside a build, and a route pushed from there marks the Overlay
+    // above while it is being built: wait for the frame to end.
+    if (seen) WidgetsBinding.instance.addPostFrameCallback((_) => _openNext());
   }
 
   void _openNext() {

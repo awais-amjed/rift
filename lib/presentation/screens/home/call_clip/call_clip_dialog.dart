@@ -26,6 +26,9 @@ import 'widgets/clip_preview_button.dart';
 import 'widgets/clip_trim_handles.dart';
 import 'widgets/clip_waveform.dart';
 
+/// Over the widget budget and one job: the trim view, its two endings (Save,
+/// Add to soundboard) sharing the cut.
+///
 /// A clip of the call, to trim and then save as a WAV or put on the call's
 /// soundboard as an MP3 (CALLS.md, "Clipping a call"). Opened by
 /// [CallClipOpener] in the call's server scope, with its own copy of the
@@ -181,7 +184,7 @@ class _CallClipDialogState extends State<CallClipDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final serverId = ServerScope.of(context).serverId;
+    final serverId = ServerScope.idOf(context);
     final canManage = context.select<ServerCubit, bool>(
       (cubit) =>
           cubit.state
