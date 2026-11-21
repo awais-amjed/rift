@@ -1,19 +1,16 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../../logic/services/call_clip/clip_library.dart';
-import '../../../../../theme/app_text.dart';
-import '../../../../../theme/theme_context.dart';
-import '../../../../home/call_clip/stored_clip_opener.dart';
-import '../../../../home/call_clip/widgets/clip_history_list.dart';
-import '../../section_title.dart';
-import '../../setting_toggle_row.dart';
+import '../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../theme/app_text.dart';
+import '../../../../theme/theme_context.dart';
+import '../section_title.dart';
+import '../setting_toggle_row.dart';
 import 'widgets/clip_length_choice.dart';
 
 /// Clipping a call (CALLS.md, "Clipping a call"): keeping the last stretch
-/// of what the call played, so the clip shortcut can save it or put it on the
-/// soundboard. Windows and Linux only ([HostPlatform.clipsCalls]).
+/// of what the call played, so the Clips button or the clip shortcut can save
+/// it or put it on the soundboard.
 ///
 /// The call is told: the hint says so before it is turned on, since that is
 /// when it matters.
@@ -36,7 +33,7 @@ class ClippingSection extends StatelessWidget {
           title: 'Keep the call for clips',
           description:
               'Save what was just said with the Clips button in a call, or '
-              'the clip shortcut, set in Keybinds.',
+              'the shortcut below.',
           value: on,
           onChanged: app.setClippingEnabled,
         ),
@@ -59,21 +56,6 @@ class ClippingSection extends StatelessWidget {
             onChanged: app.setClipIncludeMic,
           ),
         ],
-        // Shown with clipping off too: what was kept before stays until it
-        // is deleted, and this is where it can be, outside a call.
-        const SizedBox(height: 20),
-        Text(
-          'Recent clips',
-          style: AppText.strong.copyWith(color: context.theme.textPrimary),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'The last ${ClipLibrary.keep}, kept on this device, sealed with '
-          'your account. Open one to trim it again.',
-          style: AppText.secondary.copyWith(color: context.theme.textTertiary),
-        ),
-        const SizedBox(height: 8),
-        ClipHistoryList(onOpen: (clip) => openStoredClip(context, clip)),
       ],
     );
   }

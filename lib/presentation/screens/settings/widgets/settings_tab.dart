@@ -7,16 +7,23 @@ enum SettingsTab {
   general,
   appearance,
   voiceAndAudio,
+  clips,
   keybinds,
   backup,
   help,
   about;
 
   /// The tabs this device has. Keybinds are push-to-talk and the call keys,
-  /// which a phone and the web have none of.
+  /// which a phone and the web have none of; clips are Windows and Linux's
+  /// ([HostPlatform.clipsCalls]).
   static List<SettingsTab> get available => [
     for (final tab in values)
-      if (tab != keybinds || HostPlatform.isDesktop) tab,
+      if (switch (tab) {
+        keybinds => HostPlatform.isDesktop,
+        clips => HostPlatform.clipsCalls,
+        _ => true,
+      })
+        tab,
   ];
 }
 
@@ -33,6 +40,7 @@ extension SettingsTabLabel on SettingsTab {
     SettingsTab.appearance => 'Appearance',
     SettingsTab.general => 'General',
     SettingsTab.voiceAndAudio => 'Voice & audio',
+    SettingsTab.clips => 'Clips',
     SettingsTab.keybinds => 'Keybinds',
     SettingsTab.backup => 'Account & backup',
     SettingsTab.help => 'Help',
@@ -43,6 +51,7 @@ extension SettingsTabLabel on SettingsTab {
     SettingsTab.appearance => Icons.palette_outlined,
     SettingsTab.general => Icons.tune_rounded,
     SettingsTab.voiceAndAudio => Icons.headset_outlined,
+    SettingsTab.clips => Icons.content_cut_rounded,
     SettingsTab.keybinds => Icons.keyboard_outlined,
     SettingsTab.backup => Icons.cloud_outlined,
     SettingsTab.help => Icons.help_outline_rounded,

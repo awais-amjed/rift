@@ -112,7 +112,7 @@ mixin _ClippingMixin on Cubit<LiveKitState> {
       return;
     }
     if (!_appCubit.state.clippingEnabled) {
-      _clipNotice('Clipping is off', 'Turn it on in Settings, under Voice & audio.');
+      _clipNotice('Clipping is off', 'Turn it on in Settings, under Clips.');
       return;
     }
     final audio = _clipRecorder.snapshot();

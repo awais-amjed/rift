@@ -13,8 +13,8 @@ import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/logic/cubits/vault/vault_cubit.dart';
 import 'package:rift/logic/services/call_clip/clip_library.dart';
 import 'package:rift/presentation/common/app_switch.dart';
-import 'package:rift/presentation/screens/settings/widgets/voice_audio/clipping/clipping_section.dart';
-
+import 'package:rift/presentation/screens/settings/widgets/clips/clips_content.dart';
+import 'package:rift/presentation/screens/settings/widgets/settings_tab.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import 'support/memory_storage.dart';
@@ -27,8 +27,9 @@ class _UnlockedVault extends VaultCubit {
   }
 }
 
-/// Clipping in Voice & Audio: off until turned on, and once on, how far
-/// back a clip goes and whether your own voice is in it.
+/// Settings' Clips tab: off until turned on, and once on, how far back a
+/// clip goes and whether your own voice is in it; the clip shortcut; and the
+/// clips kept on this device.
 void main() {
   late Directory root;
   late ClipLibrary library;
@@ -57,11 +58,7 @@ void main() {
         ],
         child: MaterialApp(
           home: Scaffold(
-            body: SingleChildScrollView(
-              child: BlocBuilder<AppCubit, AppState>(
-                builder: (_, state) => ClippingSection(appState: state),
-              ),
-            ),
+            body: SingleChildScrollView(child: const ClipsContent()),
           ),
         ),
       ),
@@ -108,6 +105,24 @@ void main() {
     await tester.tap(find.byType(AppSwitch).last);
     await tester.pumpAndSettle();
     expect(app.state.clipIncludeMic, isTrue);
+  });
+
+  test('is a tab of its own, after Voice & audio, where calls clip', () {
+    final tabs = SettingsTab.available;
+    expect(tabs, contains(SettingsTab.clips));
+    expect(
+      tabs.indexOf(SettingsTab.clips),
+      tabs.indexOf(SettingsTab.voiceAndAudio) + 1,
+    );
+    expect(SettingsTab.clips.label, 'Clips');
+  });
+
+  testWidgets('shows the clip shortcut, to set here as in Keybinds', (
+    tester,
+  ) async {
+    await pump(tester);
+    expect(find.text('Shortcut'), findsOneWidget);
+    expect(find.text('Clip the call'), findsOneWidget);
   });
 
   testWidgets('lists the clips kept, with clipping off too', (tester) async {

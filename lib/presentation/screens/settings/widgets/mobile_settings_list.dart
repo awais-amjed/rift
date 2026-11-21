@@ -133,6 +133,22 @@ class MobileSettingsList extends StatelessWidget {
                     subtitle: 'Mic test, noise suppression, sounds',
                     onTap: () => onTabSelected(SettingsTab.voiceAndAudio),
                   ),
+                  // A desktop window narrowed to a phone's width lists these
+                  // too; a phone has neither.
+                  if (SettingsTab.available.contains(SettingsTab.clips))
+                    SettingsLinkRow(
+                      icon: SettingsTab.clips.icon,
+                      label: SettingsTab.clips.label,
+                      subtitle: 'Clip length, the shortcut, recent clips',
+                      onTap: () => onTabSelected(SettingsTab.clips),
+                    ),
+                  if (SettingsTab.available.contains(SettingsTab.keybinds))
+                    SettingsLinkRow(
+                      icon: SettingsTab.keybinds.icon,
+                      label: SettingsTab.keybinds.label,
+                      subtitle: 'Push-to-talk, call shortcuts',
+                      onTap: () => onTabSelected(SettingsTab.keybinds),
+                    ),
                   SettingsLinkRow(
                     icon: Icons.cloud_outlined,
                     label: SettingsTab.backup.label,

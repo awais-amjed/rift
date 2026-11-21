@@ -2125,7 +2125,7 @@ measured).
 
 ## Clipping a call — [Built November 2026, Windows and Linux]
 
-With clipping on (Settings, Voice & audio), Rift keeps the last 30 seconds,
+With clipping on (Settings, Clips), Rift keeps the last 30 seconds,
 1 minute or 2 minutes of the call as you heard it. The clip shortcut (a fourth
 call shortcut beside mute, deafen and leave, global like them) takes what is
 kept at that moment and opens a trim view. There you choose a part, play it,
@@ -2148,7 +2148,7 @@ switch and its line about the call being told.
 **The newest ten are kept on the device** (`ClipLibrary`), so a trim view
 closed unsaved loses nothing. Every press that keeps something adds it before
 the trim view opens, and the eleventh drops the oldest. The Clips card and
-Settings, Voice & audio, Clipping list them (`ClipHistoryCubit`); a row opens
+Settings' Clips tab list them (`ClipHistoryCubit`); a row opens
 the clip in the trim view again, in the scope of the server it was taken on
 while that is still on the list, so Add goes to that soundboard and nowhere
 else. Each can be deleted, or all at once after a question. A clip is the

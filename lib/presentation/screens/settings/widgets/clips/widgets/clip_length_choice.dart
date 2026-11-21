@@ -1,8 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 
-import '../../../../../../../logic/cubits/app/app_cubit.dart';
-import '../../../../../../common/app_dropdown.dart';
-import '../../../../../../common/setting_row.dart';
+import '../../../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../../common/app_dropdown.dart';
+import '../../../../../common/setting_row.dart';
 
 /// How far back a clip goes: one of [AppCubit.clipLengths].
 class ClipLengthChoice extends StatelessWidget {

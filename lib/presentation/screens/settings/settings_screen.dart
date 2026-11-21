@@ -20,6 +20,7 @@ import '../../theme/theme_context.dart';
 import 'widgets/about/about_content.dart';
 import 'widgets/appearance_content.dart';
 import 'widgets/backup_content/backup_content.dart';
+import 'widgets/clips/clips_content.dart';
 import 'widgets/general_content.dart';
 import 'widgets/help/help_content.dart';
 import 'widgets/keybinds/keybinds_content.dart';
@@ -276,6 +277,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             VoiceAudioContent(
                                               focus: widget.target?.section,
                                             ),
+                                          SettingsTab.clips =>
+                                            const ClipsContent(),
                                           SettingsTab.keybinds =>
                                             const KeybindsContent(),
                                           SettingsTab.backup => BackupContent(
