@@ -31,8 +31,14 @@ not in. Viewers keep
 watching a stream that drops out and is back within half a minute
 (`WatchResume`), whoever's connection it was that dropped. After the viewer's
 own rejoin the sharer is already in the new room, so no publish announces the
-stream and its subscription is the first word of it; it goes through Rust from
-there as a press of Watch would send it.
+stream and its subscription is the first word of it. That subscription comes
+inside `room.connect`, before the room is in the cubit's state, so the stream is
+sent through Rust, as a press of Watch would send it, once the room is
+(`_receiveResumedPictures`); until Nov 21 it stayed on the call's own
+connection, which plays no H265 (seen with two clients and a rejoin packet).
+A desktop share stopped while the Wayland picker is up leaves that picker open,
+and its capture thread waiting on it; a window picked there afterwards is let go
+of unshared (checked Nov 21).
 
 ## A call belongs to its server, not to the selection
 

@@ -200,8 +200,10 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
               // it, and this is the first word of it. It goes the way a
               // press of Watch sends it, or it came back on the call's own
               // connection, which plays no H265, while this device still
-              // said it could.
-              if (resumed) {
+              // said it could. One heard inside the connect, before the
+              // room is in the state, is sent once it is
+              // ([_receiveResumedPictures]).
+              if (resumed && state.room != null) {
                 unawaited(_receiveWatchedPicture(e.participant, e.publication));
               }
             }
@@ -490,6 +492,32 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
     await publication.subscribe();
     _syncPictureReception();
     _applyScreenshareQualitySettings(participant);
+  }
+
+  /// Each stream watched again after this device's own rejoin, sent the way
+  /// a press of Watch sends it, once the room is in the state. Its sharer
+  /// was there before us, so it arrives inside `room.connect`, while the
+  /// state still has no room: the Rust watch had none to open for, and the
+  /// call's own connection, which plays no H265, took the picture (seen
+  /// Nov 21 with two clients and a rejoin packet).
+  // Its caller in the connection part resolves to its own abstract
+  // declaration, which the unused-element check can't follow.
+  // ignore: unused_element
+  void _receiveResumedPictures() {
+    final room = state.room;
+    if (room == null) return;
+    for (final participant in room.remoteParticipants.values) {
+      final identity = participant.identity;
+      if (!state.subscribedScreenshares.contains(identity) ||
+          state.watchedPictures.containsKey(identity)) {
+        continue;
+      }
+      final publication = participant.getTrackPublicationBySource(
+        TrackSource.screenShareVideo,
+      );
+      if (publication == null) continue;
+      unawaited(_receiveWatchedPicture(participant, publication));
+    }
   }
 
   /// Stops counting [identity]'s stream as watched once it has ended. It

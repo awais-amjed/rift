@@ -54,6 +54,10 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   SoundShareCubit? get _soundShareCubit;
   WatchResume get _watchResume;
 
+  /// Implemented by [_RoomEventsMixin]: the streams watched again after a
+  /// rejoin, which arrived before the room was in the state.
+  void _receiveResumedPictures();
+
   /// Both implemented by [_LiveKitLeaveMixin]. Joining needs them because a
   /// join that fails partway has to undo itself, and because being moved to
   /// another channel is a leave followed by a join.
@@ -462,6 +466,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       unawaited(_publishSelfState());
       _syncParticipants();
       _applyStoredSettings();
+      _receiveResumedPictures();
       unawaited(_followShares());
       // Those already here with clipping on, said once for the call.
       _noticeClippers();
