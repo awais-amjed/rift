@@ -92,11 +92,33 @@ class ChannelKeyring with _KeyringSealingMixin {
   /// same run yields a new identity whose key must be republished.
   String? _publishedChatKeySeed;
 
+  /// The channel [keys] were loaded for, or null for a ring never loaded.
+  String? _channelId;
+
+  /// Bumped by every [clear], which every load begins with.
+  ///
+  /// A load or an absorb still waiting on the server when the ring is
+  /// cleared and loaded for another channel must not write into it after.
+  /// One did: a click from one channel to another inside a round trip let
+  /// the first channel's keys land in the second's ring, where they counted
+  /// as its own rows, so its older keys were never followed; and when the
+  /// first finished last, the second channel was sent to under the first's
+  /// key, which none of its members hold (found in review, Nov 21). So each
+  /// builds into a map of its own and writes it in only if no [clear] came
+  /// between.
+  int _load = 0;
+
   void clear() {
     keys.clear();
     currentVersion = 0;
     _serverId = null;
+    _channelId = null;
+    _load++;
   }
+
+  /// What a load answers when the ring was cleared under it: whoever is
+  /// waiting on it has moved on, and the ring holds nothing of it.
+  static const _superseded = KeyringOutcome.failed(ChatFailure.unknown());
 
   Future<ChatIdentity?> chatIdentity(Server server) async {
     if (_vaultCubit.state.masterSeed == null) return null;
@@ -161,6 +183,9 @@ class ChannelKeyring with _KeyringSealingMixin {
   /// reviewer opening reports on another server's page. Null is the server
   /// the ring was loaded from.
   Future<bool> absorbNewVersions(String channelId, {String? serverId}) async {
+    // A ring loaded for another channel is not this one's to add to.
+    if (_channelId != null && _channelId != channelId) return false;
+    final load = _load;
     final id = serverId ?? _serverId;
     final server = id == null ? null : _session.serverById(id);
     if (server == null) return false;
@@ -173,13 +198,13 @@ class ChannelKeyring with _KeyringSealingMixin {
     final data = response.data as Map<String, dynamic>;
     final version = data['current_version'] as int;
 
-    final before = keys.length;
+    final ring = {...keys};
     for (final entry
         in (data['my_keys'] as List).cast<Map<String, dynamic>>()) {
       final entryVersion = entry['key_version'] as int;
-      if (keys.containsKey(entryVersion)) continue;
+      if (ring.containsKey(entryVersion)) continue;
       try {
-        keys[entryVersion] = await _crypto.unwrapKey(
+        ring[entryVersion] = await _crypto.unwrapKey(
           wrapped: WrappedKey.fromJson(entry),
           myKeyPair: identity.keyPair,
         );
@@ -187,8 +212,10 @@ class ChannelKeyring with _KeyringSealingMixin {
         HelperMethods.printDebug('[Keyring] unwrap failed: $e');
       }
     }
-    await _followLinks(channelId, data);
-    final gained = keys.length > before;
+    await _followLinks(channelId, data, ring);
+    if (load != _load) return false;
+    final gained = ring.length > keys.length;
+    keys.addAll(ring);
 
     // Only move up once the new key is actually in hand. Announcing a version
     // we cannot seal with would break sending outright, where staying put
@@ -199,16 +226,18 @@ class ChannelKeyring with _KeyringSealingMixin {
     return gained;
   }
 
-  /// Open older versions from [data]'s links, keeping what [keys] holds, and
-  /// answer which of [own] they confirmed (see [ChannelKeyChain.follow]).
+  /// Open older versions from [data]'s links into [ring], keeping what it
+  /// holds, and answer which of [own] they confirmed (see
+  /// [ChannelKeyChain.follow]).
   Future<Set<int>> _followLinks(
     String channelId,
-    Map<String, dynamic> data, {
+    Map<String, dynamic> data,
+    Map<int, Uint8List> ring, {
     Set<int> own = const {},
   }) => ChannelKeyChain.follow(
     crypto: _crypto,
     channelId: channelId,
-    keys: keys,
+    keys: ring,
     links: ((data['links'] as List?) ?? const []).cast<Map<String, dynamic>>(),
     own: own,
   );
@@ -227,10 +256,13 @@ class ChannelKeyring with _KeyringSealingMixin {
   Future<void> sealMissingBotKeys(String channelId) async {
     final version = currentVersion;
     final serverId = _serverId;
+    final load = _load;
     if (!keys.containsKey(version) || serverId == null) return;
 
     final response = await _keysOn(serverId).getChannelKey(channelId);
-    if (!response.success) return;
+    // Reloaded meanwhile, perhaps for another channel: the key [sealBotKeys]
+    // would read is no longer the one this was asked for.
+    if (!response.success || load != _load) return;
 
     final data = response.data as Map<String, dynamic>;
     final bots = (data['bots_missing'] as List? ?? const [])
@@ -247,13 +279,16 @@ class ChannelKeyring with _KeyringSealingMixin {
     required String serverId,
   }) async {
     clear();
+    final load = _load;
 
     final server = _session.serverById(serverId);
     if (server == null) {
       return const KeyringOutcome.failed(ChatFailure.noServer());
     }
     _serverId = server.id;
+    _channelId = channelId;
     final identity = await chatIdentity(server);
+    if (load != _load) return _superseded;
     if (identity == null) {
       return const KeyringOutcome.failed(ChatFailure.vaultLocked());
     }
@@ -262,6 +297,7 @@ class ChannelKeyring with _KeyringSealingMixin {
     // winner's keyring.
     for (var attempt = 0; attempt < 2; attempt++) {
       final response = await _keysOn(server.id).getChannelKey(channelId);
+      if (load != _load) return _superseded;
       if (!response.success) {
         return KeyringOutcome.failed(ChatFailure.fromResponse(response));
       }
@@ -279,6 +315,7 @@ class ChannelKeyring with _KeyringSealingMixin {
           channelId,
           identity,
           missing,
+          load,
         );
         if (!bootstrapped.isWaiting) return bootstrapped;
         continue; // conflict — refetch the winner's keyring
@@ -286,9 +323,10 @@ class ChannelKeyring with _KeyringSealingMixin {
 
       // Unwrap every version sealed to us, then open the rest of the
       // scrollback from the links below them.
+      final ring = <int, Uint8List>{};
       for (final entry in myKeys) {
         try {
-          keys[entry['key_version'] as int] = await _crypto.unwrapKey(
+          ring[entry['key_version'] as int] = await _crypto.unwrapKey(
             wrapped: WrappedKey.fromJson(entry),
             myKeyPair: identity.keyPair,
           );
@@ -299,8 +337,11 @@ class ChannelKeyring with _KeyringSealingMixin {
       final covered = await _followLinks(
         channelId,
         data,
-        own: keys.keys.toSet(),
+        ring,
+        own: ring.keys.toSet(),
       );
+      if (load != _load) return _superseded;
+      keys.addAll(ring);
       currentVersion = version;
       // Rows the chain reaches, checked against what they hold, are rows this
       // member no longer needs. Never the current one: a rotation is sealed
@@ -334,6 +375,7 @@ class ChannelKeyring with _KeyringSealingMixin {
     String channelId,
     ChatIdentity identity,
     List<Map<String, dynamic>> members,
+    int load,
   ) async {
     if (members.isEmpty) {
       return const KeyringOutcome.failed(ChatFailure.noKeyedMembers());
@@ -352,6 +394,9 @@ class ChannelKeyring with _KeyringSealingMixin {
       mint: true,
     );
 
+    // Minted all the same, and whoever opens the channel next is sealed it;
+    // this ring has just been loaded for somewhere else.
+    if (load != _load) return _superseded;
     if (response.success) {
       keys[1] = channelKey;
       currentVersion = 1;

@@ -14,9 +14,12 @@ import '../enums/error_code.dart';
 /// never touch tables" was a convention, not a boundary.
 ///
 /// One client per (url, key) is cached: a `SupabaseClient` is cheap but not
-/// free, and a server is talked to over and over. The bearer token is re-set on
-/// each call because it rotates underneath us — a silent SIWS re-login hands
-/// back a new JWT and the next call must carry it.
+/// free, and a server is talked to over and over. Several servers can share
+/// one project, and so one client, each signed in with its own token — and
+/// the token rotates underneath us besides, since a silent SIWS re-login hands
+/// back a new JWT. So no call holds the client itself: it holds a
+/// [ServerDbClient], which puts its own token on each query as the query is
+/// built.
 class ServerDb {
   /// What a details read answers when the server has no row for us: it was
   /// deleted, or we were removed. Named, because the cubit acts on exactly
@@ -25,16 +28,17 @@ class ServerDb {
 
   final Map<String, SupabaseClient> _clients = {};
 
-  SupabaseClient client(String url, String anonKey, String? bearerToken) {
-    final db = _clients.putIfAbsent('$url|$anonKey', () {
-      return SupabaseClient(url, anonKey);
-    });
-    db.headers = {
-      'apikey': anonKey,
-      if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
-    };
-    return db;
-  }
+  ServerDbClient client(String url, String anonKey, String? bearerToken) =>
+      ServerDbClient._(
+        _clients.putIfAbsent(
+          '$url|$anonKey',
+          () => SupabaseClient(url, anonKey),
+        ),
+        {
+          'apikey': anonKey,
+          if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
+        },
+      );
 
   /// A bare `snake_case` token, which is how the migrations spell a raised
   /// error — as opposed to the sentences Postgres itself raises.
@@ -109,5 +113,36 @@ class ServerDb {
       unawaited(c.dispose());
     }
     _clients.clear();
+  }
+}
+
+/// One call's way into a cached client, carrying that call's token.
+///
+/// A query copies the client's headers when it is built, so the token is set
+/// right then, in the same synchronous step. Until Nov 21 it was set once,
+/// when the call began, and a query built after an `await` could carry
+/// whatever token was set last: another server's, when two servers share a
+/// project. Under that server's policies a write matches no rows and raises
+/// nothing, so a chat key could be reported published that never was, and
+/// nobody could seal that member a channel key until the app restarted
+/// (found by reading the code, not seen).
+class ServerDbClient {
+  final SupabaseClient _client;
+  final Map<String, String> _headers;
+
+  const ServerDbClient._(this._client, this._headers);
+
+  SupabaseQueryBuilder from(String table) {
+    _client.headers = _headers;
+    return _client.from(table);
+  }
+
+  PostgrestFilterBuilder<T> rpc<T>(
+    String fn, {
+    Map<String, dynamic>? params,
+    bool get = false,
+  }) {
+    _client.headers = _headers;
+    return _client.rpc(fn, params: params, get: get);
   }
 }

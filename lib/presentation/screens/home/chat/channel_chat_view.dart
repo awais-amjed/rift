@@ -640,7 +640,17 @@ class _ChannelChatViewState extends State<ChannelChatView>
               : null,
           onEdit: posting ? cubit.editMessage : null,
           onDelete: live ? cubit.deleteMessage : null,
-          onRetry: live ? cubit.retrySend : null,
+          // The call the sender is in now, as a send reads it: a retried
+          // summon goes to that one.
+          onRetry: live
+              ? (pendingId) => cubit.retrySend(
+                  pendingId,
+                  inVoiceChannel: context
+                      .read<LiveKitCubit>()
+                      .state
+                      .currentChannelId,
+                )
+              : null,
           onPanelAction: live ? cubit.pressPanelAction : null,
           // Channel managers and admins may remove anyone's message.
           isModerator: live && _isModerator(context),

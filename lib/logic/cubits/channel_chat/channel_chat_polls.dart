@@ -17,6 +17,7 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
   Map<int, Uint8List> get _keys;
   int get _currentKeyVersion;
   bool get _plainChannel;
+  SavedConversation get _saved;
 
   Future<void> refreshMessage(String messageId);
 
@@ -40,8 +41,12 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
     final channelId = state.channelId;
     final server = _server;
     final user = server?.user;
-    final key = _keys[_currentKeyVersion];
+    // Read before anything is awaited, as a send reads them: a key taken in
+    // meanwhile would label this key with the next version.
+    final keyVersion = _currentKeyVersion;
+    final key = _keys[keyVersion];
     final plain = _plainChannel;
+    final messagesApi = _channelMessages;
     if (channelId == null ||
         server == null ||
         user == null ||
@@ -79,14 +84,14 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
               messageKey: key!,
               signingKeyPair: identity.keyPair,
               contextId: channelId,
-              keyVersion: _currentKeyVersion,
+              keyVersion: keyVersion,
             );
       final rules = PollRules(
         options: body.options.length,
         multiple: multiple,
         closesAt: DateTime.now().add(duration),
       );
-      final response = await _channelMessages.sendChatMessage(
+      final response = await messagesApi.sendChatMessage(
         channelId: channelId,
         envelope: envelope.toJson(),
         poll: rules.toJson(),
@@ -115,9 +120,12 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
       );
       emit(
         state.copyWith(
+          // Claimed already: a poll has no pending bubble, and its empty text
+          // would otherwise retire one a file-only send is drawing.
           messages: ChatMessageOps.mergeIncoming(
             current: state.messages,
             incoming: [posted],
+            claimed: {posted.id},
           ).merged,
           pollTallies: {
             ...state.pollTallies,
@@ -125,6 +133,7 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
           },
         ),
       );
+      _saved.noteSent();
       return true;
     } catch (e) {
       HelperMethods.printDebug('[Chat] poll send failed: $e');

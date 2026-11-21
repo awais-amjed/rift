@@ -102,6 +102,14 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
     // Someone published a key or healed entries: do our share of wrapping,
     // and if we're the one waiting for access, refetch our keyring.
     unawaited(_runKeySweep());
+    _followNewKeys();
+  }
+
+  /// Keys were sealed or minted, by another client or by this one's own
+  /// sweep: pick up what reached the open channel.
+  @override
+  void _followNewKeys() {
+    if (isClosed) return;
     // healingKey is here for the case this doorbell exists to serve: a member
     // who has just opened the channel, has no key, and is inside the grace
     // period. Leaving it out meant the one ring that could end the wait early

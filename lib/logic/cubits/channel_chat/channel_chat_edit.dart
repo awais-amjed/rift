@@ -29,7 +29,10 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
     final channelId = state.channelId;
     final server = _server;
     final user = server?.user;
-    final key = _keys[_currentKeyVersion];
+    // Read before anything is awaited, as a send reads them.
+    final keyVersion = _currentKeyVersion;
+    final key = _keys[keyVersion];
+    final messagesApi = _channelMessages;
     final id = int.tryParse(messageId);
     if (channelId == null || server == null || user == null) return;
     if (id == null) return; // a pending message has no server id yet
@@ -60,10 +63,10 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
               messageKey: key!,
               signingKeyPair: identity.keyPair,
               contextId: channelId,
-              keyVersion: _currentKeyVersion,
+              keyVersion: keyVersion,
             );
 
-      final response = await _channelMessages.editChatMessage(
+      final response = await messagesApi.editChatMessage(
         messageId: id,
         envelope: envelope.toJson(),
       );

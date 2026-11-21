@@ -177,6 +177,7 @@ class ChatMessageOps {
   mergeIncoming({
     required List<ChatMessage> current,
     required List<ChatMessage> incoming,
+    Set<String> claimed = const {},
   }) {
     final known = current.where((m) => !m.isPending).map((m) => m.id).toSet();
     final fresh = incoming.where((m) => !known.contains(m.id)).toList();
@@ -191,8 +192,12 @@ class ChatMessageOps {
     // own acknowledgement with no bubble to replace. That message then existed
     // on the server and nowhere on screen until the chat was reopened.
     final unclaimed = <String, int>{};
+    // [claimed] rows already found their bubble another way (a held send's
+    // signature, `Outbox.retireStored`), so they retire nothing more.
     for (final m in fresh) {
-      if (m.isMine) unclaimed[m.text] = (unclaimed[m.text] ?? 0) + 1;
+      if (m.isMine && !claimed.contains(m.id)) {
+        unclaimed[m.text] = (unclaimed[m.text] ?? 0) + 1;
+      }
     }
     final kept = <ChatMessage>[];
     final retired = <String>[];

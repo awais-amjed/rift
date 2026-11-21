@@ -41,6 +41,10 @@ mixin _ChannelChatHistoryMixin
     _saved.replace(rows);
     // Rows arrive newest-first; decrypt then restore oldest→newest order.
     final decrypted = await _decryptRows(channelId, rows);
+    if (state.channelId != channelId) return;
+    // A held send this page shows was stored after all is not put back
+    // beside itself.
+    _outbox.retireStored(channelId, rows);
     emit(
       state.copyWith(
         // Anything that failed to send in this channel goes back on the end.
@@ -82,13 +86,25 @@ mixin _ChannelChatHistoryMixin
     _saved.merge(rows);
 
     final incoming = await _decryptRows(channelId, rows); // oldest-first
-    if (incoming.isEmpty) return;
+    // Switched away while they were opened: they are not the open channel's.
+    if (incoming.isEmpty || state.channelId != channelId) return;
 
+    // A held send that is among them was stored after all: its row goes,
+    // and the stored one takes its place.
+    final stored = _outbox.retireStored(channelId, rows);
+    var current = state.messages;
+    for (final pendingId in stored.pendingIds) {
+      current = ChatMessageOps.removePending(current, pendingId);
+    }
     final result = ChatMessageOps.mergeIncoming(
-      current: state.messages,
+      current: current,
       incoming: incoming,
+      claimed: stored.rowIds,
     );
-    if (result.fresh.isEmpty) return;
+    if (result.fresh.isEmpty) {
+      if (stored.pendingIds.isNotEmpty) emit(state.copyWith(messages: current));
+      return;
+    }
 
     _outbox.dropRetired(result.retired);
     emit(state.copyWith(messages: result.merged));
@@ -268,6 +284,7 @@ mixin _ChannelChatHistoryMixin
       channelId,
       rows.cast<Map<String, dynamic>>(),
     );
+    if (state.channelId != channelId) return;
     emit(
       state.copyWith(
         messages: [...state.messages, ...newer],
@@ -366,6 +383,7 @@ mixin _ChannelChatHistoryMixin
     final data = response.data as Map<String, dynamic>;
     final rows = (data['messages'] as List).cast<Map<String, dynamic>>();
     final older = await _decryptRows(channelId, rows); // newest-first page
+    if (state.channelId != channelId) return;
     emit(
       state.copyWith(
         messages: [...older.reversed, ...state.messages],

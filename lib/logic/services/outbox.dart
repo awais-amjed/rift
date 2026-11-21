@@ -4,6 +4,7 @@ import '../../data/classes/chat_message.dart';
 import '../../data/classes/pending_attachment.dart';
 import '../../data/enums/error_code.dart';
 import 'attachment_staging.dart';
+import 'link_preview_fetcher.dart';
 
 /// One send that did not land, and everything a second attempt would need.
 ///
@@ -26,11 +27,35 @@ class OutboxEntry {
   /// declare the verb. Null for anything else.
   final String? toBotId;
 
+  /// Whether a reply rings the person answered — the sender's choice, which
+  /// a retry keeps.
+  final bool pingReplyTo;
+
+  /// The link card the message was sent with, if any.
+  final Future<PendingLinkPreview?>? preview;
+
+  /// The signature of each attempt that reached the server and never heard
+  /// back. A reply lost on the way home leaves a message stored and its row
+  /// saying "Not sent"; a row the server sends with one of these is that
+  /// message, and the entry goes ([Outbox.retireStored]) instead of being
+  /// sent a second time.
+  final Set<String> signatures;
+
+  /// The newest stored id in the conversation when the first attempt began.
+  /// Only a row after it can be this message: a body sent in the clear is
+  /// signed the same way each time, so an earlier "ok" carries the signature
+  /// of a later one.
+  final int storedAfter;
+
   const OutboxEntry({
     required this.destination,
     required this.row,
     this.attachments = const [],
     this.toBotId,
+    this.pingReplyTo = true,
+    this.preview,
+    this.signatures = const {},
+    this.storedAfter = 0,
   });
 
   String get pendingId => row.id;
@@ -39,9 +64,9 @@ class OutboxEntry {
 
 /// Sends that failed on the way out and are waiting to be told to try again.
 ///
-/// Rift has no local message store, and this is deliberately not the start of
-/// one: it holds only what has *not* been sent, in memory, for as long as the
-/// app is open. A message that reached the server is the server's; a message
+/// It holds only what has *not* been sent, in memory, for as long as the app
+/// is open; a conversation's saved copy holds what the server stored, never
+/// this. A message that reached the server is the server's; a message
 /// that did not is nobody's unless something keeps it, and what used to keep it
 /// was nothing at all — a failed send dropped its row and its text with it, so
 /// a sentence typed in a tunnel was gone by the time you were out of it.
@@ -111,6 +136,9 @@ class Outbox {
   void landed(String destination, ChatMessage row) =>
       (_landed[destination] ??= []).add(row);
 
+  /// The held entry for [pendingId], left where it is.
+  OutboxEntry? held(String pendingId) => _held[pendingId];
+
   /// Hand an entry back and stop holding it — the retry primitive.
   ///
   /// Removing and returning in one step is what makes a double-tap safe: the
@@ -133,6 +161,35 @@ class Outbox {
   /// has to go too, or reopening the conversation would offer to send a
   /// message that is already in it.
   void dropRetired(Iterable<String> pendingIds) => pendingIds.forEach(drop);
+
+  /// Forget the held sends in [destination] that [rows], just read from the
+  /// server, show it stored after all (see [OutboxEntry.signatures]), and
+  /// answer their pending ids and the ids of the rows that were them.
+  ({List<String> pendingIds, Set<String> rowIds}) retireStored(
+    String destination,
+    List<Map<String, dynamic>> rows,
+  ) {
+    final pendingIds = <String>[];
+    final rowIds = <String>{};
+    for (final entry in [..._held.values]) {
+      if (entry.destination != destination || entry.signatures.isEmpty) {
+        continue;
+      }
+      for (final row in rows) {
+        final id = int.tryParse('${row['id']}') ?? 0;
+        if (id <= entry.storedAfter ||
+            rowIds.contains('$id') ||
+            !entry.signatures.contains(row['signature'])) {
+          continue;
+        }
+        pendingIds.add(entry.pendingId);
+        rowIds.add('$id');
+        drop(entry.pendingId);
+        break;
+      }
+    }
+    return (pendingIds: pendingIds, rowIds: rowIds);
+  }
 
   /// Forget everything for one conversation.
   void dropDestination(String destination) => _held.removeWhere((_, entry) {

@@ -451,4 +451,85 @@ void main() {
       expect(own.existsSync(), isTrue);
     });
   });
+
+  group('a send whose answer was lost', () {
+    // The insert committed and the reply never came home, so the row says
+    // "Not sent" over a message the server holds. Sent again, it went into
+    // the channel twice (review, Nov 21).
+    OutboxEntry lost(String id, {Set<String> signatures = const {'sig-1'}}) =>
+        OutboxEntry(
+          destination: 'chan',
+          row: row(id),
+          signatures: signatures,
+          storedAfter: 40,
+        );
+
+    test('is retired by the stored row that carries its signature', () {
+      final outbox = Outbox()..hold(lost('pending-1'));
+      final stored = outbox.retireStored('chan', [
+        {'id': 41, 'signature': 'other'},
+        {'id': 42, 'signature': 'sig-1'},
+      ]);
+      expect(stored.pendingIds, ['pending-1']);
+      expect(stored.rowIds, {'42'});
+      expect(outbox.holds('pending-1'), isFalse);
+    });
+
+    test('not by a row from before it was sent', () {
+      // A body sent in the clear is signed the same way every time, so an
+      // earlier "ok" carries the signature of this one.
+      final outbox = Outbox()..hold(lost('pending-1'));
+      final stored = outbox.retireStored('chan', [
+        {'id': 40, 'signature': 'sig-1'},
+      ]);
+      expect(stored.pendingIds, isEmpty);
+      expect(outbox.holds('pending-1'), isTrue);
+    });
+
+    test('one stored row retires one held send', () {
+      final outbox = Outbox()
+        ..hold(lost('pending-1'))
+        ..hold(lost('pending-2'));
+      final stored = outbox.retireStored('chan', [
+        {'id': 42, 'signature': 'sig-1'},
+      ]);
+      expect(stored.pendingIds, hasLength(1));
+      expect(outbox.length, 1);
+    });
+
+    test('a send that never reached the server is kept', () {
+      final outbox = Outbox()..hold(lost('pending-1', signatures: const {}));
+      outbox.retireStored('chan', [
+        {'id': 42, 'signature': 'sig-1'},
+      ]);
+      expect(outbox.holds('pending-1'), isTrue);
+    });
+
+    test('nor is another conversation\'s row taken for it', () {
+      final outbox = Outbox()..hold(lost('pending-1'));
+      outbox.retireStored('elsewhere', [
+        {'id': 42, 'signature': 'sig-1'},
+      ]);
+      expect(outbox.holds('pending-1'), isTrue);
+    });
+
+    test('the row it was retires no other bubble by its text', () {
+      final sending = row('pending-2').copyWith(sendFailed: false);
+      final stored = ChatMessage(
+        id: '42',
+        authorId: 'me',
+        authorName: 'Me',
+        text: 'hello',
+        sentAt: DateTime(2026, 9, 4, 12),
+        isMine: true,
+      );
+      final result = ChatMessageOps.mergeIncoming(
+        current: [sending],
+        incoming: [stored],
+        claimed: {'42'},
+      );
+      expect(result.retired, isEmpty);
+      expect(result.merged.map((m) => m.id), ['pending-2', '42']);
+    });
+  });
 }

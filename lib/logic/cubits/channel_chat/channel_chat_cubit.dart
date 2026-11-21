@@ -94,9 +94,9 @@ part 'channel_chat_sweep.dart';
 ///   missing current-version entries are healed opportunistically.
 /// - Messages: fetched as envelopes and decrypted + signature-verified
 ///   client-side; anything that fails verification is dropped, never shown.
-/// - Live delivery: after a successful send the sender pings a Realtime
-///   Broadcast topic; receivers then fetch rows after their newest id — the
-///   database is the single source of truth, the ping is just a doorbell
+/// - Live delivery: the server rings a Realtime Broadcast topic when a
+///   message is stored; receivers then fetch rows after their newest id — the
+///   database is the single source of truth, the ring is just a doorbell
 ///   (so a forged broadcast can at worst cause a fetch).
 class ChannelChatCubit extends Cubit<ChannelChatState>
     with
@@ -179,14 +179,6 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
   StreamSubscription<void>? _serverSub;
 
-  /// The open channel's keys.
-  ///
-  /// A service rather than a mixin since voice needs the same bootstrap for the
-  /// same channels — LiveKit's frame cryptor wants the very bytes this holds.
-  /// Two copies of key bootstrap would be two things that can disagree about
-  /// which version is current, and that disagreement presents as a room where
-  /// some people can read each other and some cannot.
-  @override
   /// Sends that failed on the way out, waiting to be retried.
   ///
   /// On the class because two mixins need it: the send mixin holds and takes,
@@ -200,6 +192,13 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   @override
   final KeySweepDoorbell _sweepDoorbell = KeySweepDoorbell();
 
+  /// The open channel's keys.
+  ///
+  /// A service rather than a mixin since voice needs the same bootstrap for the
+  /// same channels — LiveKit's frame cryptor wants the very bytes this holds.
+  /// Two copies of key bootstrap would be two things that can disagree about
+  /// which version is current, and that disagreement presents as a room where
+  /// some people can read each other and some cannot.
   @override
   late final ChannelKeyring _keyring = ChannelKeyring(
     session: _session,
@@ -242,7 +241,6 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   Future<ChatIdentity?> _chatIdentity(Server server) =>
       _keyring.chatIdentity(server);
 
-  /// Guards against a stale async continuation writing into a newer channel.
   /// How long to let a keyring heal happen before calling it a wait.
   ///
   /// Long enough for the round trip the doorbell starts — ring, another
@@ -252,6 +250,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   @visibleForTesting
   static const keyHealGrace = Duration(seconds: 3);
 
+  /// Guards against a stale async continuation writing into a newer channel.
   int _openGeneration = 0;
 
   /// How much the open channel may interrupt, asked of whoever keeps that.

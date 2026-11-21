@@ -15,15 +15,28 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
   Server? get _readyServer;
   void _ringKeySweepDoorbell();
 
+  /// Implemented by [_ChatReadyMixin]: what this client does on hearing
+  /// that keys moved.
+  void _followNewKeys();
+
   bool _sweeping = false;
+
+  /// Rung while a sweep was running. The work it announces may have come
+  /// after that sweep's last read, so one more pass runs once it ends;
+  /// dropped, it waited for the next ring.
+  bool _sweepAgain = false;
 
   /// A pass seals at most 500 entries, so this covers a key change in a
   /// channel of 100,000 members; anything left over goes to the next ring.
   static const _maxSweepPasses = 200;
 
   Future<void> _runKeySweep() async {
-    if (_sweeping) return;
+    if (_sweeping) {
+      _sweepAgain = true;
+      return;
+    }
     _sweeping = true;
+    _sweepAgain = false;
     try {
       final server = _readyServer;
       if (server == null) return;
@@ -59,10 +72,19 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
         if (data['more'] != true || !stored) break;
       }
       // Wake waiting members so they refetch their (now healed) keyring.
-      if (healedAny) _ringKeySweepDoorbell();
+      // And this client too: a ring is not echoed to the cubit that rang it,
+      // so the one that minted a rotation kept sealing the open channel
+      // under the version before it — readable to whoever the rotation was
+      // for keeping out, and locked to whoever it let in (found in review,
+      // Nov 21).
+      if (healedAny) {
+        _ringKeySweepDoorbell();
+        _followNewKeys();
+      }
     } finally {
       _sweeping = false;
     }
+    if (_sweepAgain && !isClosed) unawaited(_runKeySweep());
   }
 
   /// Executes one unit of sweep work. Returns true if entries were stored.

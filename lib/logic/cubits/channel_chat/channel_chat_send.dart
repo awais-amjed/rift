@@ -34,6 +34,10 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   /// not see their own mention light up.
   Future<void> _resolveMentionNames(List<ChatMessage> messages);
 
+  /// Implemented by [_ChannelChatHistoryMixin]: what a retry reads first, in
+  /// case the server stored the message after all.
+  Future<void> _fetchAfterLatest();
+
   int _pendingCounter = 0;
 
   /// Seal, sign, and send a message ([text] and/or [attachments]); shows an
@@ -75,6 +79,27 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     String? inVoiceChannel,
     String? replyToId,
     bool pingReplyTo = true,
+  }) => _sendAndSettle(
+    text,
+    attachments: attachments,
+    preview: preview,
+    toBotId: toBotId,
+    inVoiceChannel: inVoiceChannel,
+    replyToId: replyToId,
+    pingReplyTo: pingReplyTo,
+  );
+
+  /// [sendMessage], or a retry of [earlier], with its files settled once it
+  /// is over.
+  Future<bool> _sendAndSettle(
+    String text, {
+    List<PendingAttachment> attachments = const [],
+    Future<PendingLinkPreview?>? preview,
+    String? toBotId,
+    String? inVoiceChannel,
+    String? replyToId,
+    bool pingReplyTo = true,
+    OutboxEntry? earlier,
   }) async {
     final refused = await _sendMessage(
       text,
@@ -84,10 +109,18 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       inVoiceChannel: inVoiceChannel,
       replyToId: replyToId,
       pingReplyTo: pingReplyTo,
+      earlier: earlier,
     );
     _outbox.settle(attachments, refused: refused);
     return refused;
   }
+
+  /// Whether a message can go out in the open channel now.
+  bool get _sendable =>
+      state.channelId != null &&
+      _server?.user != null &&
+      (_keys[_currentKeyVersion] != null || _plainChannel) &&
+      state.status == ChannelChatStatus.ready;
 
   /// [sendMessage] itself; the wrapper settles the files once it is over.
   Future<bool> _sendMessage(
@@ -98,6 +131,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     String? inVoiceChannel,
     String? replyToId,
     bool pingReplyTo = true,
+    OutboxEntry? earlier,
   }) async {
     final channelId = state.channelId;
     final server = _server;
@@ -116,13 +150,15 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     final messagesApi = _channelMessages;
     final membersApi = _members;
     final voiceBots = _voiceBots;
-    if (channelId == null ||
-        server == null ||
-        user == null ||
-        (key == null && !plain) ||
-        state.status != ChannelChatStatus.ready) {
+    if (!_sendable || channelId == null || server == null || user == null) {
       return false;
     }
+    // Where the conversation stood when this message was first sent, for
+    // telling it apart from an earlier one should its answer be lost.
+    final storedAfter =
+        earlier?.storedAfter ?? ChatMessageOps.latestId(state.messages);
+    // Each attempt that reached the server and heard nothing back.
+    final signatures = {...?earlier?.signatures};
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachments.isEmpty) return false;
 
@@ -181,6 +217,18 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
     // awaited, for the same reason: the message renders now, and a mention
     // nobody has resolved yet draws as the text that was typed.
     unawaited(_resolveMentionNames([pending]));
+
+    // How a failure here is held for a retry.
+    OutboxEntry heldAs(ChatMessage row) => OutboxEntry(
+      destination: channelId,
+      row: row,
+      attachments: attachments,
+      toBotId: command?.bot.id,
+      pingReplyTo: pingReplyTo,
+      preview: preview,
+      signatures: signatures,
+      storedAfter: storedAfter,
+    );
 
     try {
       Future<APIResponse> uploadOne(
@@ -307,6 +355,9 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         if (summoned.success && open()) _ringKeySweepDoorbell();
       }
 
+      // Noted before it goes: an answer that never comes may still mean the
+      // message was stored.
+      signatures.add(envelope.signature);
       final response = await messagesApi.sendChatMessage(
         channelId: channelId,
         envelope: envelope.toJson(),
@@ -332,8 +383,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         return _failSend(
           pending: pending,
           channelId: channelId,
-          attachments: attachments,
-          toBotId: command?.bot.id,
+          heldAs: heldAs,
           errorCode: response.errorCode,
           error: response.error ?? 'Failed to send message',
         );
@@ -380,8 +430,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       return _failSend(
         pending: pending,
         channelId: channelId,
-        attachments: attachments,
-        toBotId: command?.bot.id,
+        heldAs: heldAs,
         errorCode: e.errorCode,
         error: 'Failed to upload attachment',
       );
@@ -393,8 +442,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       return _failSend(
         pending: pending,
         channelId: channelId,
-        attachments: attachments,
-        toBotId: command?.bot.id,
+        heldAs: heldAs,
         errorCode: null,
         error: 'Failed to send message',
       );
@@ -426,8 +474,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   bool _failSend({
     required ChatMessage pending,
     required String channelId,
-    required List<PendingAttachment> attachments,
-    required String? toBotId,
+    required OutboxEntry Function(ChatMessage row) heldAs,
     required String? errorCode,
     required String error,
   }) {
@@ -437,14 +484,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       emit(state.copyWith(notice: Notice.error(error)));
       return open;
     }
-    _outbox.hold(
-      OutboxEntry(
-        destination: channelId,
-        row: pending.copyWith(sendFailed: true),
-        attachments: attachments,
-        toBotId: toBotId,
-      ),
-    );
+    _outbox.hold(heldAs(pending.copyWith(sendFailed: true)));
     if (open) {
       emit(
         state.copyWith(
@@ -460,7 +500,35 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   /// The row is taken out and re-sent from the bottom rather than resurrected
   /// in place: it is being sent *now*, so now is where it belongs in the
   /// conversation. [Outbox.take] is what makes a double-tap harmless.
-  Future<void> retrySend(String pendingId) async {
+  ///
+  /// An attempt that reached the server and heard nothing back may have been
+  /// stored, so the newest rows are read first: one of them being this
+  /// message retires the row instead (`Outbox.retireStored`). Sent again
+  /// unread, it went into the channel twice.
+  ///
+  /// A channel that cannot take a message just now — its newest key not yet
+  /// sealed to this member — keeps the row and says so. Taken out first,
+  /// the send gave up without a word and the message was gone.
+  ///
+  /// [inVoiceChannel] is the call the sender is in now, as for a send.
+  Future<void> retrySend(String pendingId, {String? inVoiceChannel}) async {
+    final held = _outbox.held(pendingId);
+    if (held == null) return;
+    if (!_sendable) {
+      emit(
+        state.copyWith(
+          notice: Notice.error(
+            "This channel can't take messages right now. Your message is "
+            'kept.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (held.signatures.isNotEmpty) {
+      await _fetchAfterLatest();
+      if (!_outbox.holds(pendingId)) return;
+    }
     final entry = _outbox.take(pendingId);
     if (entry == null) return;
     emit(
@@ -468,11 +536,15 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         messages: ChatMessageOps.removePending(state.messages, pendingId),
       ),
     );
-    await sendMessage(
+    await _sendAndSettle(
       entry.text,
       attachments: entry.attachments,
+      preview: entry.preview,
       toBotId: entry.toBotId,
+      inVoiceChannel: inVoiceChannel,
       replyToId: entry.row.replyToId,
+      pingReplyTo: entry.pingReplyTo,
+      earlier: entry,
     );
   }
 
