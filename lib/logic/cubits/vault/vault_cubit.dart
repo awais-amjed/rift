@@ -162,7 +162,7 @@ class VaultCubit extends Cubit<VaultState>
     // wiped here is the only key to.
     await MessageCache.instance.clear();
     // And the clips of calls it kept, sealed under the same seed.
-    await ClipLibrary.instance.clear();
+    await ClipLibrary.instance.wipe();
     emit(const VaultState(status: AuthStatus.fresh));
   }
 }

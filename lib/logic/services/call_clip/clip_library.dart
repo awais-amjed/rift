@@ -36,6 +36,7 @@ class ClipLibrary {
   final Future<Directory> Function() _root;
   final CryptoRepository _crypto;
   final StreamController<void> _changes = StreamController.broadcast();
+  final StreamController<void> _wiped = StreamController.broadcast();
   Future<void> _turn = Future.value();
 
   Uint8List? _key;
@@ -47,6 +48,11 @@ class ClipLibrary {
 
   /// Rings after each add, delete or clear.
   Stream<void> get changes => _changes.stream;
+
+  /// Rings when the account has left the device ([wipe]): a seed held for
+  /// reading is the old account's, and would take a new one's clips for
+  /// another's and delete them.
+  Stream<void> get wiped => _wiped.stream;
 
   /// Keeps [audio], and drops whatever falls past the newest [keep].
   Future<StoredClip> add(
@@ -102,15 +108,24 @@ class ClipLibrary {
     final key = await _keyFor(seed);
     final clips = <StoredClip>[];
     for (final id in _ids(dir)) {
+      final Uint8List sealed;
       try {
-        final opened = await _open(_metaFile(dir, id).readAsBytesSync(), key);
-        final json = jsonDecode(utf8.decode(opened));
-        if (json is! Map<String, dynamic> || json['v'] != _version) {
-          throw const FormatException('not a clip');
-        }
+        sealed = _metaFile(dir, id).readAsBytesSync();
+      } catch (e) {
+        // Held by something else for now (a scanner, on Windows): left be.
+        HelperMethods.printDebug('[Clips] could not read a clip: $e');
+        continue;
+      }
+      try {
+        final json = jsonDecode(utf8.decode(await _open(sealed, key)));
+        final version = json is Map<String, dynamic> ? json['v'] : null;
+        // Kept by a newer Rift, which this one cannot read but must not
+        // throw away: going back a version would lose them.
+        if (version is int && version > _version) continue;
+        if (version != _version) throw const FormatException('not a clip');
         clips.add(StoredClip.fromJson(json['clip'] as Map<String, dynamic>));
       } catch (e) {
-        // The type only: never what it held.
+        // Another account's, or damaged. The type only: never what it held.
         HelperMethods.printDebug(
           '[Clips] dropped an unreadable clip: ${e.runtimeType}',
         );
@@ -160,14 +175,39 @@ class ClipLibrary {
     _changes.add(null);
   });
 
-  /// Every clip, for good: the account is leaving this device, or the person
-  /// asked.
+  /// Every clip, for good: the person asked. What will not go now (a file
+  /// held open elsewhere, on Windows) is left, and goes with the next clear.
   Future<void> clear() => _inTurn(() async {
     if (kIsWeb) return;
     final dir = await _root();
-    if (dir.existsSync()) dir.deleteSync(recursive: true);
+    if (dir.existsSync()) {
+      try {
+        dir.deleteSync(recursive: true);
+      } catch (e) {
+        HelperMethods.printDebug('[Clips] could not clear every clip: $e');
+        for (final entry in dir.listSync().whereType<File>()) {
+          try {
+            entry.deleteSync();
+          } catch (_) {}
+        }
+      }
+    }
     _changes.add(null);
   });
+
+  /// [clear], as the account leaves this device (`VaultCubit.resetVault`):
+  /// its key is dropped too, and whoever reads the list forgets the seed.
+  /// Never throws, as signing out must not stop half way.
+  Future<void> wipe() async {
+    _key = null;
+    _keySeed = null;
+    _wiped.add(null);
+    try {
+      await clear();
+    } catch (e) {
+      HelperMethods.printDebug('[Clips] wipe failed: $e');
+    }
+  }
 
   // ── Files ─────────────────────────────────────────────────────────────
 
@@ -181,12 +221,20 @@ class ClipLibrary {
   File _pcmFile(Directory dir, String id) => File('${dir.path}/$id.pcm');
 
   /// Every clip's id, newest first. A clip is there when its small file is;
-  /// samples without one were left by a write cut short, and go.
+  /// samples without one, and a half-written file, were left by a write cut
+  /// short (Rift quit mid-save), and go. Run in turn, so no write is under
+  /// way.
   List<String> _ids(Directory dir) {
     final metas = <String>{};
     final pcms = <String>{};
     for (final entry in dir.listSync().whereType<File>()) {
       final name = entry.uri.pathSegments.last;
+      if (name.endsWith('.tmp')) {
+        try {
+          entry.deleteSync();
+        } catch (_) {}
+        continue;
+      }
       if (name.endsWith('.meta')) metas.add(name.substring(0, name.length - 5));
       if (name.endsWith('.pcm')) pcms.add(name.substring(0, name.length - 4));
     }

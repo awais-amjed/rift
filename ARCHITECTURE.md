@@ -65,7 +65,8 @@ master seed (random 32 B) ◄──AES-256-GCM decrypt┘        (EncryptedSeed 
    ├─ HMAC-SHA256(seed, "<host>:<server_id>:identity")  ──► stable_id (permanent per-server identity)
    ├─ HMAC-SHA256(seed, "<host>:chat:<version>")        ──► X25519 keypair (sealing: DMs, channel keys)
    ├─ HMAC-SHA256(seed, "vault:v1")                     ──► vault blob key (AES-256-GCM)
-   └─ HMAC-SHA256(seed, "local-cache/messages:v1")      ──► saved-conversations key (this device only)
+   ├─ HMAC-SHA256(seed, "local-cache/messages:v1")      ──► saved-conversations key (this device only)
+   └─ HMAC-SHA256(seed, "local-cache/clips:v1")         ──► kept call clips key (this device only)
 ```
 
 These properties are load-bearing:
@@ -794,7 +795,7 @@ turning other apps down, and the speaking indicator.
 | A member, later banned | safe | n/a | what they read while a member; nothing the server sends after the ban, and nothing under the next key, which a ban brings within the hour (§4, *The key chain*). A bad key link they mint costs newcomers the history below it (§4, *The key chain*) | safe | ends at the ban |
 | Central server / its host, for a link that needs a Rift account | — | — | sees that an account asked to join that server (the request; nothing kept) | n/a | n/a |
 | Two self-hosted servers comparing members | each identity is per server | n/a | an account's tag differs on every server, so tags cannot be matched | n/a | n/a |
-| Device thief (no password) | Argon2id + secure storage | — | newest page of each channel opened, sealed under the seed (§4, *Saved on the device*); the avatars and icons drawn in the last month, in the clear | same | — |
+| Device thief (no password) | Argon2id + secure storage | — | newest page of each channel opened, sealed under the seed (§4, *Saved on the device*); the newest ten call clips, sealed the same way (`CALLS.md`, *Clipping a call*); the avatars and icons drawn in the last month, in the clear | same | — |
 
 An update is code that runs with everything above, so it has its own guard
 (§8): the GitHub releases it comes from are not trusted, only the release

@@ -82,4 +82,31 @@ void main() {
     final audio = await cubit.open(cubit.state.clips.single);
     expect(audio?.frames, 480);
   });
+  test('after the account leaves, the next one\'s clip is not taken for '
+      'another\'s', () async {
+    await cubit.load(seed);
+    await keep(1);
+    await library.wipe();
+    await settle();
+    expect(cubit.state.clips, isEmpty);
+    final next = CryptoRepository.toBase64(
+      Uint8List.fromList(List.filled(32, 8)),
+    );
+    await library.add(
+      next,
+      CallClipAudio(
+        id: 2,
+        pcm: Int16List(960),
+        rate: 48000,
+        channels: 2,
+        at: DateTime.utc(2026, 11, 21, 9, 0, 2),
+      ),
+      serverId: null,
+      channelId: null,
+      place: 'A call',
+      fromDmCall: true,
+    );
+    await settle();
+    expect(await library.list(next), hasLength(1));
+  });
 }

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -152,6 +153,47 @@ void main() {
     final clips = await library.list(seed);
     expect(clips, hasLength(2));
     expect(clips.every((c) => c.fromDmCall && c.serverId == null), isTrue);
+  });
+
+  test('a clip kept by a newer Rift is left, not thrown away', () async {
+    final crypto = CryptoRepository();
+    final key = await crypto.deriveClipKey(CryptoRepository.fromBase64(seed));
+    final sealed = await crypto.encryptBytes(
+      data: Uint8List.fromList(utf8.encode(jsonEncode({'v': 2, 'clip': {}}))),
+      key: key,
+    );
+    final meta = File('${root.path}/1.meta')
+      ..writeAsBytesSync([...sealed.iv, ...sealed.ciphertext]);
+    await add(5);
+    expect((await library.list(seed)), hasLength(1));
+    expect(meta.existsSync(), isTrue);
+  });
+
+  test('a file half written when Rift quit goes', () async {
+    await add(1);
+    final left = File('${root.path}/9.pcm.tmp')..writeAsBytesSync([1, 2, 3]);
+    expect(await library.list(seed), hasLength(1));
+    expect(left.existsSync(), isFalse);
+  });
+
+  test('a clear that cannot delete everything still finishes', () async {
+    await add(1);
+    // Files in a folder that may not be written cannot be deleted.
+    Process.runSync('chmod', ['500', root.path]);
+    addTearDown(() => Process.runSync('chmod', ['700', root.path]));
+    await expectLater(library.clear(), completes);
+    await expectLater(library.wipe(), completes);
+  }, testOn: 'linux');
+
+  test('a wipe tells the readers and drops the key', () async {
+    var wiped = 0;
+    final sub = library.wiped.listen((_) => wiped++);
+    await add(1);
+    await library.wipe();
+    await Future<void>.delayed(Duration.zero);
+    expect(wiped, 1);
+    expect(root.existsSync() ? files() : const <File>[], isEmpty);
+    await sub.cancel();
   });
 
   test('the clip key is a rung of its own', () async {

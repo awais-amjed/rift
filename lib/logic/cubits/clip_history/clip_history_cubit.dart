@@ -19,12 +19,19 @@ part 'clip_history_state.dart';
 class ClipHistoryCubit extends Cubit<ClipHistoryState> {
   final ClipLibrary _library;
   StreamSubscription<void>? _changes;
+  StreamSubscription<void>? _wiped;
   String? _seed;
 
   ClipHistoryCubit({ClipLibrary? library})
     : _library = library ?? ClipLibrary.instance,
       super(const ClipHistoryState()) {
     _changes = _library.changes.listen((_) => unawaited(_read()));
+    // The account left: its seed reads nothing of the next one's. The list
+    // is read again once a new seed is handed over.
+    _wiped = _library.wiped.listen((_) {
+      _seed = null;
+      if (!isClosed) emit(const ClipHistoryState());
+    });
   }
 
   /// Reads the list with [seed], the key to the clips, and keeps it for the
@@ -55,6 +62,7 @@ class ClipHistoryCubit extends Cubit<ClipHistoryState> {
   @override
   Future<void> close() async {
     await _changes?.cancel();
+    await _wiped?.cancel();
     return super.close();
   }
 }
