@@ -216,10 +216,11 @@ void PauseIsNotFilled() {
 }
 
 // The call goes quiet and libwebrtc stops handing over blocks; then Rift
-// rejoins. The quiet before the pause is still part of the call and is kept:
-// without it, audio from minutes earlier was joined straight onto what came
-// after the rejoin (live check, Nov 21). Only the pause itself is skipped.
-void QuietBeforePauseIsKept() {
+// rejoins, and the call stays quiet a while longer. The quiet on both sides
+// of the pause is still part of the call and is kept: without it, audio from
+// minutes earlier was joined straight onto what came after the rejoin (live
+// check, Nov 21). Only the pause itself is skipped.
+void QuietAroundPauseIsKept() {
   rift::ClipStore store;
   store.Configure(30, false);
   store.SetWriting(true, 0);
@@ -233,17 +234,18 @@ void QuietBeforePauseIsKept() {
   store.SetWriting(false, now);
   now += 20 * 1000000;
   store.SetWriting(true, now);
+  now += 3 * 1000000;
   for (int64_t f = 0; f < 48000; f += 480) {
     auto call = Block(48000, 1000, 1000, f);
     store.WriteCall(call.data(), 480, 48000, 2, now);
     now += 10000;
   }
-  CHECK(store.Frames() == 48000 * 7);
+  CHECK(store.Frames() == 48000 * 10);
   std::vector<int16_t> pcm(store.Frames() * 2);
   const int64_t n = store.Snapshot(pcm.data(), store.Frames());
   CHECK(Rms(pcm, 0, 0, 48000) > 5000);
-  CHECK(Rms(pcm, 0, 48000 + 2400, 48000 * 6 - 2400) < 50);
-  CHECK(Rms(pcm, 0, 48000 * 6, n) > 5000);
+  CHECK(Rms(pcm, 0, 48000 + 2400, 48000 * 9 - 2400) < 50);
+  CHECK(Rms(pcm, 0, 48000 * 9, n) > 5000);
 }
 
 // Shrinking the length keeps the newest audio.
@@ -305,7 +307,7 @@ int main() {
   MicLinesUpWithTheCall();
   MicLeftOutUnlessChosen();
   PauseIsNotFilled();
-  QuietBeforePauseIsKept();
+  QuietAroundPauseIsKept();
   ShorterKeepsNewest();
   ConfigureWhileWriting();
   if (g_failed == 0) std::printf("clip store: all passed\n");

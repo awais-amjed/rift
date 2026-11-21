@@ -31,9 +31,10 @@ class ClipStore {
 
   // Whether blocks are kept. Off while Rift rejoins a call; on again once
   // the call has been told (the `clipping` attribute). The pause is not
-  // filled with silence: the clip simply jumps over it. A quiet stretch just
-  // before it, when libwebrtc handed over no blocks, is still the call, and
-  // is kept as silence up to `now_us` of the stop.
+  // filled with silence: the clip simply jumps over it. A quiet stretch on
+  // either side of it, when libwebrtc handed over no blocks, is still the
+  // call, and is kept as silence; `now_us` marks where the pause began and
+  // ended.
   void SetWriting(bool on, int64_t now_us);
 
   // A 10 ms block of what the call plays, channel-planar (channels 1 or 2,
@@ -83,8 +84,10 @@ class ClipStore {
   Lane mic_;
   std::atomic<bool> writing_{false};
   std::atomic<int> epoch_{0};
-  // When writing last stopped, for the quiet before a pause.
-  std::atomic<int64_t> stopped_us_{-1};
+  // When writing last stopped and started again: the pause a quiet stretch
+  // across it leaves out.
+  std::atomic<int64_t> stopped_us_{0};
+  std::atomic<int64_t> started_us_{0};
 };
 
 }  // namespace rift

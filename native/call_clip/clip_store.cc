@@ -77,6 +77,7 @@ void ClipStore::Configure(int seconds, bool include_mic) {
 
 void ClipStore::SetWriting(bool on, int64_t now_us) {
   if (on) {
+    started_us_.store(now_us, std::memory_order_release);
     epoch_.fetch_add(1, std::memory_order_acq_rel);
     writing_.store(true, std::memory_order_release);
   } else if (writing_.exchange(false, std::memory_order_acq_rel)) {
@@ -88,13 +89,14 @@ void ClipStore::Keep(Lane& lane, int converted, bool stereo, int block_frames,
                      int rate, int64_t now_us) {
   const int64_t block_us = static_cast<int64_t>(block_frames) * 1000000 / rate;
   const int epoch = epoch_.load(std::memory_order_acquire);
-  // The first block after a pause: the quiet up to the stop is kept, and the
-  // pause itself skipped.
-  const int64_t gap_end_us =
-      lane.epoch == epoch ? now_us
-                          : stopped_us_.load(std::memory_order_acquire);
   if (lane.end_us >= 0) {
-    const int64_t gap_us = gap_end_us - lane.end_us - block_us;
+    int64_t gap_us = now_us - lane.end_us - block_us;
+    // The first block after a pause: the quiet either side of it is kept,
+    // the pause itself skipped.
+    if (lane.epoch != epoch) {
+      gap_us -= started_us_.load(std::memory_order_acquire) -
+                stopped_us_.load(std::memory_order_acquire);
+    }
     if (gap_us > kGapUs) lane.ring->WriteSilence(gap_us * kRate / 1000000);
   }
   lane.epoch = epoch;

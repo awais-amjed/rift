@@ -2171,12 +2171,13 @@ own copy. When Rift rejoins by itself (a reconnect, a region move, Restart to
 update), writing stops at the drop and starts again only after the flag is
 published to the new connection, so someone who joined in the gap is never
 kept before they could see it. The ring keeps what it had: it belongs to the
-call, not the connection, and a clip jumps over the pause itself. A quiet
-stretch just before it stays, as silence: libwebrtc hands the tap nothing
-while the call is silent, so the ring fills such a stretch when sound comes
-back, and before Nov 21 a rejoin in the middle of one dropped it, joining
-audio from minutes earlier straight onto what came after (seen in the live
-check).
+call, not the connection, and a clip jumps over the pause itself. The quiet
+on either side of it stays, as silence: libwebrtc hands the tap nothing while
+the call is silent, so the ring fills such a stretch when sound comes back.
+Before Nov 21 a rejoin in the middle of one dropped it, joining audio from
+minutes earlier straight onto what came after (seen in the live check). For
+the same reason a clip taken during a quiet stretch ends at the last sound,
+not at the press.
 
 **What the others see.** A grey scissors mark, "Clipping on", by the
 clipper's name on their tile and their sidebar row, for as long as the
