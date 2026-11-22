@@ -21,6 +21,7 @@ import '../../../data/repositories/secure_storage_repository.dart';
 import '../../../data/repositories/server_db.dart';
 import '../../../data/repositories/server_session.dart';
 import '../../../data/repositories/session_repository.dart';
+import '../../helper_methods.dart';
 import '../../services/backup_merge.dart';
 import '../../services/coalesced_refresh.dart';
 import '../../services/hydrated_keys.dart';
@@ -336,8 +337,26 @@ class ServerCubit extends HydratedCubit<ServerState>
 
   // ── Dev helpers ───────────────────────────────────────────
 
-  /// Wipes all persisted server state. Dev/test only.
+  /// Longest a reset waits on the servers to forget this device.
+  static const Duration forgetDeviceWait = Duration(seconds: 5);
+
+  /// Wipes all persisted server state: signing out of this device, and
+  /// resetting the vault.
+  ///
+  /// Each server is asked first to stop waking this device, as leaving one
+  /// does, while the list still holds its token and the seed can still sign
+  /// in again — the vault goes right after. Not for long: a server that does
+  /// not answer must not keep anybody from leaving.
   Future<void> reset() async {
+    await Future.wait([
+      for (final server in state.servers) _pushOn(server.id).forgetDevice(),
+    ]).timeout(forgetDeviceWait, onTimeout: () => const []).catchError((
+      Object e,
+    ) {
+      HelperMethods.printDebug('[Server] forgetting this device failed: $e');
+      return const <void>[];
+    });
+    _session.members.clear();
     await clear();
     emit(const ServerState());
   }

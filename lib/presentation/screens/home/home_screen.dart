@@ -173,6 +173,9 @@ class _HomeScreenState extends State<HomeScreen> {
   /// No servers — on a first run, or after leaving the last one. Straight to
   /// join-or-create: there is nothing to select from.
   void _openAddServer({String? inviteLink}) {
+    // Forced, past a join in flight: that join still lands on the list
+    // without its dialog (`JoinServerModal._submit`). Left open beneath, its
+    // own close would pop this one.
     if (_addServerOpen) Navigator.of(context).pop();
 
     final generation = ++_addServerGeneration;

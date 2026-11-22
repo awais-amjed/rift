@@ -116,15 +116,18 @@ class _JoinServerModalState extends State<JoinServerModal> {
     });
 
     final invite = widget.invite;
+    // Read before the wait: the server is joined whether or not this dialog
+    // is still open when the answer comes.
+    final servers = context.read<ServerCubit>();
     final result = await context.read<VaultCubit>().registerOnServer(
       supabaseUrl: invite.serverUrl,
       inviteCode: invite.inviteCode,
       username: _usernameCtrl.text.trim(),
       displayName: _displayNameCtrl.text.trim(),
     );
-    if (!mounted) return;
 
     if (!result.success) {
+      if (!mounted) return;
       setState(() {
         _error = result.error;
         _isLoading = false;
@@ -132,13 +135,20 @@ class _JoinServerModalState extends State<JoinServerModal> {
       return;
     }
 
-    // register returns the full server context — add directly.
+    // register returns the full server context — add directly. Even with the
+    // dialog gone: the server has the member and the invite is spent, so a
+    // join left off the list could not be made again.
     final data = result.data!;
     final token = data['token'] as String;
     // Kept under the address joined, which for a link that needs a Rift
     // account is the server's own (`joinAddress`).
-    context.read<ServerCubit>().addServer(result.serverUrl!, token, data);
+    final added = servers.addServer(result.serverUrl!, token, data);
     if (!mounted) return;
+    if (added == null) {
+      // Refused, and the notice says why.
+      setState(() => _isLoading = false);
+      return;
+    }
 
     setState(() => _isLoading = false);
     // Somebody who left and came back is still the member they were — the
@@ -170,6 +180,12 @@ class _JoinServerModalState extends State<JoinServerModal> {
     // Shown, not enforced: somebody who left this server in privacy mode is
     // still a member and gets back in; anybody new hears the server say no.
     final blocked = _needsAccount && !signedIn;
+    // Escape and a click outside close a dialog: held while the join is in
+    // flight, as Back is.
+    return PopScope(canPop: !_isLoading, child: _modal(invite, blocked));
+  }
+
+  Widget _modal(ResolvedInvite invite, bool blocked) {
     return AppModal(
       pageOnPhone: true,
       onBack: _isLoading ? null : widget.onCancel,

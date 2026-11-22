@@ -93,7 +93,9 @@ class InviteLink {
   }
 
   static InviteLink? _make(String serverUrl, String inviteCode) {
-    final url = serverUrl.trim();
+    // Without the trailing slash a link may have been pasted with, which is
+    // how every other invite and the server list write the address.
+    final url = _trim(serverUrl);
     final code = inviteCode.trim();
     if (url.isEmpty || code.isEmpty) return null;
     return InviteLink(serverUrl: url, inviteCode: code);

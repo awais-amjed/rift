@@ -216,17 +216,53 @@ void main() {
         expect(session.signIns, 1 + SignInRetries.delays.length);
         expect(session.unreachable.value, {'s1'});
 
-        async.elapse(const Duration(hours: 1));
+        // Held back in between, and still tried now and then: a server whose
+        // socket never connected has no socket to come back.
         session.reAuthenticate('s1');
         async.elapse(Duration.zero);
         expect(session.signIns, 1 + SignInRetries.delays.length);
+        async.elapse(SignInRetries.slowRetry);
+        expect(session.signIns, 2 + SignInRetries.delays.length);
+        expect(session.unreachable.value, {'s1'});
 
         // Opened: tried once more, and back once it works.
         session.next = 'fresh';
         session.login(_server(), asked: true);
         async.elapse(Duration.zero);
-        expect(session.signIns, 2 + SignInRetries.delays.length);
+        expect(session.signIns, 3 + SignInRetries.delays.length);
         expect(session.unreachable.value, isEmpty);
+      });
+    });
+
+    test('opened and refused is tried again by itself', () {
+      fakeAsync((async) {
+        final session = _CountingSession()..next = null;
+        session.publish(servers: [_server()], selectedServerId: 's1');
+
+        session.login(_server(), asked: true);
+        async.elapse(Duration.zero);
+        expect(session.unreachable.value, {'s1'});
+
+        // The network comes back before anybody opens it again.
+        session.next = 'fresh';
+        async.elapse(SignInRetries.delays.first);
+        expect(session.signIns, 2);
+        expect(session.unreachable.value, isEmpty);
+      });
+    });
+
+    test('is forgotten once it leaves the list', () {
+      fakeAsync((async) {
+        final session = _CountingSession()..next = null;
+        session.publish(servers: [_server()], selectedServerId: 's1');
+        session.login(_server(), asked: true);
+        async.elapse(Duration.zero);
+        expect(session.unreachable.value, {'s1'});
+
+        session.publish(servers: const [], selectedServerId: null);
+        expect(session.unreachable.value, isEmpty);
+        async.elapse(const Duration(minutes: 10));
+        expect(session.signIns, 1);
       });
     });
 

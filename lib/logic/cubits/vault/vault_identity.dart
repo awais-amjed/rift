@@ -206,16 +206,21 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
     if (!response.success) {
       return _failed(response.error, code: response.errorCode);
     }
+    // The server signed in to is the one asked for: the key was derived for
+    // [serverId], and every row on this device is found by its id. A reply
+    // naming another — another server's, which an invite to it shows — would
+    // be listed as that server.
+    final data = response.data;
+    if (data is! Map<String, dynamic> || data['server_id'] != serverId) {
+      return _failed('The server answered as a different server.');
+    }
 
     await _addServerToVault(host, version: 'v1');
     return (
       success: true,
       error: null,
       code: null,
-      data: <String, dynamic>{
-        'token': token,
-        ...(response.data as Map<String, dynamic>),
-      },
+      data: <String, dynamic>{'token': token, ...data},
       serverUrl: url,
     );
   }

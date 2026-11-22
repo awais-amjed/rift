@@ -3,6 +3,7 @@ part of 'server_cubit.dart';
 mixin _ServerCrudMixin on Cubit<ServerState> {
   void Function()? get _onServersChanged;
   SecureStorageRepository get _storage;
+  SessionRepository get _session;
 
   /// Registering this device on a server, as the list and the FCM token
   /// change.
@@ -15,21 +16,71 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
 
   // ── CRUD ──────────────────────────────────────────────────
 
-  Server addServer(
+  /// The server already listed under [serverId] at another address than
+  /// [supabaseUrl], which a join must not add beside it.
+  ///
+  /// A server chooses its own id, and everything here finds a server by its
+  /// id alone: a second row with the same one had its token, its socket and
+  /// its removal shared with the first. So a server answering with the id of
+  /// one already on the list — or the same server joined again by another
+  /// address — is refused rather than added.
+  Server? listedElsewhere({
+    required String supabaseUrl,
+    required String serverId,
+  }) {
+    final listed = state.serverById(serverId);
+    if (listed == null || Server.sameUrl(listed.supabaseUrl, supabaseUrl)) {
+      return null;
+    }
+    return listed;
+  }
+
+  /// Puts a server just joined on the list and selects it, or null when
+  /// [listedElsewhere] refuses it (said in a notice).
+  ///
+  /// One already on the list at this address — an invite tapped to a server
+  /// you are on, answered as a rejoin — takes the place of the row it had,
+  /// rather than a second chip beside it.
+  Server? addServer(
     String supabaseUrl,
     String token,
     Map<String, dynamic> serverDetails,
   ) {
-    final newServer = Server.fromJoin(supabaseUrl, token, serverDetails);
+    final joined = Server.fromJoin(supabaseUrl, token, serverDetails);
+    final clash = listedElsewhere(
+      supabaseUrl: supabaseUrl,
+      serverId: joined.id,
+    );
+    if (clash != null) {
+      emit(
+        state.copyWith(
+          notice: Notice.error(
+            'You are already on ${clash.name} at '
+            '${Uri.tryParse(clash.supabaseUrl)?.host ?? clash.supabaseUrl}, '
+            'and ${Uri.tryParse(supabaseUrl)?.host ?? supabaseUrl} answered '
+            'as the same server.',
+          ),
+        ),
+      );
+      return null;
+    }
+    final listed = state.serverById(joined.id);
+    // Kept under the address it was listed at, which its saved conversations
+    // are filed under.
+    final newServer = listed == null
+        ? joined
+        : Server.fromJoin(listed.supabaseUrl, token, serverDetails);
     // Joining again is the answer to having been removed, so the note that
     // kept it out of the rail has to go with it.
-    _clearServerGone(supabaseUrl: supabaseUrl, id: newServer.id);
+    _clearServerGone(supabaseUrl: newServer.supabaseUrl, id: newServer.id);
     // And its conversations may be saved on this device again.
     MessageCacheSlot.scopesOfServer(
-      supabaseUrl,
+      newServer.supabaseUrl,
       newServer.id,
     ).forEach(MessageCache.instance.reopenScope);
-    final updated = [...state.servers, newServer];
+    final updated = listed == null
+        ? [...state.servers, newServer]
+        : [for (final s in state.servers) s.id == newServer.id ? newServer : s];
     emit(state.copyWith(servers: updated, selectedServerId: newServer.id));
     _onServersChanged?.call();
     // The FCM token listener only fires when the token changes, and joining is
@@ -37,19 +88,6 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     // until the next launch.
     unawaited(_pushOn(newServer.id).registerDevice());
     _readJoinedServer(newServer.id);
-    return newServer;
-  }
-
-  Server addCreatedServer(
-    String supabaseUrl,
-    Map<String, dynamic> serverData,
-    String token,
-  ) {
-    final newServer = Server.fromCreate(supabaseUrl, serverData, token);
-    final updated = [...state.servers, newServer];
-    emit(state.copyWith(servers: updated, selectedServerId: newServer.id));
-    _onServersChanged?.call();
-    unawaited(_pushOn(newServer.id).registerDevice());
     return newServer;
   }
 
@@ -75,8 +113,9 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
   /// The clock is a plain +1 rather than a timestamp: this device's clock is
   /// already the highest it has seen, because every merge adopts the higher
   /// of the two. So the order chosen *after* learning of another device's
-  /// order outranks it, and two clocks that never met are decided by
-  /// whichever device uploads second — see [BackupMerge].
+  /// order outranks it, and two orders at the same clock are decided by the
+  /// first device to merge them, which steps its own past the other's — see
+  /// [BackupMerge.union].
   void reorderServers(int from, int to) {
     final count = state.servers.length;
     if (from < 0 || from >= count || to < 0 || to >= count || from == to) {
@@ -158,6 +197,7 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     // that has already stopped answering.
     unawaited(_pushOn(serverId).forgetDevice());
     _forgetSavedConversations(serverId);
+    _session.members.forget(serverId);
     final updated = state.servers.where((s) => s.id != serverId).toList();
     String? newSelectedId = state.selectedServerId;
     if (newSelectedId == serverId) {

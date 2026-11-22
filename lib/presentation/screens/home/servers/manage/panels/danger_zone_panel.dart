@@ -54,7 +54,12 @@ class _DangerZonePanelState extends State<DangerZonePanel> {
       return;
     }
     // Forgotten here only once the server has said yes, and whether or not
-    // this page is still open to hear it.
+    // this page is still open to hear it. Noted gone first, as a leave is, or
+    // the backup that follows pulls the cloud's copy back into the rail.
+    servers.noteServerGone(
+      supabaseUrl: widget.server.supabaseUrl,
+      id: widget.server.id,
+    );
     servers.removeServer(widget.server.id);
     if (!mounted) return;
     setState(() => _isBusy = false);

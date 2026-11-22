@@ -117,6 +117,14 @@ class TokenCubit extends HydratedCubit<TokenState> {
     emit(state.copyWith(tokens: updated));
   }
 
+  /// Drops every cached token: the identity they were minted for has left
+  /// this device. A cached one would put the next identity into a call as
+  /// the last.
+  void forgetAll() {
+    if (state.tokens.isEmpty) return;
+    emit(state.copyWith(tokens: const {}));
+  }
+
   // ── HydratedCubit persistence ─────────────────────────────
 
   @override

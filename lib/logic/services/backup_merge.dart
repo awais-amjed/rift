@@ -38,6 +38,8 @@
 /// change behind it. A fact every device can re-check needs neither.
 library;
 
+import 'package:flutter/foundation.dart';
+
 /// A project this identity has joined, as the vault blob records it.
 typedef JoinedHost = ({String url, String version});
 
@@ -171,12 +173,36 @@ class BackupMerge {
       }
     }
 
+    // A tie between two orders that disagree is moved past, not just won:
+    // otherwise each device, merging with the other's copy, preferred its own
+    // at the same clock, saw the cloud as stale and uploaded it again, for
+    // good. One step on, the order uploaded outranks the other device's, so
+    // the next pull there adopts it.
+    final clock = mine.orderClock > theirs.orderClock
+        ? mine.orderClock
+        : theirs.orderClock;
+    final tieUndecided =
+        mine.orderClock == theirs.orderClock &&
+        !_sameRelativeOrder(mine.servers, theirs.servers);
+
     return ServerManifest(
       servers: _withoutShadowedHosts(ordered),
-      orderClock: mine.orderClock > theirs.orderClock
-          ? mine.orderClock
-          : theirs.orderClock,
+      orderClock: tieUndecided ? clock + 1 : clock,
     );
+  }
+
+  /// Whether [a] and [b] put the servers both hold in the same order. One
+  /// only one side holds has no place in the other's to disagree with.
+  static bool _sameRelativeOrder(
+    List<Map<String, dynamic>> a,
+    List<Map<String, dynamic>> b,
+  ) {
+    final inA = {for (final e in a) ?_key(e)};
+    final inB = {for (final e in b) ?_key(e)};
+    final shared = inA.intersection(inB);
+    final orderA = [for (final e in a) ?_key(e)].where(shared.contains);
+    final orderB = [for (final e in b) ?_key(e)].where(shared.contains);
+    return listEquals(orderA.toList(), orderB.toList());
   }
 
   /// [mine] with any field it does not have filled in from [theirs].

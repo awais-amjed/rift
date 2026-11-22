@@ -53,13 +53,23 @@ class _CreateServerModalState extends State<CreateServerModal> {
   bool _isLoading = false;
   String? _error;
 
+  /// The server made here, and the single-use invite that makes its admin,
+  /// once `create_server` has answered. Kept for as long as the page is open:
+  /// closing the account step with Later lost the only way into the server,
+  /// and Create again made a second one.
+  ({String url, String inviteCode})? _created;
+
+  /// The form is spent once the server exists; what is left is its account.
+  bool get _fieldsOpen => !_isLoading && _created == null;
+
   bool get _canSubmit =>
+      _created != null ||
       _nameCtrl.text.trim().isNotEmpty &&
-      _supabaseUrlCtrl.text.trim().isNotEmpty &&
-      _setupSecretCtrl.text.trim().isNotEmpty &&
-      _livekitUrlCtrl.text.trim().isNotEmpty &&
-      _apiKeyCtrl.text.trim().isNotEmpty &&
-      _secretKeyCtrl.text.trim().isNotEmpty;
+          _supabaseUrlCtrl.text.trim().isNotEmpty &&
+          _setupSecretCtrl.text.trim().isNotEmpty &&
+          _livekitUrlCtrl.text.trim().isNotEmpty &&
+          _apiKeyCtrl.text.trim().isNotEmpty &&
+          _secretKeyCtrl.text.trim().isNotEmpty;
 
   @override
   void dispose() {
@@ -74,6 +84,8 @@ class _CreateServerModalState extends State<CreateServerModal> {
 
   Future<void> _submit() async {
     if (!_canSubmit) return;
+    final created = _created;
+    if (created != null) return _makeAccount(created);
 
     setState(() {
       _isLoading = true;
@@ -102,17 +114,20 @@ class _CreateServerModalState extends State<CreateServerModal> {
       return;
     }
 
-    final inviteCode = response.inviteCode!;
+    final made = (url: supabaseUrl, inviteCode: response.inviteCode!);
+    setState(() {
+      _isLoading = false;
+      _created = made;
+    });
+    await _makeAccount(made);
+  }
 
-    setState(() => _isLoading = false);
-
-    if (!mounted) return;
-
-    // Register as admin using the single-use invite code generated for us.
+  /// Register as admin using the single-use invite code generated for us.
+  Future<void> _makeAccount(({String url, String inviteCode}) made) async {
     final serverId = await showCustomDialog<String>(
       context: context,
       build: (_) =>
-          CreateUserDialog(supabaseUrl: supabaseUrl, inviteCode: inviteCode),
+          CreateUserDialog(supabaseUrl: made.url, inviteCode: made.inviteCode),
     );
 
     if (!mounted) return;
@@ -140,6 +155,17 @@ class _CreateServerModalState extends State<CreateServerModal> {
               child: MessageBanner(
                 message: _error!,
                 kind: MessageBannerKind.error,
+              ),
+            ),
+          if (_created != null)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: MessageBanner(
+                message:
+                    'The server is made. Create your account on it to '
+                    'finish: the invite that makes you its admin works once, '
+                    'and only from this page.',
+                kind: MessageBannerKind.caution,
               ),
             ),
 
@@ -170,7 +196,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
             controller: _nameCtrl,
             label: 'Server name',
             hint: 'My server',
-            enabled: !_isLoading,
+            enabled: _fieldsOpen,
             autofocus: true,
             onChanged: (_) => setState(() => _error = null),
           ),
@@ -192,7 +218,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
                     controller: _supabaseUrlCtrl,
                     label: 'Project URL',
                     hint: 'https://xxxxx.supabase.co',
-                    enabled: !_isLoading,
+                    enabled: _fieldsOpen,
                     onChanged: (_) => setState(() => _error = null),
                   ),
                   AppTextField(
@@ -200,7 +226,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
                     label: 'Service role key',
                     hint: 'Project Settings → API → service_role',
                     obscureText: true,
-                    enabled: !_isLoading,
+                    enabled: _fieldsOpen,
                     onChanged: (_) => setState(() => _error = null),
                   ),
                 ],
@@ -212,14 +238,14 @@ class _CreateServerModalState extends State<CreateServerModal> {
                     controller: _livekitUrlCtrl,
                     label: 'Server URL',
                     hint: 'wss://xxxxx.livekit.cloud',
-                    enabled: !_isLoading,
+                    enabled: _fieldsOpen,
                     onChanged: (_) => setState(() => _error = null),
                   ),
                   AppTextField(
                     controller: _apiKeyCtrl,
                     label: 'API key',
                     hint: 'From your LiveKit project\'s keys page',
-                    enabled: !_isLoading,
+                    enabled: _fieldsOpen,
                     onChanged: (_) => setState(() => _error = null),
                   ),
                   AppTextField(
@@ -227,7 +253,7 @@ class _CreateServerModalState extends State<CreateServerModal> {
                     label: 'Secret key',
                     hint: 'Shown beside the API key, once',
                     obscureText: true,
-                    enabled: !_isLoading,
+                    enabled: _fieldsOpen,
                     onChanged: (_) => setState(() => _error = null),
                   ),
                 ],
@@ -245,7 +271,11 @@ class _CreateServerModalState extends State<CreateServerModal> {
           onPressed: _isLoading ? null : widget.onCancel,
         ),
         AppButton(
-          label: _isLoading ? 'Creating…' : 'Create server',
+          label: _isLoading
+              ? 'Creating…'
+              : _created != null
+              ? 'Create your account'
+              : 'Create server',
           onPressed: _canSubmit && !_isLoading ? _submit : null,
           isLoading: _isLoading,
         ),

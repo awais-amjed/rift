@@ -56,6 +56,9 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
       _error = null;
     });
 
+    // Read before the wait, for the same reason the dialog holds itself open
+    // while it runs: the account exists on the server once this answers.
+    final servers = context.read<ServerCubit>();
     // Step 1: Derive Ed25519 identity + call /register + update SecureStorage vault.
     final result = await context.read<VaultCubit>().registerOnServer(
       supabaseUrl: widget.supabaseUrl,
@@ -77,11 +80,12 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
     // Step 2: Persist the new server (token + full context) into HydratedBloc.
     final data = result.data!;
     final token = data['token'] as String;
-    final server = context.read<ServerCubit>().addServer(
-      result.serverUrl!,
-      token,
-      data,
-    );
+    final server = servers.addServer(result.serverUrl!, token, data);
+    if (server == null) {
+      // Refused, and the notice says why.
+      setState(() => _isLoading = false);
+      return;
+    }
 
     HelperMethods.showSuccess(
       message: data['rejoined'] == true

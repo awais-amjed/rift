@@ -34,9 +34,19 @@ class ServerImportMerge {
     final restored = <Server>[];
     final taken = <String>{};
 
+    // One row per id, which is all the rest of the app tells servers apart
+    // by: a second under the same id had the first one's token and socket.
     void keep(Server server) {
-      if (taken.add(_key(server.supabaseUrl, server.id))) restored.add(server);
+      if (taken.add(server.id)) restored.add(server);
     }
+
+    // The token in hand was minted for whoever this device was before the
+    // restore, which may be another identity: blanked, so no call goes out
+    // as them while the new identity signs in (stamped stale, the first call
+    // signs in again).
+    Server restoredFrom(Server known, String keyVersion) => known
+        .copyWith(token: '', keyVersion: keyVersion)
+        .copyWith(tokenIssuedAt: stale);
 
     for (final meta in imported) {
       final url = (meta['supabaseUrl'] as String?) ?? '';
@@ -55,7 +65,7 @@ class ServerImportMerge {
         for (final server in existing) {
           if (server.supabaseUrl == url ||
               Uri.tryParse(server.supabaseUrl)?.host == url) {
-            keep(server.copyWith(keyVersion: keyVersion, tokenIssuedAt: stale));
+            keep(restoredFrom(server, keyVersion));
           }
         }
         continue;
@@ -63,7 +73,7 @@ class ServerImportMerge {
 
       final known = _find(existing, url, id);
       keep(
-        known?.copyWith(keyVersion: keyVersion, tokenIssuedAt: stale) ??
+        (known == null ? null : restoredFrom(known, keyVersion)) ??
             // Nothing here knows it — a fresh device. What the backup carries
             // is enough to draw the rail and to log in; the rest arrives with
             // `get_server_details` on first selection.
@@ -91,11 +101,14 @@ class ServerImportMerge {
   /// showing the same server in the rail forever. It cannot be undone from
   /// the UI: every write path maps by id and so updates all the copies at
   /// once, and leaving removes all of them together.
+  ///
+  /// By id alone, as the rest of the app finds a server: two rows with one
+  /// id, at two addresses, shared one token and one socket.
   static List<Server> deduplicate(List<Server> servers) {
     final taken = <String>{};
     return [
       for (final server in servers)
-        if (taken.add(_key(server.supabaseUrl, server.id))) server,
+        if (taken.add(server.id)) server,
     ];
   }
 
@@ -105,8 +118,4 @@ class ServerImportMerge {
     }
     return null;
   }
-
-  /// `\u0000` rather than a printable separator: a URL cannot contain a NUL,
-  /// so no pair of distinct servers can collide into one key.
-  static String _key(String url, String id) => '$url\u0000$id';
 }

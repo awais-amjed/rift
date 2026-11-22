@@ -89,6 +89,14 @@ These properties are load-bearing:
   attachments, avatars — is built from it. The one address a client takes
   *from* the server are its LiveKit nodes (`livekit_nodes`, §5), which is why
   voice is the only thing a server can move without moving its members.
+- **A server's id is its own word, and the list holds one row per id.** The
+  client finds a server by its id alone — its token, its socket, its removal —
+  so a join whose `register` names another id than the invite resolved to is
+  refused, and so is one whose id is already listed at another address (one
+  server joined by two addresses, or a server answering with another's id,
+  which anyone holding an invite to it can read). A merge or restore keeps
+  the first row of an id (`ServerCubit.listedElsewhere`,
+  `ServerImportMerge.deduplicate`).
 - **Argon2id runs off the UI thread**, and the seed lives in platform secure
   storage — never in HydratedBloc state. On Windows that is a DPAPI-sealed file
   in the profile's folder under Local AppData (`ProfileSecureStorage`), not the

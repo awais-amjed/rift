@@ -2,10 +2,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/classes/resolved_invite.dart';
+import '../../../../../data/classes/server.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/public_bots/public_bots_cubit.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
+import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
+import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_modal.dart';
 import '../../bots/bot_directory_dialog.dart';
 import 'browse_servers_modal.dart';
@@ -93,12 +96,34 @@ class _AddServerDialogState extends State<AddServerDialog> {
   /// The server the publish step is about: the one just joined or created.
   String? _newServerId;
 
-  void _join(ResolvedInvite invite, {required bool fromBrowser}) =>
-      setState(() {
-        _invite = invite;
-        _fromBrowser = fromBrowser;
-        _step = _Step.join;
-      });
+  void _join(ResolvedInvite invite, {required bool fromBrowser}) {
+    final servers = context.read<ServerCubit>();
+    final listed = servers.state.serverById(invite.serverId);
+    if (listed != null) {
+      // Joined by another address, or another server answering with this
+      // one's id: either way not a second row ([ServerCubit.listedElsewhere]).
+      if (!Server.sameUrl(listed.supabaseUrl, invite.serverUrl)) {
+        HelperMethods.showError(
+          error:
+              'You are already on ${listed.name} at '
+              '${Uri.tryParse(listed.supabaseUrl)?.host ?? listed.supabaseUrl}.',
+        );
+        return;
+      }
+      // A member already, so nothing to fill in. A kicked one is still
+      // listed, and an invite is how they come back, so they go on.
+      if (listed.admitsUs) {
+        servers.selectServer(listed);
+        HelperMethods.showSuccess(message: 'You are already on ${listed.name}');
+        return _handleSuccess();
+      }
+    }
+    setState(() {
+      _invite = invite;
+      _fromBrowser = fromBrowser;
+      _step = _Step.join;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

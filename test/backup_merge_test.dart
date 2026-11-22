@@ -95,6 +95,40 @@ void main() {
       expect(idsOf(BackupMerge.union(mine: mine, theirs: theirs)), ['a', 'b']);
     });
 
+    test('a tie between two orders is moved past, so the other side adopts '
+        'it', () {
+      final mine = ServerManifest(
+        servers: [server('a'), server('b')],
+        orderClock: 3,
+      );
+      final theirs = ServerManifest(
+        servers: [server('b'), server('a')],
+        orderClock: 3,
+      );
+      final uploaded = BackupMerge.union(mine: mine, theirs: theirs);
+      expect(uploaded.orderClock, 4);
+
+      // The other device, merging what was uploaded, takes it.
+      final there = BackupMerge.union(mine: theirs, theirs: uploaded);
+      expect(idsOf(there), ['a', 'b']);
+      expect(there.orderClock, 4);
+      expect(there.agreesOnOrderWith(uploaded), isTrue);
+    });
+
+    test('a tie that only adds a server keeps its clock', () {
+      final merged = BackupMerge.union(
+        mine: ServerManifest(
+          servers: [server('a'), server('b'), server('c')],
+          orderClock: 3,
+        ),
+        theirs: ServerManifest(
+          servers: [server('a'), server('b')],
+          orderClock: 3,
+        ),
+      );
+      expect(merged.orderClock, 3);
+    });
+
     test('the clock only ever goes up', () {
       final merged = BackupMerge.union(
         mine: const ServerManifest(servers: [], orderClock: 2),

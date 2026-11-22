@@ -71,6 +71,13 @@ class Server extends Equatable {
   bool get isTokenNearExpiry =>
       DateTime.now().difference(tokenIssuedAt) > const Duration(minutes: 50);
 
+  /// Whether [a] and [b] name the same address: a trailing slash or a
+  /// capital letter typed into an invite is not another server.
+  static bool sameUrl(String a, String b) => _plainUrl(a) == _plainUrl(b);
+
+  static String _plainUrl(String url) =>
+      url.trim().replaceAll(RegExp(r'/+$'), '').toLowerCase();
+
   /// Whether this server lets us in: we are on it, and not banned or kicked.
   ///
   /// A banned member may still hear their own topic — which is how a lifted

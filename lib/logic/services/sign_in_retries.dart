@@ -14,10 +14,16 @@ import 'package:flutter/foundation.dart';
 /// over and over while its sidebar waited on a token that never came.
 ///
 /// So a failure is tried again a few times, further apart each time, and then
-/// left alone: the server is reported out of reach ([givenUp]) the way a
-/// server whose socket is down is. Opening it tries once more (an `asked`
-/// failure gives up at once, since somebody is waiting on the answer), and so
-/// does its socket coming back. The next launch starts over.
+/// only every [slowRetry]: the server is reported out of reach ([givenUp]) the
+/// way a server whose socket is down is. Opening it tries at once (an `asked`
+/// failure is out of reach at once, since somebody is waiting on the answer),
+/// and so does its socket coming back.
+///
+/// Never stopped for good. A server given up on whose socket never connected
+/// has no socket to come back: a launch before the network was up, on a token
+/// already expired, held its join back and stayed "can't reach" until the
+/// server was opened or the app restarted, however long the network had been
+/// back.
 class SignInRetries {
   /// The waits before each try after the first: five tries in all, the last
   /// a little over three minutes after the first.
@@ -27,6 +33,9 @@ class SignInRetries {
     Duration(seconds: 45),
     Duration(minutes: 2),
   ];
+
+  /// How often a server given up on is tried after that.
+  static const Duration slowRetry = Duration(minutes: 5);
 
   final void Function(String serverId) _retry;
   final ValueListenable<Set<String>> _sockets;
@@ -72,15 +81,24 @@ class SignInRetries {
     final previous = _failing.remove(serverId);
     previous?.timer?.cancel();
     final failures = (previous?.failures ?? 0) + 1;
-    if (asked || failures > delays.length) {
-      _failing[serverId] = (failures: failures, timer: null);
-      _setGivenUp({..._givenUp.value, serverId});
-      return;
-    }
+    final wait = failures <= delays.length ? delays[failures - 1] : slowRetry;
     _failing[serverId] = (
       failures: failures,
-      timer: Timer(delays[failures - 1], () => _retry(serverId)),
+      timer: Timer(wait, () => _retry(serverId)),
     );
+    if (asked || failures > delays.length) {
+      _setGivenUp({..._givenUp.value, serverId});
+    }
+  }
+
+  /// Forget every server but [serverIds], the list as it now stands. A server
+  /// left and joined again in one session started out given up on.
+  void keepOnly(Set<String> serverIds) {
+    for (final serverId in _failing.keys.toList()) {
+      if (!serverIds.contains(serverId)) forget(serverId);
+    }
+    final stale = _givenUp.value.difference(serverIds);
+    if (stale.isNotEmpty) _setGivenUp(_givenUp.value.difference(stale));
   }
 
   /// Nothing more to try for [serverId]: it signed in, or it is gone.

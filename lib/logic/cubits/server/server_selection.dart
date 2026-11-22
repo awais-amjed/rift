@@ -116,8 +116,15 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
       ),
     );
 
-    // Re-authenticate the selected server with the restored identity.
+    // Re-authenticate the selected server with the restored identity, and
+    // every other one in the background: their tokens were blanked, and a
+    // socket keeps the one it had until a new one arrives.
     if (restored.isNotEmpty) loginSelectedServer();
+    for (final server in restored) {
+      if (server.id != newSelectedId) {
+        unawaited(_session.reAuthenticate(server.id));
+      }
+    }
   }
 
   /// Combines the cloud's server list with this device's and lands it.
@@ -172,14 +179,27 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
       // straight back into the rail — and the upload after this would write
       // it back up, so clicking it again only repeated the round. Dropped
       // here instead, which also shortens the list that gets uploaded.
+      //
+      // Unless it is still on this device's list — a leave still waiting on
+      // the server's answer. Then it keeps its place: put back at the end, a
+      // leave the server refused left it there, and uploaded that order.
       if (isServerGone(supabaseUrl: url, id: id)) {
-        arrived = true;
+        final held = state.serverById(id);
+        if (held != null && held.supabaseUrl == url) {
+          ordered.add(held);
+        } else {
+          arrived = true;
+        }
         continue;
       }
 
+      // One row per id, as everywhere else: a second server under an id
+      // already placed — or one this device holds at another address — would
+      // share the first one's token, socket and removal.
+      if (ordered.any((s) => s.id == id)) continue;
       final known = state.serverById(id);
-      if (known != null && known.supabaseUrl == url) {
-        ordered.add(known);
+      if (known != null) {
+        if (known.supabaseUrl == url) ordered.add(known);
         continue;
       }
       // Joined on another device. A stub is enough to draw the rail and to

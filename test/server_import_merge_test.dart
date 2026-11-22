@@ -76,7 +76,9 @@ void main() {
       existing: [server('a', 'Proxy Test')],
       imported: [entry('a', 'Proxy Test')],
     );
-    expect(restored.single.token, 'live-token');
+    expect(restored.single.name, 'Proxy Test');
+    // Minted for whoever this device was before, maybe another identity.
+    expect(restored.single.token, isEmpty);
     expect(restored.single.tokenIssuedAt, ServerImportMerge.stale);
   });
 
@@ -88,9 +90,11 @@ void main() {
     expect(restored.map((s) => s.id), ['a']);
   });
 
-  test('two projects are not confused by a shared server id', () {
-    // Ids are minted per server database, so nothing stops the same UUID
-    // existing on two hosts. Matching on the pair is what keeps them apart.
+  test('one id at two addresses is kept once', () {
+    // Ids are random UUIDs, so two at one id are one server joined by two
+    // addresses, or a server answering with another's id. Everything else
+    // finds a server by its id alone, and the second row shared the first's
+    // token and socket.
     final restored = ServerImportMerge.apply(
       existing: [
         server('a', 'Here'),
@@ -101,8 +105,8 @@ void main() {
         entry('a', 'There', url: other),
       ],
     );
-    expect(restored.map((s) => s.supabaseUrl), [host, other]);
-    expect(restored.map((s) => s.name), ['Here', 'There']);
+    expect(restored.map((s) => s.supabaseUrl), [host]);
+    expect(restored.map((s) => s.name), ['Here']);
   });
 
   group('a legacy v1 backup, which recorded hosts and not servers', () {
@@ -162,6 +166,14 @@ void main() {
       ];
       final healed = ServerImportMerge.deduplicate(duplicated);
       expect(healed.map((s) => s.id), ['a', 'b']);
+    });
+
+    test('keeps one row per id, whatever its address', () {
+      final healed = ServerImportMerge.deduplicate([
+        server('a', 'Rift'),
+        server('a', 'Impostor', url: other),
+      ]);
+      expect(healed.map((s) => s.name), ['Rift']);
     });
 
     test('leaves a clean list exactly as it is', () {

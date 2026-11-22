@@ -122,6 +122,7 @@ class SessionRepository {
   void publish({required List<Server> servers, String? selectedServerId}) {
     _list = servers;
     _selectedId = selectedServerId;
+    _retriesMade?.keepOnly({for (final server in servers) server.id});
     if (!_changes.isClosed) _changes.add(null);
   }
 
@@ -171,11 +172,12 @@ class SessionRepository {
   );
 
   /// The servers that keep refusing to sign us in, tried again a few times
-  /// and then left until opened — see [SignInRetries].
-  late final SignInRetries _retries = SignInRetries(
+  /// and then only now and then — see [SignInRetries].
+  SignInRetries get _retries => _retriesMade ??= SignInRetries(
     retry: (serverId) => unawaited(reAuthenticate(serverId)),
     sockets: realtime.unreachable,
   );
+  SignInRetries? _retriesMade;
 
   /// The servers that cannot be reached: their socket is down, or signing
   /// in to them has failed until we stopped trying.
@@ -434,7 +436,7 @@ class SessionRepository {
   }
 
   Future<void> dispose() async {
-    _retries.dispose();
+    _retriesMade?.dispose();
     await _gone.close();
     await realtime.dispose();
     await _changes.close();

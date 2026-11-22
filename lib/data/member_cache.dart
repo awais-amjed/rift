@@ -26,4 +26,10 @@ class MemberCache {
     }
     return members;
   }
+
+  /// Forget [serverId]'s members: the server has left the list.
+  void forget(String serverId) => _byServer.remove(serverId);
+
+  /// Forget everybody: the identity that met them has left this device.
+  void clear() => _byServer.clear();
 }

@@ -116,6 +116,19 @@ void main() {
     expect(servers.registers, isEmpty);
   });
 
+  test('a server whose register names another server is not joined', () async {
+    // Its invite resolved to one id, which the key was derived for; the
+    // reply claims another — one this person may hold already, whose row it
+    // would be listed as.
+    servers.invite['https://rift.example'] = {'server_id': serverId};
+    servers.answersAs['https://rift.example'] = otherId;
+
+    final result = await join('https://rift.example');
+
+    expect(result.success, isFalse);
+    expect(result.error, 'The server answered as a different server.');
+  });
+
   test('a marked link at the address the server gives joins there', () async {
     servers.invite['https://rift.example'] = {
       'server_id': serverId,
@@ -218,6 +231,9 @@ class _Servers {
   final Map<String, Map<String, Object?>> invite = {};
   final List<(String, String?)> registers = [];
 
+  /// The server id each address's `register` names, when not its invite's.
+  final Map<String, String> answersAs = {};
+
   /// Where this person already has a profile, and where they are banned.
   final Set<String> members = {};
   final Set<String> banned = {};
@@ -258,6 +274,9 @@ class _Servers {
           answer = {
             'success': true,
             'data': {
+              // As fetchServerContext answers: the server it signed us in to,
+              // unless this one is told to answer as another.
+              'server_id': answersAs[origin] ?? invite[origin]?['server_id'],
               'user': <String, Object?>{},
               'rejoined': members.contains(origin),
             },
