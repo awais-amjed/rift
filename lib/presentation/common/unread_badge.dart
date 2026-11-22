@@ -25,7 +25,8 @@ class UnreadBadge extends StatefulWidget {
   /// A muted conversation still counts what arrived in it — muting is not
   /// pretending nothing happened — but it stops shouting about it. The pill
   /// drops to a quiet outline, so the number is still there to read and no
-  /// longer competes with the ones that asked for attention.
+  /// longer competes with the ones that asked for attention. A channel at
+  /// "Only @mentions" draws this too, until a message names you.
   final bool isMuted;
 
   const UnreadBadge({super.key, required this.count, this.isMuted = false});

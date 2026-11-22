@@ -164,6 +164,11 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
         serverId,
         serverPref: servers[serverId],
         channels: _countsOf(data['channels']),
+        // Absent on a server from before self-host 034, which does not
+        // count them; an empty map is one that does and found none.
+        mentions: data.containsKey('mentions')
+            ? _countsOf(data['mentions'])
+            : null,
         dms: _countsOf(data['dms']),
         // Kept whole, defaults included: inside a server a stored level
         // that matches the default still outranks the server's own

@@ -196,7 +196,7 @@ class SwitcherHeader extends StatelessWidget {
   /// another server, or Home while you are on a server.
   bool _unreadElsewhere(BuildContext context, String? currentServerId) {
     final otherServers = context.select<ServerNotificationsCubit, int>(
-      (c) => c.state.totalUnreadExcept(currentServerId),
+      (c) => c.state.totalBadgeExcept(currentServerId),
     );
     final home = context.select<CentralDmCubit, int>((c) => c.state.homeBadge);
     final onHome = context.select<AppCubit, bool>(

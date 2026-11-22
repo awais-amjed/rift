@@ -49,18 +49,20 @@ void main() {
       expect(state.unreadForServer('nope'), 0);
     });
 
-    test('totalUnreadExcept excludes the given server, DMs included', () {
-      expect(state.totalUnreadExcept('srvA'), 1); // only srvB
-      expect(state.totalUnreadExcept('srvB'), 9); // srvA's channels + DMs
-      expect(state.totalUnreadExcept(null), 10); // everything
-      expect(state.totalUnreadExcept('nope'), 10);
+    test('totalBadgeExcept excludes the given server, DMs included', () {
+      // Every channel here is at "Only @mentions" and nothing names anybody,
+      // so only srvA's DMs ask for anyone.
+      expect(state.totalBadgeExcept('srvA'), 0);
+      expect(state.totalBadgeExcept('srvB'), 4);
+      expect(state.totalBadgeExcept(null), 4);
+      expect(state.totalBadgeExcept('nope'), 4);
     });
 
     test('empty state is all zeros', () {
       const empty = NotificationsState();
       expect(empty.unreadForServer('srvA'), 0);
       expect(empty.dmUnreadForServer('srvA'), 0);
-      expect(empty.totalUnreadExcept(null), 0);
+      expect(empty.totalBadgeExcept(null), 0);
     });
 
     test('copyWith replaces one map and leaves the other', () {
@@ -78,16 +80,16 @@ void main() {
   group('NotificationsState transforms', () {
     test('incrementing starts from zero and accumulates', () {
       final state = const NotificationsState()
-          .incremented('s1', 'c1')
-          .incremented('s1', 'c1')
-          .incremented('s1', 'c2');
+          .incremented('s1', 'c1', mentioned: false)
+          .incremented('s1', 'c1', mentioned: false)
+          .incremented('s1', 'c2', mentioned: false);
       expect(state.unreadForChannel('s1', 'c1'), 2);
       expect(state.unreadForServer('s1'), 3);
     });
 
     test('incrementing a DM only moves the DM count', () {
       final state = const NotificationsState()
-          .incremented('s1', 'c1')
+          .incremented('s1', 'c1', mentioned: false)
           .incrementedDm('s1', 'peer1')
           .incrementedDm('s1', 'peer1');
       expect(state.unreadForDm('s1', 'peer1'), 2);
@@ -98,7 +100,7 @@ void main() {
 
     test('clearing the last channel drops the server key entirely', () {
       final state = const NotificationsState()
-          .incremented('s1', 'c1')
+          .incremented('s1', 'c1', mentioned: false)
           .clearedChannel('s1', 'c1');
       expect(state.unreadByServer.containsKey('s1'), isFalse);
     });
@@ -112,8 +114,8 @@ void main() {
 
     test('clearing a channel leaves its siblings alone', () {
       final state = const NotificationsState()
-          .incremented('s1', 'c1')
-          .incremented('s1', 'c2')
+          .incremented('s1', 'c1', mentioned: false)
+          .incremented('s1', 'c2', mentioned: false)
           .clearedChannel('s1', 'c1');
       expect(state.unreadForChannel('s1', 'c1'), 0);
       expect(state.unreadForChannel('s1', 'c2'), 1);
@@ -121,7 +123,7 @@ void main() {
 
     test('reading a conversation leaves the channels badged', () {
       final state = const NotificationsState()
-          .incremented('s1', 'c1')
+          .incremented('s1', 'c1', mentioned: false)
           .incrementedDm('s1', 'peer1')
           .clearedDm('s1', 'peer1');
       expect(state.unreadForDm('s1', 'peer1'), 0);
@@ -133,7 +135,7 @@ void main() {
       // channel or conversation; returning `this` is what stops those from
       // emitting.
       final state = const NotificationsState()
-          .incremented('s1', 'c1')
+          .incremented('s1', 'c1', mentioned: false)
           .incrementedDm('s1', 'peer1');
       expect(state.clearedChannel('s1', 'other'), same(state));
       expect(state.clearedChannel('other', 'c1'), same(state));
@@ -146,11 +148,12 @@ void main() {
 
     test('a re-seed replaces both halves of a server wholesale', () {
       final state = const NotificationsState()
-          .incremented('s1', 'stale')
+          .incremented('s1', 'stale', mentioned: false)
           .incrementedDm('s1', 'stalePeer')
           .withServerCounts(
             's1',
             channels: {'c1': 7},
+            mentions: const {},
             dms: {'peer1': 2},
             channelPrefs: const {},
             dmPrefs: const {},
@@ -163,12 +166,13 @@ void main() {
 
     test('re-seeding with nothing unread removes the server', () {
       final state = const NotificationsState()
-          .incremented('s1', 'c1')
+          .incremented('s1', 'c1', mentioned: false)
           .incrementedDm('s1', 'peer1')
-          .incremented('s2', 'c2')
+          .incremented('s2', 'c2', mentioned: false)
           .withServerCounts(
             's1',
             channels: const {},
+            mentions: const {},
             dms: const {},
             channelPrefs: const {},
             dmPrefs: const {},
@@ -180,9 +184,9 @@ void main() {
 
     test('leaving a server drops its channels and its DMs', () {
       final state = const NotificationsState()
-          .incremented('s1', 'c1')
+          .incremented('s1', 'c1', mentioned: false)
           .incrementedDm('s1', 'peer1')
-          .incremented('s2', 'c2')
+          .incremented('s2', 'c2', mentioned: false)
           .clearedServer('s1');
       expect(state.unreadByServer.keys, ['s2']);
       expect(state.dmUnreadByServer.keys, isEmpty);
@@ -191,7 +195,7 @@ void main() {
     test('marking a server read clears both halves', () {
       // What "Mark all as read" leans on.
       final state = const NotificationsState()
-          .incremented('s1', 'c1')
+          .incremented('s1', 'c1', mentioned: false)
           .incrementedDm('s1', 'peer1')
           .clearedServer('s1');
       expect(state.unreadForServer('s1'), 0);
@@ -199,15 +203,16 @@ void main() {
 
     test('transforms never mutate the state they came from', () {
       final original = const NotificationsState()
-          .incremented('s1', 'c1')
+          .incremented('s1', 'c1', mentioned: false)
           .incrementedDm('s1', 'peer1');
-      original.incremented('s1', 'c1');
+      original.incremented('s1', 'c1', mentioned: false);
       original.incrementedDm('s1', 'peer1');
       original.clearedChannel('s1', 'c1');
       original.clearedDm('s1', 'peer1');
       original.withServerCounts(
         's1',
         channels: {'c9': 9},
+        mentions: const {},
         dms: {'p9': 9},
         channelPrefs: const {},
         dmPrefs: const {},
@@ -251,8 +256,9 @@ void main() {
     test('but is left out of every total that adds several together', () {
       expect(muted.unreadForServer('s1'), 5);
       expect(muted.dmUnreadForServer('s1'), 2);
-      expect(muted.totalUnreadExcept(null), 5);
-      expect(muted.totalUnreadExcept('s1'), 0);
+      expect(muted.badgeForServer('s1'), 2);
+      expect(muted.totalBadgeExcept(null), 2);
+      expect(muted.totalBadgeExcept('s1'), 0);
     });
 
     test('setting a level does not touch the counts', () {
@@ -312,7 +318,8 @@ void main() {
     test('so only the channel that was turned up counts on the outside', () {
       expect(state.unreadForServer('s1'), 3);
       expect(state.dmUnreadForServer('s1'), 0);
-      expect(state.totalUnreadExcept(null), 3);
+      expect(state.badgeForServer('s1'), 3);
+      expect(state.totalBadgeExcept(null), 3);
     });
 
     test('every count is still its own count', () {
@@ -326,6 +333,7 @@ void main() {
       final seeded = const NotificationsState().withServerCounts(
         's1',
         channels: const {},
+        mentions: const {},
         dms: const {},
         serverPref: NotificationLevel.all,
         channelPrefs: NotificationLevel.mapFrom({
@@ -374,6 +382,90 @@ void main() {
       final next = state.clearedServer('s1');
       expect(next.serverLevel('s1'), NotificationLevel.serverDefault);
       expect(next.channelLevel('s1', 'ordinary'), NotificationLevel.mentions);
+    });
+  });
+
+  group('NotificationsState mentions', () {
+    // Found by the owner, Nov 23: a message in another server's channel at
+    // "Only @mentions" put a "1" on that server though it named nobody.
+    test('a plain message in a mentions-only channel badges no server', () {
+      final state = const NotificationsState().incremented(
+        's1',
+        'c1',
+        mentioned: false,
+      );
+      expect(state.unreadForChannel('s1', 'c1'), 1);
+      expect(state.attentionForChannel('s1', 'c1'), 0);
+      expect(state.badgeForServer('s1'), 0);
+      expect(state.totalBadgeExcept(null), 0);
+      // Still unread, so "Mark all as read" still has something to do.
+      expect(state.unreadForServer('s1'), 1);
+    });
+
+    test('one naming you badges it, and counts only what named you', () {
+      final state = const NotificationsState()
+          .incremented('s1', 'c1', mentioned: false)
+          .incremented('s1', 'c1', mentioned: true)
+          .incremented('s1', 'c1', mentioned: false);
+      expect(state.unreadForChannel('s1', 'c1'), 3);
+      expect(state.attentionForChannel('s1', 'c1'), 1);
+      expect(state.badgeForServer('s1'), 1);
+    });
+
+    test('a channel at "All" counts everything, a muted one nothing', () {
+      final state = const NotificationsState()
+          .withLevel('s1', 'loud', NotificationLevel.all, isChannel: true)
+          .withLevel('s1', 'quiet', NotificationLevel.none, isChannel: true)
+          .incremented('s1', 'loud', mentioned: false)
+          .incremented('s1', 'loud', mentioned: false)
+          .incremented('s1', 'quiet', mentioned: true);
+      expect(state.attentionForChannel('s1', 'loud'), 2);
+      expect(state.attentionForChannel('s1', 'quiet'), 0);
+      expect(state.badgeForServer('s1'), 2);
+    });
+
+    test('a server turned up to "All" counts every channel under it', () {
+      final state = const NotificationsState()
+          .withServerLevel('s1', NotificationLevel.all)
+          .incremented('s1', 'c1', mentioned: false);
+      expect(state.badgeForServer('s1'), 1);
+    });
+
+    test('reading a channel clears its mentions with its count', () {
+      final state = const NotificationsState()
+          .incremented('s1', 'c1', mentioned: true)
+          .clearedChannel('s1', 'c1');
+      expect(state.mentionsByServer.containsKey('s1'), isFalse);
+      expect(state.badgeForServer('s1'), 0);
+    });
+
+    test('a re-seed takes the server\'s mentions, never above the count', () {
+      final state = const NotificationsState()
+          .incremented('s1', 'stale', mentioned: true)
+          .withServerCounts(
+            's1',
+            channels: {'c1': 5, 'c2': 2},
+            mentions: {'c1': 1, 'c2': 9, 'gone': 3},
+            dms: const {},
+            channelPrefs: const {},
+            dmPrefs: const {},
+          );
+      expect(state.mentionsByServer['s1'], {'c1': 1, 'c2': 2});
+      expect(state.badgeForServer('s1'), 3);
+    });
+
+    test('a server that does not count mentions counts every unread', () {
+      // Before self-host 034 the answer had no `mentions`: what the badge
+      // did then is what it keeps doing there.
+      final state = const NotificationsState().withServerCounts(
+        's1',
+        channels: {'c1': 4},
+        mentions: null,
+        dms: const {},
+        channelPrefs: const {},
+        dmPrefs: const {},
+      );
+      expect(state.badgeForServer('s1'), 4);
     });
   });
 }

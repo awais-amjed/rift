@@ -48,7 +48,7 @@ class _RailServerChipState extends State<RailServerChip> {
     // Each chip asks for its own count. The rail used to hand them all out
     // from one builder, so a message anywhere redrew every server in it.
     final unread = context.select<ServerNotificationsCubit, int>(
-      (c) => c.state.unreadForServer(widget.server.id),
+      (c) => c.state.badgeForServer(widget.server.id),
     );
     return ContextMenuRegion(
       contextMenu: ServerChipMenu(server: widget.server),

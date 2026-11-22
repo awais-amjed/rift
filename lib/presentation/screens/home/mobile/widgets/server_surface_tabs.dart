@@ -30,7 +30,7 @@ class ServerSurfaceTabs extends StatelessWidget {
         ? (0, 0)
         : context.select<ServerNotificationsCubit, (int, int)>((c) {
             final dms = c.state.dmUnreadForServer(serverId);
-            return (c.state.unreadForServer(serverId) - dms, dms);
+            return (c.state.badgeForServer(serverId) - dms, dms);
           });
     final onDirect = surface == HomeSurface.serverDms;
 

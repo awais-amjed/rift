@@ -50,6 +50,13 @@ class TextChannelTile extends StatelessWidget {
             : context.select<ServerNotificationsCubit, NotificationLevel>(
                 (c) => c.state.channelLevel(serverId, channel.id),
               );
+        // What of it asks for you: everything at "All", what names you at
+        // "Only @mentions", nothing when muted.
+        final wanted = (isSelected || serverId == null)
+            ? 0
+            : context.select<ServerNotificationsCubit, int>(
+                (c) => c.state.attentionForChannel(serverId, channel.id),
+              );
 
         return ChannelContextMenu.wrap(
           context: context,
@@ -63,12 +70,16 @@ class TextChannelTile extends StatelessWidget {
               isSelected: isSelected,
               // A muted channel is still unread — the name stays lifted, so it
               // is visible that something is in there. What it loses is the
-              // loud pill, which is the part that reads as "you are wanted".
+              // loud pill, which is the part that reads as "you are wanted";
+              // so does one at "Only @mentions" until a message names you,
+              // and then the pill counts those.
               isUnread: unread > 0,
               trailing: ChannelSettingsGear.beside(
                 context,
-                unread > 0
-                    ? UnreadBadge(count: unread, isMuted: level.isMuted)
+                wanted > 0
+                    ? UnreadBadge(count: wanted)
+                    : unread > 0
+                    ? UnreadBadge(count: unread, isMuted: true)
                     : level.isMuted
                     ? Icon(
                         Icons.notifications_off_outlined,

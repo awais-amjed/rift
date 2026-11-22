@@ -36,10 +36,16 @@ class _StubNotificationsCubit extends Cubit<NotificationsState>
     implements ServerNotificationsCubit {
   _StubNotificationsCubit() : super(const NotificationsState());
 
+  /// [count] messages naming you: the chip counts what asks for you, and a
+  /// channel at its default level asks only with a mention.
   void unread(String serverId, int count) => emit(
     NotificationsState(
       unreadByServer: {
         ...state.unreadByServer,
+        serverId: {'channel': count},
+      },
+      mentionsByServer: {
+        ...state.mentionsByServer,
         serverId: {'channel': count},
       },
     ),

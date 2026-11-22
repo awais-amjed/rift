@@ -50,7 +50,7 @@ class SwitcherServerList extends StatelessWidget {
           child: SwitcherServerRow(
             server: server,
             selected: server.id == selectedServerId && !onHome,
-            unread: notifications.unreadForServer(server.id),
+            unread: notifications.badgeForServer(server.id),
             muted: notifications.serverLevel(server.id).isMuted,
             onTap: () => onOpen(server),
             dragHandle: _Grip(index: index),

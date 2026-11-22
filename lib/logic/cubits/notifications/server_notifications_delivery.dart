@@ -45,7 +45,10 @@ mixin _DeliveryMixin
       return;
     }
 
-    emit(state.incremented(serverId, channelId));
+    // Named on the row's word, like the ring: the badge it adds is put right
+    // by the next count if the word was false.
+    final mentioned = _rowNamesMe(serverId, row);
+    emit(state.incremented(serverId, channelId, mentioned: mentioned));
 
     // The open channel's notification belongs to ChannelChatCubit, which holds
     // that channel's key. This row is ciphertext, so the best it could say is
@@ -53,7 +56,7 @@ mixin _DeliveryMixin
     // a mention from an ordinary line. Whoever can read it should be the one
     // describing it — and only one of us may, or it arrives twice.
     final level = state.channelLevel(serverId, channelId);
-    if (!level.announces(mentioned: _rowNamesMe(serverId, row))) return;
+    if (!level.announces(mentioned: mentioned)) return;
 
     unawaited(_speakForChannelMessage(serverId, channelId, row, level));
   }
