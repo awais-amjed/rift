@@ -42,6 +42,7 @@ extension _AppModalPhone on AppModal {
             titleIcon: titleIcon,
             count: count,
             actions: headerActions,
+            closable: closable,
           ),
           Divider(height: 1, color: borderColor),
           Flexible(
@@ -104,6 +105,7 @@ extension _AppModalPhone on AppModal {
             titleIcon: titleIcon,
             count: count,
             actions: headerActions,
+            closable: closable,
           ),
           Divider(height: 1, color: borderColor),
           Flexible(
@@ -136,9 +138,9 @@ extension _AppModalPhone on AppModal {
     return PopScope(
       // The system back gesture is the arrow: a step goes back a step rather
       // than closing the whole flow out from under it.
-      canPop: onBack == null,
+      canPop: onBack == null && closable,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) onBack?.call();
+        if (!didPop && closable) onBack?.call();
       },
       child: Dialog.fullscreen(
         backgroundColor: themeState.bgSecondary,
@@ -156,7 +158,9 @@ extension _AppModalPhone on AppModal {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: BackChevronButton(
-                    onPressed: onBack ?? () => Navigator.of(context).pop(),
+                    onPressed: closable
+                        ? onBack ?? () => Navigator.of(context).pop()
+                        : null,
                   ),
                 ),
               ),

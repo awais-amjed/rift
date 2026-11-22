@@ -104,7 +104,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
     final themeState = context.theme;
     // Escape closes a dialog, and closed mid-request the account would be
     // made on the server but never added here: held while it is in flight,
-    // as Later is.
+    // as Later and the X are.
     return PopScope(canPop: !_isLoading, child: _modal(themeState));
   }
 
@@ -112,6 +112,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
     return AppModal(
       title: 'Create your account',
       subtitle: 'Set up your profile for this server',
+      closable: !_isLoading,
       // The rounded tile every other dialog opens with. It was a circle
       // here alone, which read as a different app's dialog.
       titleIcon: IconTile.title(

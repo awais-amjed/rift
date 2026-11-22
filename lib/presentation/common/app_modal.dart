@@ -99,6 +99,13 @@ class AppModal extends StatelessWidget {
   /// What the arrow does on a [pageOnPhone] page. Closes the modal if null.
   final VoidCallback? onBack;
 
+  /// False while the modal must not be closed — a join waiting on the server
+  /// that already counts the member. Greys out the X and a page's arrow.
+  /// Escape, a click outside and the system back answer to a [PopScope]
+  /// round the modal; the X and the arrow pop the route themselves, and a
+  /// [PopScope] does not stop that.
+  final bool closable;
+
   const AppModal({
     super.key,
     required this.title,
@@ -116,6 +123,7 @@ class AppModal extends StatelessWidget {
     this.pageOnPhone = false,
     this.sheetOnPhone = false,
     this.onBack,
+    this.closable = true,
   }) : assert(
          (content == null) != (body == null),
          'Give a modal a content form or a self-scrolling body, not both',
@@ -184,6 +192,7 @@ class AppModal extends StatelessWidget {
               titleIcon: titleIcon,
               count: count,
               actions: headerActions,
+              closable: closable,
             ),
             Divider(height: 1, color: borderColor),
             Flexible(

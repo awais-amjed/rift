@@ -181,14 +181,15 @@ class _JoinServerModalState extends State<JoinServerModal> {
     // still a member and gets back in; anybody new hears the server say no.
     final blocked = _needsAccount && !signedIn;
     // Escape and a click outside close a dialog: held while the join is in
-    // flight, as Back is.
+    // flight, as Back and the X are ([AppModal.closable]).
     return PopScope(canPop: !_isLoading, child: _modal(invite, blocked));
   }
 
   Widget _modal(ResolvedInvite invite, bool blocked) {
     return AppModal(
       pageOnPhone: true,
-      onBack: _isLoading ? null : widget.onCancel,
+      onBack: widget.onCancel,
+      closable: !_isLoading,
       title: 'Join ${invite.serverName}',
       titleIcon: ServerIcon(
         supabaseUrl: invite.serverUrl,

@@ -20,6 +20,9 @@ class AppModalHeader extends StatelessWidget {
   /// Icon buttons between the title and the close button.
   final List<Widget> actions;
 
+  /// See [AppModal.closable].
+  final bool closable;
+
   const AppModalHeader({
     super.key,
     required this.title,
@@ -27,6 +30,7 @@ class AppModalHeader extends StatelessWidget {
     this.titleIcon,
     this.count,
     this.actions = const [],
+    this.closable = true,
   });
 
   /// The close button, and the header actions beside it.
@@ -88,7 +92,7 @@ class AppModalHeader extends StatelessWidget {
           AppModalHeaderButton(
             icon: Icons.close,
             tooltip: 'Close',
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: closable ? () => Navigator.of(context).pop() : null,
           ),
         ],
       ),
