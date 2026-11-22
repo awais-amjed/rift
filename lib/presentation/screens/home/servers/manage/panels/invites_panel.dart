@@ -78,11 +78,13 @@ class _InvitesPanelState extends State<InvitesPanel> {
 
   @override
   Widget build(BuildContext context) {
+    // `@everyone` left out: a link naming it hands out nothing more than
+    // joining does, so it reads as a plain link.
     final roles = {
       for (final role in context.select(
         (ServerMembersCubit c) => c.state.roles,
       ))
-        role.id: role.name,
+        if (!role.isEveryone) role.id: role.name,
     };
     final invites = _invites;
     final now = DateTime.now();

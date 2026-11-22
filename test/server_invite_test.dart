@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/server_invite.dart';
+import 'package:rift/presentation/screens/home/servers/manage/panels/invites/invite_list_row.dart';
 
 /// A row of the Invites page, as the server sends it.
 void main() {
@@ -58,5 +59,20 @@ void main() {
       isFalse,
     );
     expect(ServerInvite.fromJson(row()).expiredAt(now), isFalse);
+  });
+
+  test('the time left is rounded up, so a fresh 7-day link says 7d', () {
+    final now = DateTime.utc(2026, 11, 22, 12);
+    String left(Duration d) => InviteListRow.expiryText(now.add(d), now);
+    expect(
+      left(const Duration(days: 7) - const Duration(seconds: 5)),
+      'Expires in 7d',
+    );
+    expect(left(const Duration(hours: 23, minutes: 30)), 'Expires in 1d');
+    expect(left(const Duration(hours: 2, minutes: 10)), 'Expires in 3h');
+    expect(left(const Duration(minutes: 59, seconds: 1)), 'Expires in 1h');
+    expect(left(const Duration(seconds: 20)), 'Expires in 1m');
+    expect(InviteListRow.expiryText(null, now), 'Never expires');
+    expect(left(-const Duration(seconds: 1)), 'Expired');
   });
 }

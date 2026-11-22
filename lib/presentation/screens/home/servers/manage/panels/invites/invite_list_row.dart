@@ -43,17 +43,20 @@ class InviteListRow extends StatelessWidget {
     final uses = max == null
         ? '${invite.uses} ${invite.uses == 1 ? 'use' : 'uses'}'
         : '${invite.uses} of $max ${max == 1 ? 'use' : 'uses'}';
-    return '$by · $uses · ${_expiry()}';
+    return '$by · $uses · ${expiryText(invite.expiresAt, now)}';
   }
 
-  String _expiry() {
-    final at = invite.expiresAt;
-    if (at == null) return 'Never expires';
-    final left = at.difference(now);
+  /// Rounded up, so a link made for seven days says 7d, not the 6d its few
+  /// seconds of age would floor it to.
+  static String expiryText(DateTime? expiresAt, DateTime now) {
+    if (expiresAt == null) return 'Never expires';
+    final left = expiresAt.difference(now);
     if (left <= Duration.zero) return 'Expired';
-    if (left.inHours < 1) return 'Expires in ${left.inMinutes + 1}m';
-    if (left.inDays < 1) return 'Expires in ${left.inHours}h';
-    return 'Expires in ${left.inDays}d';
+    final minutes = (left.inSeconds + 59) ~/ 60;
+    if (minutes < 60) return 'Expires in ${minutes}m';
+    final hours = (minutes + 59) ~/ 60;
+    if (hours < 24) return 'Expires in ${hours}h';
+    return 'Expires in ${(hours + 23) ~/ 24}d';
   }
 
   @override
