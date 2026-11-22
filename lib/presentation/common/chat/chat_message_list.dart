@@ -141,6 +141,10 @@ class ChatMessageList extends StatefulWidget {
   /// End a poll early (its author only).
   final void Function(String messageId)? onClosePoll;
 
+  /// Ids of messages outside [messages] that were edited or deleted, so a
+  /// quote of one is fetched again (`OffPageChanges`).
+  final Stream<String>? quoteChanges;
+
   /// A message somebody asked to be taken to from outside the list — the
   /// pinned list, today. The list goes there and sets this back to null.
   final ValueNotifier<String?>? jumpRequests;
@@ -184,6 +188,7 @@ class ChatMessageList extends StatefulWidget {
     this.onVote,
     this.onClosePoll,
     this.jumpRequests,
+    this.quoteChanges,
     this.calls = const [],
     this.myId,
     this.keyChanges,

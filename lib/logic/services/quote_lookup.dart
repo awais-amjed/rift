@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../data/classes/api_response.dart';
 import '../../data/classes/chat_message.dart';
 
@@ -48,4 +50,25 @@ class QuotedMessage {
         ? const QuotedMessage.unknown()
         : QuotedMessage.found(message);
   }
+}
+
+/// Messages a change doorbell named that are not in the loaded page.
+///
+/// A conversation re-reads a changed message only when it is on the page
+/// ([refreshMessage] in each chat cubit). One further back can still be
+/// drawn, as the quote of a reply on the page, from a copy the list fetched
+/// once — so the cubit says which message changed, and the list asks for any
+/// quote of it again. Without this an edited or deleted message kept its old
+/// words in every quote of it until the conversation was opened again.
+class OffPageChanges {
+  final StreamController<String> _changes = StreamController.broadcast();
+
+  /// The ids, as they are rung.
+  Stream<String> get stream => _changes.stream;
+
+  void ring(String messageId) {
+    if (!_changes.isClosed) _changes.add(messageId);
+  }
+
+  Future<void> close() => _changes.close();
 }

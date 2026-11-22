@@ -609,6 +609,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     BeforeQuit.instance.remove(saveAsLeft);
     await _saved.flush(leaving: true);
     _saved.dispose();
+    await _offPage.close();
     await _serverSub?.cancel();
     await _vaultSub?.cancel();
     await _teardownRealtime();

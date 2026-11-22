@@ -23,6 +23,13 @@ mixin _ChannelChatHistoryMixin
   /// A re-read row reaching the bar's copy — see [_ChannelChatLiveMixin].
   void _updateLive(String messageId, ChatMessage? message);
 
+  /// Messages a doorbell named that are not on the page, for a quote of one
+  /// to be fetched again ([OffPageChanges]).
+  final OffPageChanges _offPage = OffPageChanges();
+
+  /// See [OffPageChanges].
+  Stream<String> get quoteChanges => _offPage.stream;
+
   Future<void> _fetchLatest(String channelId) async =>
       _showLatest(channelId, await _readLatest(channelId));
 
@@ -356,7 +363,8 @@ mixin _ChannelChatHistoryMixin
   /// so the answer was always empty. The change showed up when the channel was
   /// next opened, and not before.
   ///
-  /// A message outside the loaded window is left alone, and a row that fails
+  /// A message outside the loaded window is only passed on to any quote of
+  /// it ([quoteChanges]), and a row that fails
   /// verification is kept rather than dropped: the ping is best-effort, and
   /// reopening the channel re-reads everything properly.
   Future<void> refreshMessage(String messageId) async {
@@ -364,7 +372,10 @@ mixin _ChannelChatHistoryMixin
     final id = int.tryParse(messageId);
     if (channelId == null || id == null) return;
     // The bar's rows too: a poll it holds may be older than the page.
-    if (state.messageById(messageId) == null) return;
+    if (state.messageById(messageId) == null) {
+      _offPage.ring(messageId);
+      return;
+    }
 
     final response = await _channelMessages.getChatMessage(
       channelId: channelId,

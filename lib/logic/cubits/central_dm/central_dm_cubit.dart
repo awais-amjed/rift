@@ -433,6 +433,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
     BeforeQuit.instance.remove(saveAsLeft);
     await _saved.flush(leaving: true);
     _saved.dispose();
+    await _offPage.close();
     PushService.instance.token.removeListener(_onPushToken);
     WindowFocusService.instance.focused.removeListener(_onFocusChanged);
     await _authSub?.cancel();

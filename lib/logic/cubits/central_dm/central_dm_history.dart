@@ -6,6 +6,13 @@ part of 'central_dm_cubit.dart';
 /// The open central-DM conversation: opening it, and paging its history.
 /// Turning the rows into messages is [_CentralDmDecryptMixin].
 mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
+  /// Messages a doorbell named that are not on the page, for a quote of one
+  /// to be fetched again ([OffPageChanges]).
+  final OffPageChanges _offPage = OffPageChanges();
+
+  /// See [OffPageChanges].
+  Stream<String> get quoteChanges => _offPage.stream;
+
   /// See the send mixin. Read here to put failed sends back under a freshly
   /// fetched page, and to forget one the server turns out to have stored.
   Outbox get _outbox;
@@ -465,7 +472,10 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     final peerId = state.openPeerId;
     final id = int.tryParse(messageId);
     if (peerId == null || id == null) return;
-    if (!state.messages.any((m) => m.id == messageId)) return;
+    if (!state.messages.any((m) => m.id == messageId)) {
+      _offPage.ring(messageId);
+      return;
+    }
 
     final response = await _repo.getDm(messageId: id);
     if (!response.success || state.openPeerId != peerId) return;

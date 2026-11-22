@@ -23,15 +23,50 @@ mixin _MessageListQuotesMixin on State<ChatMessageList> {
   /// stay askable without being answered.
   final Set<String> _unresolvable = {};
 
+  StreamSubscription<String>? _quoteChanges;
+
+  @override
+  void initState() {
+    super.initState();
+    _quoteChanges = widget.quoteChanges?.listen(_onQuoteChanged);
+  }
+
+  @override
+  void didUpdateWidget(ChatMessageList old) {
+    super.didUpdateWidget(old);
+    if (old.quoteChanges != widget.quoteChanges) {
+      unawaited(_quoteChanges?.cancel());
+      _quoteChanges = widget.quoteChanges?.listen(_onQuoteChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_quoteChanges?.cancel());
+    super.dispose();
+  }
+
+  /// A message outside the page was edited or deleted. Asked about again
+  /// only if a quote here holds an answer about it; the old answer is drawn
+  /// until the new one lands, and stays if the new one cannot be had.
+  void _onQuoteChanged(String messageId) {
+    if (!_quoted.containsKey(messageId) && !_unresolvable.contains(messageId)) {
+      return;
+    }
+    _lookUp(messageId, again: true);
+  }
+
   /// Ask about a reference that is not in the list.
   ///
   /// Fired from `build`, which is why it checks so much before doing
   /// anything: a rebuild per keystroke elsewhere must not become a request
-  /// per keystroke.
-  void _lookUp(String messageId) {
+  /// per keystroke. [again] asks about one already answered, which only a
+  /// change to it does.
+  void _lookUp(String messageId, {bool again = false}) {
     final lookUp = widget.onLookUpOriginal;
     if (lookUp == null) return;
-    if (_quoted.containsKey(messageId) || _looking.contains(messageId)) return;
+    if (_looking.contains(messageId)) return;
+    if (!again && _quoted.containsKey(messageId)) return;
     _looking.add(messageId);
     unawaited(() async {
       final found = await lookUp(messageId);

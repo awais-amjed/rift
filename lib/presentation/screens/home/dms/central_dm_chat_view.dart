@@ -373,6 +373,7 @@ class _CentralDmChatViewState extends State<CentralDmChatView>
       // No onToggleReaction: central DMs are the first-contact tier and are
       // kept deliberately thin — reactions live on servers.
       onLookUpOriginal: cubit.fetchQuoted,
+      quoteChanges: cubit.quoteChanges,
       onShowAround: live ? cubit.showAround : null,
       viewingHistory: state.hasNewerHistory,
       onReturnToPresent: cubit.returnToPresent,

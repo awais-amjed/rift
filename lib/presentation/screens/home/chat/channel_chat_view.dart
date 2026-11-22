@@ -629,6 +629,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
           // reactions at all. [canReact] is what stops the saved copy taking one.
           onToggleReaction: cubit.toggleReaction,
           onLookUpOriginal: cubit.fetchQuoted,
+          quoteChanges: cubit.quoteChanges,
           onShowAround: live ? cubit.showAround : null,
           viewingHistory: chatState.hasNewerHistory,
           onReturnToPresent: cubit.returnToPresent,

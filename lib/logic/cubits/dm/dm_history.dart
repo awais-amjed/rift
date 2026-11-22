@@ -8,6 +8,13 @@ part of 'dm_cubit.dart';
 mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
   DmsApi get _dms;
 
+  /// Messages a doorbell named that are not on the page, for a quote of one
+  /// to be fetched again ([OffPageChanges]).
+  final OffPageChanges _offPage = OffPageChanges();
+
+  /// See [OffPageChanges].
+  Stream<String> get quoteChanges => _offPage.stream;
+
   /// See the send mixin. Read here to put failed sends back under a freshly
   /// fetched page, and to forget one the server turns out to have stored.
   Outbox get _outbox;
@@ -472,13 +479,17 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
   /// Neither reached an open conversation before — the DM edit path rang no
   /// doorbell at all, so the peer saw the old text until they reopened.
   ///
-  /// A message outside the loaded window is left alone, and a row that fails
-  /// verification is kept rather than dropped.
+  /// A message outside the loaded window is only passed on to any quote of
+  /// it ([quoteChanges]), and a row that fails verification is kept rather
+  /// than dropped.
   Future<void> refreshMessage(String messageId) async {
     final peerId = state.openPeerId;
     final id = int.tryParse(messageId);
     if (peerId == null || id == null) return;
-    if (!state.messages.any((m) => m.id == messageId)) return;
+    if (!state.messages.any((m) => m.id == messageId)) {
+      _offPage.ring(messageId);
+      return;
+    }
 
     final response = await _dms.getDmMessage(messageId: id);
     if (!response.success || state.openPeerId != peerId) return;
