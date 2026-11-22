@@ -332,7 +332,13 @@ static int open_codec(RiftFfenc* enc, const AVCodec* codec,
       av_opt_set(c->priv_data, "rc", "vbr", 0);
       break;
     case API_AMF:
-      av_opt_set(c->priv_data, "rc", "vbr_peak", 0);
+      // Latency-constrained, which AMD made for streaming. Its peak-constrained
+      // mode overshot in bursts whatever buffer it was held to: on an RX
+      // 9070 XT, a 1440p60 H265 share of CS2 at its 17 Mbps cap, the camera
+      // panned the same way each time, had 350 of 9,000 pictures left out by
+      // the rate gate (up to 49 in 5 s) with it, and 22 to 26 with this, at
+      // the same 8 to 17 Mbps sent (Nov 22 2026, CALLS.md).
+      av_opt_set(c->priv_data, "rc", "vbr_latency", 0);
       break;
     default:
       break;
@@ -379,10 +385,9 @@ static int open_codec(RiftFfenc* enc, const AVCodec* codec,
       av_opt_set(c->priv_data, "latency", "1", 0);
       av_opt_set(c->priv_data, "preencode", "0", 0);
       av_opt_set(c->priv_data, "forced_idr", "1", 0);
-      // Held to the buffer above, as NVENC is by itself. Left to AMF's own
-      // default it ran past it in bursts: an RX 9070 XT's busy 1440p60 H265
-      // share at 17 Mbps had 10 to 33 of every 300 pictures left out by the
-      // gate, where NVENC had none (Nov 22 2026).
+      // Held to the buffer above, as NVENC is by itself. On its own this
+      // changed nothing measurable in the peak-constrained mode (above); it is
+      // the setting the latency-constrained one was measured with.
       av_opt_set(c->priv_data, "enforce_hrd", "1", 0);
       break;
     default:

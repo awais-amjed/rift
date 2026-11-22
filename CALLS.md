@@ -1424,10 +1424,14 @@ what was driven are in `TESTING.md`).
   clip's picture stayed within 0.1 dB PSNR of the second's. The cost is a
   keyframe of still text: at 2 to 8 Mbps it comes out 5 to 15% smaller and 0.1
   to 1.6 dB softer, and half a second on it is still up to 2.5 dB softer. AMF
-  takes the same buffer, and is told to keep to it (`enforce_hrd`): without that,
-  an RX 9070 XT's busy 1440p60 H265 share at its 17 Mbps cap had 10 to 33 of
-  every 300 pictures left out, where NVENC had none (Nov 22 2026). Not yet
-  measured with it.
+  takes the same buffer, in its latency-constrained mode (`vbr_latency`, with
+  `enforce_hrd`). In the peak-constrained mode it overshot in bursts whatever it
+  was told: an RX 9070 XT's 1440p60 H265 share of CS2 at its 17 Mbps cap, the
+  camera panned the same way for 150 s, had about 350 of 9,000 pictures left out
+  (up to 49 in 5 s), and `enforce_hrd` alone changed nothing measurable. In the
+  latency-constrained mode, two runs had 22 and 26, nearly all 5 s spans none,
+  at the same 8 to 17 Mbps sent (Nov 22 2026). Picture quality was not compared
+  side by side, nor a falling rate on a weak link.
 - **A GPU encoder's rate is scaled to the pictures that come**
   (`encoder/frame_rate.rs`). It is opened at the share's frame rate and
   budgets each picture as a share of it, so a game drawing at 40, or capture
