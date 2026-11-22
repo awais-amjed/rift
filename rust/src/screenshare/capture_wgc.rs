@@ -63,6 +63,7 @@ use windows::Win32::System::WinRT::{RoInitialize, RO_INIT_MULTITHREADED};
 
 mod cursor;
 mod dxgi;
+mod hdr;
 
 /// How often the capture thread looks for a stop, an ended window or a new rate.
 /// The pictures themselves never wait on it.
@@ -98,6 +99,11 @@ const SESSIONS: u32 = 5;
 /// and waits for libwebrtc's capturer: handed over after two new sessions, 6 s
 /// in, the share started 6.9 and 8.9 s after it was asked for (Nov 2 2026).
 const SESSIONS_FIRST: u32 = 1;
+
+/// How often the shared screen's HDR state and brightness are read again: a
+/// window moved to another screen, HDR turned on or off, or the SDR slider
+/// moved in Windows' settings.
+const LIGHT_EVERY: Duration = Duration::from_secs(2);
 
 /// The frame pool's buffers. A picture can wait in this module's mailbox, wait for
 /// the encoder and be drawn by it at once, and the pool needs one to write into.
@@ -379,6 +385,16 @@ impl Session {
         }
     }
 
+    /// Read the screen's light again: `target`'s screen, which for a window
+    /// may have changed. A duplication reads its own.
+    fn read_light(&self, target: Target) {
+        if let Session::Wgc(wgc) = self {
+            if let Some(monitor) = target.monitor() {
+                wgc.hdr.set_light(hdr::light_of(monitor));
+            }
+        }
+    }
+
     /// A duplication reads the rate from the flow itself.
     fn set_rate(&self, fps: u32) {
         if let Session::Wgc(wgc) = self {
@@ -389,6 +405,8 @@ impl Session {
 
 /// One running Windows Graphics Capture session, undone on drop.
 struct WgcSession {
+    /// Whether its screen is in HDR, read again now and then.
+    hdr: Arc<hdr::WgcHdr>,
     pool: Direct3D11CaptureFramePool,
     session: GraphicsCaptureSession,
     item: GraphicsCaptureItem,
@@ -423,6 +441,17 @@ enum Target {
     /// A screen duplicated with DXGI, where Windows Graphics Capture would
     /// draw its border (`sources::screens_on_wgc`).
     Duplicated(HMONITOR),
+}
+
+impl Target {
+    /// The screen it shows on; `None` for a duplication, which reads its own.
+    fn monitor(self) -> Option<HMONITOR> {
+        match self {
+            Target::Window(id) => Some(hdr::monitor_of_window(id)),
+            Target::Screen(monitor) => Some(monitor),
+            Target::Duplicated(_) => None,
+        }
+    }
 }
 
 fn item_for(target: Target) -> windows::core::Result<GraphicsCaptureItem> {
@@ -460,12 +489,15 @@ fn open_session(
     }
     let item = item_for(target)?;
     let size = item.Size()?;
-    let pool = Direct3D11CaptureFramePool::CreateFreeThreaded(
-        device,
-        DirectXPixelFormat::B8G8R8A8UIntNormalized,
-        POOL_BUFFERS,
-        size,
-    )?;
+    let light = target.monitor().and_then(hdr::light_of);
+    if light.is_some() {
+        hdr::log_light(light);
+    }
+    let access: IDirect3DDxgiInterfaceAccess = device.cast()?;
+    // SAFETY: the WinRT device is a handle on a D3D11 one.
+    let hdr = Arc::new(hdr::WgcHdr::new(unsafe { access.GetInterface()? }, light));
+    let format = hdr.format();
+    let pool = Direct3D11CaptureFramePool::CreateFreeThreaded(device, format, POOL_BUFFERS, size)?;
     let session = pool.CreateCaptureSession(&item)?;
     // Each of these is missing on some Windows, and a share goes on without it:
     // the cursor from Windows 10 2004, the border's switch from build 20348, the
@@ -492,20 +524,22 @@ fn open_session(
     let frame_arrived = {
         let flow = flow.clone();
         let device = FreeThreaded(device.clone());
-        let pool_size = Mutex::new(size);
+        let pool_made = Mutex::new((size, format));
+        let hdr = hdr.clone();
         pool.FrameArrived(&TypedEventHandler::new(
             move |pool: Ref<Direct3D11CaptureFramePool>, _: Ref<windows::core::IInspectable>| {
                 // A failure here is a pool closing under a late event, or a lost
                 // device the encoder reports; nothing may unwind out of a callback.
                 let holder = &device;
                 if let Some(pool) = pool.as_ref() {
-                    let _ = picture_arrived(pool, &holder.0, &pool_size, &flow);
+                    let _ = picture_arrived(pool, &holder.0, &pool_made, &hdr, &flow);
                 }
                 Ok(())
             },
         ))?
     };
     let opened = WgcSession {
+        hdr,
         pool,
         session,
         item,
@@ -520,7 +554,8 @@ fn open_session(
 fn picture_arrived(
     pool: &Direct3D11CaptureFramePool,
     device: &IDirect3DDevice,
-    pool_size: &Mutex<SizeInt32>,
+    pool_made: &Mutex<(SizeInt32, DirectXPixelFormat)>,
+    hdr: &hdr::WgcHdr,
     flow: &Flow,
 ) -> windows::core::Result<()> {
     let frame = pool.TryGetNextFrame()?;
@@ -541,20 +576,20 @@ fn picture_arrived(
     unsafe { texture.GetDesc(&mut desc) };
 
     // A window resized: this picture is in the old buffers, the new size goes in
-    // from the next. OBS and FFmpeg both follow the content size so.
+    // from the next. OBS and FFmpeg both follow the content size so. A screen
+    // gone into HDR or out of it takes the other format the same way.
     {
-        let mut known = pool_size.lock().unwrap();
-        if content.Width > 0
+        let mut made = pool_made.lock().unwrap();
+        let (known, format) = &mut *made;
+        let wanted = hdr.format();
+        let resized = content.Width > 0
             && content.Height > 0
-            && (content.Width != known.Width || content.Height != known.Height)
-        {
-            pool.Recreate(
-                device,
-                DirectXPixelFormat::B8G8R8A8UIntNormalized,
-                POOL_BUFFERS,
-                content,
-            )?;
-            *known = content;
+            && (content.Width != known.Width || content.Height != known.Height);
+        if resized || wanted != *format {
+            let size = if resized { content } else { *known };
+            pool.Recreate(device, wanted, POOL_BUFFERS, size)?;
+            *known = size;
+            *format = wanted;
         }
     }
     let size = Size {
@@ -564,6 +599,15 @@ fn picture_arrived(
     // What a window gives as it closes is no picture of anything, as libwebrtc's
     // capturer gave too (`capture::Signals`).
     if size.width < 2 || size.height < 2 {
+        return Ok(());
+    }
+    if desc.Format == hdr::HDR_FORMAT {
+        // Drawn into eight bits, and the frame goes back to the pool at once.
+        // With every copy still out, this picture is left for the next.
+        if let Some(copy) = hdr.bring_down(&texture, &desc) {
+            flow.deliver(WgcPicture::copied(copy, size));
+        }
+        let _ = frame.Close();
         return Ok(());
     }
     flow.deliver(WgcPicture {
@@ -995,6 +1039,7 @@ pub(super) fn run(
     let mut quiet = QuietWatch::new(*flow.last.lock().unwrap());
     let mut reopens = 0u32;
     let mut run = QuietRun::new();
+    let mut light_read = Instant::now();
     let ending = loop {
         match command_rx.recv_timeout(POLL) {
             Ok(Command::Terminate) | Err(RecvTimeoutError::Disconnected) => break Ending::Done,
@@ -1034,6 +1079,12 @@ pub(super) fn run(
             running.cursor = shown;
             if let Some(session) = &running.session {
                 session.show_cursor(shown);
+            }
+        }
+        if light_read.elapsed() >= LIGHT_EVERY {
+            light_read = Instant::now();
+            if let Some(session) = &running.session {
+                session.read_light(running.target);
             }
         }
         let now = fps.load(Ordering::Relaxed);

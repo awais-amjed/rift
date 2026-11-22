@@ -22,11 +22,17 @@
 //! Windows' pointer settings came out at 32 pixels, and a new pointer scheme
 //! mid-share, which keeps the cursor's handle, went unseen (Nov 20 2026).
 //!
+//! On an HDR screen the duplication is asked for in 16 bits and each new
+//! desktop image brought down to eight before anything else sees it (`hdr`).
+//! Asked for eight bits there, Windows' copy leaves out the SDR brightness set
+//! in its display settings, and the share came out dark (Nov 22 2026).
+//!
 //! An output can be duplicated once per process. libwebrtc's DXGI capturer
 //! holds every output while it lives, so the share lets go of the one it found
 //! its source with before this opens (`capture_wgc::run`).
 
 use super::cursor::CursorDrawer;
+use super::hdr::{self, Light, ToSdr, HDR_FORMAT};
 use super::{Flow, WgcPicture};
 use crate::screenshare::cursor_shape::dxgi_shape_images;
 use crate::screenshare::pacer;
@@ -48,10 +54,10 @@ use windows::Win32::Graphics::Dxgi::Common::{
     DXGI_SAMPLE_DESC,
 };
 use windows::Win32::Graphics::Dxgi::{
-    IDXGIDevice, IDXGIOutput1, IDXGIOutputDuplication, IDXGIResource, DXGI_ERROR_ACCESS_DENIED,
-    DXGI_ERROR_ACCESS_LOST, DXGI_ERROR_NOT_CURRENTLY_AVAILABLE, DXGI_ERROR_NOT_FOUND,
-    DXGI_ERROR_SESSION_DISCONNECTED, DXGI_ERROR_UNSUPPORTED, DXGI_ERROR_WAIT_TIMEOUT,
-    DXGI_OUTDUPL_FRAME_INFO, DXGI_OUTDUPL_POINTER_SHAPE_INFO,
+    IDXGIDevice, IDXGIOutput1, IDXGIOutput5, IDXGIOutputDuplication, IDXGIResource,
+    DXGI_ERROR_ACCESS_DENIED, DXGI_ERROR_ACCESS_LOST, DXGI_ERROR_NOT_CURRENTLY_AVAILABLE,
+    DXGI_ERROR_NOT_FOUND, DXGI_ERROR_SESSION_DISCONNECTED, DXGI_ERROR_UNSUPPORTED,
+    DXGI_ERROR_WAIT_TIMEOUT, DXGI_OUTDUPL_FRAME_INFO, DXGI_OUTDUPL_POINTER_SHAPE_INFO,
 };
 use windows::Win32::Graphics::Gdi::HMONITOR;
 use windows::Win32::UI::WindowsAndMessaging::{GetCursorInfo, CURSORINFO, CURSOR_SHOWING};
@@ -70,6 +76,11 @@ const WAIT_MS: u32 = 20;
 /// mode change, a full-screen game taking the screen, or the secure desktop
 /// of a UAC prompt or the lock screen, which cannot be duplicated while it is up.
 const AGAIN_AFTER: Duration = Duration::from_millis(100);
+
+/// How often an HDR screen's brightness is read again, for the SDR slider
+/// moved in Windows' settings. Turning HDR on or off takes the duplication
+/// back, and it is read again then too.
+const LIGHT_EVERY: Duration = Duration::from_secs(2);
 
 /// How often a slow cursor draw is reported.
 const REPORT_EVERY: Duration = Duration::from_secs(5);
@@ -91,6 +102,19 @@ impl Copy {
     pub(super) fn texture(&self) -> &ID3D11Texture2D {
         &self.0
     }
+
+    pub(super) fn view(&self) -> &ID3D11RenderTargetView {
+        &self.1
+    }
+}
+
+/// A copy no picture holds. Only one thread hands a set of copies out, so one
+/// found free stays free.
+pub(super) fn free(copies: &[Arc<Copy>]) -> Option<Arc<Copy>> {
+    copies
+        .iter()
+        .find(|copy| Arc::strong_count(copy) == 1)
+        .cloned()
 }
 
 /// A running duplication of one screen, stopped on drop.
@@ -173,6 +197,19 @@ struct Screen {
     /// still screen is drawn again over it.
     image: ID3D11Texture2D,
     copies: Vec<Arc<Copy>>,
+    /// `Some` while the screen is in HDR.
+    light: Option<Light>,
+    light_read: Instant,
+    /// An HDR screen's: its 16-bit image copied out of the duplication, which
+    /// a shader cannot read, and what draws it into `image`. Made at the first
+    /// such image.
+    hdr: Option<HdrImage>,
+}
+
+struct HdrImage {
+    to_sdr: ToSdr,
+    image: ID3D11Texture2D,
+    into: ID3D11RenderTargetView,
 }
 
 // SAFETY: made on the capture thread and used on the duplication thread alone
@@ -181,7 +218,9 @@ unsafe impl Send for Screen {}
 
 impl Screen {
     fn open(device: &ID3D11Device, monitor: HMONITOR) -> Result<Screen> {
-        let (duplication, desktop, size) = duplicate_output(device, monitor)?;
+        let light = hdr::light_of(monitor);
+        hdr::log_light(light);
+        let (duplication, desktop, size) = duplicate_output(device, monitor, light.is_some())?;
         // SAFETY: a live device.
         let context = unsafe { device.GetImmediateContext()? };
         let (image, copies) = textures(device, size)?;
@@ -202,6 +241,9 @@ impl Screen {
             size,
             image,
             copies,
+            light,
+            light_read: Instant::now(),
+            hdr: None,
         })
     }
 
@@ -211,10 +253,18 @@ impl Screen {
     /// until they go.
     fn again(&mut self) -> Result<()> {
         self.duplication = None;
-        let (duplication, desktop, size) = duplicate_output(&self.device, self.monitor)?;
+        let light = hdr::light_of(self.monitor);
+        if light.is_some() != self.light.is_some() {
+            hdr::log_light(light);
+        }
+        self.light = light;
+        self.light_read = Instant::now();
+        let (duplication, desktop, size) =
+            duplicate_output(&self.device, self.monitor, light.is_some())?;
         if size != self.size {
             log::info!("capture: the screen is now {}x{}", size.width, size.height);
             (self.image, self.copies) = textures(&self.device, size)?;
+            self.hdr = None;
         }
         self.duplication = Some(duplication);
         self.desktop = desktop;
@@ -222,13 +272,66 @@ impl Screen {
         Ok(())
     }
 
-    /// A copy no picture holds. Only this thread hands copies out, so one
-    /// found free stays free.
+    /// A copy no picture holds.
     fn free_copy(&self) -> Option<Arc<Copy>> {
-        self.copies
-            .iter()
-            .find(|copy| Arc::strong_count(copy) == 1)
-            .cloned()
+        free(&self.copies)
+    }
+
+    /// The screen's brightness read again, now and then.
+    fn read_light(&mut self) {
+        if self.light.is_none() || self.light_read.elapsed() < LIGHT_EVERY {
+            return;
+        }
+        self.light_read = Instant::now();
+        // Gone to SDR: the duplication is taken back, and read again then.
+        if let Some(light) = hdr::light_of(self.monitor) {
+            if Some(light) != self.light {
+                hdr::log_light(Some(light));
+            }
+            self.light = Some(light);
+        }
+    }
+
+    /// Take `desktop`, a 16-bit image of the screen's size, into `image` in
+    /// eight bits. False when it cannot be.
+    fn bring_down(&mut self, desktop: &ID3D11Texture2D) -> bool {
+        if self.hdr.is_none() {
+            let made = ToSdr::new(&self.device).and_then(|to_sdr| {
+                let image = hdr_texture(&self.device, self.size)?;
+                let mut into = None;
+                // SAFETY: a texture made to be drawn into, on this device.
+                unsafe {
+                    self.device
+                        .CreateRenderTargetView(&self.image, None, Some(&mut into))?
+                };
+                let into = into.ok_or_else(|| Error::from_hresult(E_FAIL))?;
+                Ok(HdrImage {
+                    to_sdr,
+                    image,
+                    into,
+                })
+            });
+            match made {
+                Ok(made) => self.hdr = Some(made),
+                Err(e) => {
+                    log::warn!("capture: HDR pictures cannot be drawn: {e}");
+                    return false;
+                }
+            }
+        }
+        let Some(hdr) = &self.hdr else {
+            return false;
+        };
+        // SAFETY: the same size and format, on the same device.
+        unsafe { self.context.CopyResource(&hdr.image, desktop) };
+        let light = self.light.unwrap_or_else(Light::unread);
+        match hdr.to_sdr.draw(&hdr.image, &hdr.into, self.size, light) {
+            Ok(()) => true,
+            Err(e) => {
+                log::warn!("capture: an HDR picture was not drawn: {e}");
+                false
+            }
+        }
     }
 
     /// Take the cursor's new shape from the frame `duplication` holds, `size`
@@ -300,8 +403,14 @@ impl Screen {
 
 /// The newest image's texture and the copies, at `size`.
 fn textures(device: &ID3D11Device, size: Size) -> Result<(ID3D11Texture2D, Vec<Arc<Copy>>)> {
-    let image = texture(device, size, false)?;
-    let copies = (0..COPIES)
+    // Drawn into from an HDR screen's image.
+    let image = texture(device, size, true)?;
+    Ok((image, copies(device, size)?))
+}
+
+/// The copies pictures are handed out in, at `size`.
+pub(super) fn copies(device: &ID3D11Device, size: Size) -> Result<Vec<Arc<Copy>>> {
+    (0..COPIES)
         .map(|_| {
             let texture = texture(device, size, true)?;
             let mut view = None;
@@ -310,15 +419,15 @@ fn textures(device: &ID3D11Device, size: Size) -> Result<(ID3D11Texture2D, Vec<A
             let view = view.ok_or_else(|| Error::from_hresult(E_FAIL))?;
             Ok(Arc::new(Copy(texture, view)))
         })
-        .collect::<Result<Vec<_>>>()?;
-    Ok((image, copies))
+        .collect::<Result<Vec<_>>>()
 }
 
 /// The duplication of `monitor`'s output on `device`, where that output sits,
-/// and its size.
+/// and its size. An `hdr` screen's comes in 16 bits where Windows can give it.
 fn duplicate_output(
     device: &ID3D11Device,
     monitor: HMONITOR,
+    hdr: bool,
 ) -> Result<(IDXGIOutputDuplication, RECT, Size)> {
     let dxgi: IDXGIDevice = device.cast()?;
     // SAFETY: DXGI calls on live objects, their results checked.
@@ -334,8 +443,21 @@ fn duplicate_output(
                 )
             })?;
         let placed = output.GetDesc()?.DesktopCoordinates;
-        let output: IDXGIOutput1 = output.cast()?;
-        let duplication = output.DuplicateOutput(device)?;
+        // DuplicateOutput1 is from Windows 10 1703 and wants a process aware
+        // of each monitor's DPI, which the runner's manifest makes Rift.
+        let in_16_bits = hdr
+            .then(|| output.cast::<IDXGIOutput5>().ok())
+            .flatten()
+            .and_then(|output| {
+                output
+                    .DuplicateOutput1(device, 0, &[HDR_FORMAT, DXGI_FORMAT_B8G8R8A8_UNORM])
+                    .inspect_err(|e| log::info!("capture: no 16-bit duplication: {e}"))
+                    .ok()
+            });
+        let duplication = match in_16_bits {
+            Some(duplication) => duplication,
+            None => output.cast::<IDXGIOutput1>()?.DuplicateOutput(device)?,
+        };
         let desc = duplication.GetDesc();
         // A turned screen comes unturned, and the system-memory kind is only a
         // basic display driver's: libwebrtc's capturer copes with both. Told
@@ -356,24 +478,39 @@ fn duplicate_output(
     }
 }
 
-/// A BGRA texture of `size`; one a picture is handed out in can also have the
-/// cursor drawn into it, and be read by the encoder's conversion.
-fn texture(device: &ID3D11Device, size: Size, handed_out: bool) -> Result<ID3D11Texture2D> {
+/// A BGRA texture of `size`, that can be drawn into and read by a shader: the
+/// cursor and an HDR image are drawn into it, and the encoder's conversion
+/// reads it.
+fn texture(device: &ID3D11Device, size: Size, drawn: bool) -> Result<ID3D11Texture2D> {
+    made_texture(device, size, DXGI_FORMAT_B8G8R8A8_UNORM, drawn)
+}
+
+/// A 16-bit texture of `size` an HDR image is copied into, for a shader to read.
+fn hdr_texture(device: &ID3D11Device, size: Size) -> Result<ID3D11Texture2D> {
+    made_texture(device, size, HDR_FORMAT, false)
+}
+
+fn made_texture(
+    device: &ID3D11Device,
+    size: Size,
+    format: windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT,
+    drawn: bool,
+) -> Result<ID3D11Texture2D> {
     let desc = D3D11_TEXTURE2D_DESC {
         Width: size.width,
         Height: size.height,
         MipLevels: 1,
         ArraySize: 1,
-        Format: DXGI_FORMAT_B8G8R8A8_UNORM,
+        Format: format,
         SampleDesc: DXGI_SAMPLE_DESC {
             Count: 1,
             Quality: 0,
         },
         Usage: D3D11_USAGE_DEFAULT,
-        BindFlags: if handed_out {
+        BindFlags: if drawn {
             (D3D11_BIND_SHADER_RESOURCE.0 | D3D11_BIND_RENDER_TARGET.0) as u32
         } else {
-            0
+            D3D11_BIND_SHADER_RESOURCE.0 as u32
         },
         CPUAccessFlags: 0,
         MiscFlags: 0,
@@ -516,12 +653,14 @@ fn duplicate(mut screen: Screen, flow: &Flow, stop: &AtomicBool, cursor: &Atomic
                         let mut desc = D3D11_TEXTURE2D_DESC::default();
                         // SAFETY: `desc` is written, and nothing else is touched.
                         unsafe { desktop.GetDesc(&mut desc) };
-                        if desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM
+                        let known =
+                            desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || desc.Format == HDR_FORMAT;
+                        if !known
                             || desc.Width != screen.size.width
                             || desc.Height != screen.size.height
                         {
-                            // An HDR desktop, for one: a copy into eight bits
-                            // a colour would do nothing, and the share be black.
+                            // A copy into eight bits a colour would do nothing,
+                            // and the share be black.
                             log::warn!(
                                 "capture: the screen comes as format {} at {}x{}; \
                                  not duplicated here",
@@ -533,8 +672,17 @@ fn duplicate(mut screen: Screen, flow: &Flow, stop: &AtomicBool, cursor: &Atomic
                             let _ = unsafe { duplication.ReleaseFrame() };
                             return;
                         }
-                        // SAFETY: the same size and format, on the same device.
-                        unsafe { screen.context.CopyResource(&screen.image, &desktop) };
+                        if desc.Format == HDR_FORMAT {
+                            screen.read_light();
+                            if !screen.bring_down(&desktop) {
+                                // SAFETY: the frame acquired above.
+                                let _ = unsafe { duplication.ReleaseFrame() };
+                                return;
+                            }
+                        } else {
+                            // SAFETY: the same size and format, on the same device.
+                            unsafe { screen.context.CopyResource(&screen.image, &desktop) };
+                        }
                         have_image = true;
                         pending = true;
                     }

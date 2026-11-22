@@ -45,8 +45,8 @@ fn bytecode() -> Option<&'static (Vec<u8>, Vec<u8>)> {
     static CODE: OnceLock<Option<(Vec<u8>, Vec<u8>)>> = OnceLock::new();
     CODE.get_or_init(|| {
         match (
-            compile(s!("vs"), s!("vs_4_0")),
-            compile(s!("ps"), s!("ps_4_0")),
+            compile(SHADERS, s!("vs"), s!("vs_4_0")),
+            compile(SHADERS, s!("ps"), s!("ps_4_0")),
         ) {
             (Ok(vs), Ok(ps)) => Some((vs, ps)),
             (Err(e), _) | (_, Err(e)) => {
@@ -58,15 +58,20 @@ fn bytecode() -> Option<&'static (Vec<u8>, Vec<u8>)> {
     .as_ref()
 }
 
-fn compile(entry: PCSTR, target: PCSTR) -> std::result::Result<Vec<u8>, String> {
+/// `source`'s shader `entry` compiled for `target`, or what the compiler said.
+pub(super) fn compile(
+    source: &str,
+    entry: PCSTR,
+    target: PCSTR,
+) -> std::result::Result<Vec<u8>, String> {
     let mut code: Option<ID3DBlob> = None;
     let mut errors: Option<ID3DBlob> = None;
     // SAFETY: the source outlives the call; both blobs are written by it.
     let compiled = unsafe {
         D3DCompile(
-            SHADERS.as_ptr().cast(),
-            SHADERS.len(),
-            s!("cursor"),
+            source.as_ptr().cast(),
+            source.len(),
+            s!("rift"),
             None,
             None,
             entry,

@@ -738,9 +738,9 @@ be duplicated once per process, and libwebrtc's DXGI capturer holds every
 output while it lives, so the one the share found its source with goes first;
 a share dialog opened during the share may list that screen through GDI, or
 not at all. The screen has to be on the encoder's GPU: a laptop whose screen
-hangs off its integrated GPU while NVENC is on the other, a turned screen, an
-HDR desktop, or a basic display driver's duplication in memory, goes to
-libwebrtc's capturer as before. `RIFT_SCREENS_ON_DXGI=1` takes screens this
+hangs off its integrated GPU while NVENC is on the other, a turned screen, or
+a basic display driver's duplication in memory, goes to libwebrtc's capturer
+as before. An HDR desktop stays here since Nov 22 (below). `RIFT_SCREENS_ON_DXGI=1` takes screens this
 way on Windows 11 too, to try it there. Passed Nov 19 2026 on Windows 11 and
 Windows 10 in a VM with an RTX 3070 Ti, a viewer on Linux.
 
@@ -767,6 +767,50 @@ Heaven: 57–60 fps with the pointer on the desktop, draws under 2 ms. Verified
 again with the shape from DXGI on Nov 20 2026, in the same VM: the busy cursor turned, a
 144-pixel pointer was drawn at that size, an inverting one inverted, and the
 share held 60 fps beside Heaven.
+
+**An HDR screen.** With HDR on, Windows keeps the desktop in 16-bit floating
+point (scRGB: linear, 1.0 at 80 nits), an ordinary window's white raised to
+the SDR brightness set in Windows' display settings and a game's highlights
+above it. Both of Rift's captures asked Windows for eight bits, and Windows'
+copy was wrong both ways: Windows Graphics Capture cut everything above white
+off, so an HDR game's sky and lights were blown out, and DXGI's duplication
+left the SDR brightness out, so a whole screen came out dark (owner's AMD PC,
+Nov 22 2026; Discord showed the same game as SDR). So on an HDR screen both
+ask for the 16-bit picture, and `capture_wgc/hdr.rs` draws it into an
+eight-bit copy on the GPU before anything else sees it: the SDR white becomes
+white, and what is brighter is rolled off by BT.2390's curve on the brightest
+channel, from the screen's peak down to that white, instead of cut. The curve
+is OBS's (`maxRGB_eetf_linear_to_linear` in `libobs/data/color.effect`); OBS's
+own HDR capture into SDR uses a plain Reinhard curve that takes white to about
+half, and Sunshine's clips as Windows does. The white comes from Windows'
+display configuration (`DISPLAYCONFIG_SDR_WHITE_LEVEL`), the peak and whether
+the screen is in HDR from DXGI (`IDXGIOutput6::GetDesc1`). What comes out is
+what an SDR screen gives, so the cursor, the copies and the encoder's
+conversion go on as before. A duplication asks with `DuplicateOutput1`;
+turning HDR on or off takes it back, and it is made again in the other format.
+A Windows Graphics Capture session reads its screen's light every 2 s, a
+window's screen too since a window moves, and its frame pool takes the other
+format on the next picture. The SDR slider moved mid-share is read in the same
+2 s. Libwebrtc's capturer, behind VP9 and the CPU encoders, still makes
+Windows' eight-bit copy.
+
+Verified Nov 22 2026. A GPU test (`live_hdr_*` in `hdr.rs`) draws known values
+and reads them back: byte for byte the same on an RX 9070 XT and an RTX 3070 Ti
+(white at 240 nits and peak 1000: a tenth of white 89, as on SDR; white 232;
+twice white 252; the peak 255; a bright red keeps its hue). On the owner's PC
+(RX 9070 XT, AMF, Windows 11, a 400-nit screen with SDR white at 80), Warzone in
+HDR shared as a window and as the whole screen on DXGI, beside a build of the
+code before: the owner found the colours much better, not blown out, and
+better than Discord's. In the Windows 10 VM (RTX 3070 Ti, NVENC, 2560×1440,
+peak 400): a window of known sRGB patches came to a Linux viewer the same with
+HDR on as off, every grey from 32 to 224 and each colour within 2 levels,
+white 247 against 255 (white at 240 nits) and 240 at a white of 160. HDR off
+and on mid-share, on DXGI and on a window, and the slider moved, each followed
+within 2 s with no warning; the cursor drawn as before. Beside Heaven uncapped
+on the same GPU, HDR cost 40–42 pictures a second against SDR's 44, 15–17 left
+out in 3,000 against 9, and NVENC's send 1–2 ms more (21.6–23.1 ms against
+20.7): the 16-bit picture is twice the bytes to copy. Not checked: a real HDR
+game on NVIDIA, Windows 11 on NVIDIA, and a screen with SDR white above its peak.
 
 libwebrtc's DXGI capturer asks for a new picture without waiting, and hands
 over its last one whenever the screen drew nothing new since, marked
