@@ -259,6 +259,34 @@ mixin _ChatReadApiMixin {
     messageId: messageId,
   );
 
+  /// The few columns a `message` or `dm` doorbell speaks about, as the
+  /// database has them — `{message: null}` for a row that is not there or
+  /// that this member may not see.
+  ///
+  /// A member can broadcast on the server's topic and a co-member on this
+  /// one's own, so a ring's payload is anybody's to write (`app.can_use_topic`
+  /// has to let clients send there, and Realtime checks that once per join,
+  /// not per event). What the app says out loud is checked here first.
+  Future<APIResponse> announcedRow(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required bool dm,
+    required int messageId,
+  }) => ServerDb.run(() async {
+    final db = _db.client(supabaseUrl, anonKey, bearerToken);
+    final row = await db
+        .from(dm ? 'dm_messages' : 'messages')
+        .select(
+          dm
+              ? 'id, sender_id, recipient_id'
+              : 'id, channel_id, sender_id, mentions, mentions_all',
+        )
+        .eq('id', messageId)
+        .maybeSingle();
+    return {'message': row};
+  });
+
   Future<APIResponse> _getRow(
     String supabaseUrl, {
     required String anonKey,

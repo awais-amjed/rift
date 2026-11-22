@@ -41,15 +41,24 @@ class PushWakeService {
   static const fallbackTitle = 'Rift';
   static const fallbackBody = 'You have a new message';
 
+  /// The `kind` central's relay puts on its own doorbells — a Rift DM, not a
+  /// ring a server forwarded (`wake`).
+  static const centralKind = 'central';
+
+  /// [aboutCentral] is a doorbell central rang for one of its own DMs. With
+  /// no usable session to read it by, that is a message this wake cannot
+  /// read rather than nothing to say, so the generic notice is owed.
   static Future<void> run({
     WakeServerReader? servers,
     WakeCentralReader? central,
     SecureStorageRepository? storage,
+    bool aboutCentral = false,
   }) async {
     final answered = await _harvest(
       servers: servers,
       central: central,
       storage: storage,
+      aboutCentral: aboutCentral,
     );
     if (!answered) await _fallback();
   }
@@ -65,6 +74,7 @@ class PushWakeService {
     WakeServerReader? servers,
     WakeCentralReader? central,
     SecureStorageRepository? storage,
+    required bool aboutCentral,
   }) async {
     try {
       final suffix = StorageNamespace.apply();
@@ -98,6 +108,7 @@ class PushWakeService {
         seed,
         marks,
         storageSuffix: suffix,
+        aboutCentral: aboutCentral,
       );
       final serverHarvests = <WakeHarvest>[
         for (final (i, server) in index.servers.indexed)

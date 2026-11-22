@@ -34,6 +34,21 @@ class UnreadApi {
     ),
   );
 
+  /// A channel message or a DM a doorbell named, as the database has it:
+  /// `{message: {...}}`, or `{message: null}` ([ServerRepository.announcedRow]).
+  Future<APIResponse> announcedRow({
+    required bool dm,
+    required int messageId,
+  }) => _target.call(
+    (server, token) => _repository.announcedRow(
+      server.supabaseUrl,
+      anonKey: server.supabaseKey ?? '',
+      bearerToken: token,
+      dm: dm,
+      messageId: messageId,
+    ),
+  );
+
   /// Move the cursor for one channel or conversation (`channel` or `dm`) to
   /// what is newest right now.
   Future<APIResponse> markRead({

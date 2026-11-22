@@ -48,20 +48,22 @@ class WakeCentralReader {
         : 'sb-$host-auth-token-$suffix';
   }
 
-  /// What is new in central DMs. Empty when there is no usable session, which
-  /// is not a failure — it is the ordinary state of an account that has not
-  /// been opened in over an hour.
+  /// What is new in central DMs. With no usable session — the ordinary state
+  /// of an account not opened in over an hour — it is empty, unless
+  /// [aboutCentral] says the doorbell was central's own: then it is a message
+  /// that could not be read, and failed, so the wake still says something
+  /// arrived.
   Future<WakeHarvest> read(
     Uint8List seed,
     WakeMarks marks, {
     required String storageSuffix,
+    bool aboutCentral = false,
   }) async {
     final session = await _session(storageSuffix);
-    // Not a failure. An account nobody has opened in over an hour has no
-    // usable token, which is the ordinary state of one — and there is nothing
-    // to fall back to saying, because the doorbell may not have been about
-    // central at all.
-    if (session == null) return emptyHarvest;
+    // A ring forwarded for a server says nothing about central, so an expired
+    // session there is nothing to report. Central's own ring is a Rift DM
+    // that arrived: silence about it was the bug (review, Nov 23).
+    if (session == null) return aboutCentral ? failedHarvest : emptyHarvest;
 
     final client = SupabaseClient(
       SupabaseConfig.supabaseUrl,

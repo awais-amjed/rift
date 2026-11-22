@@ -55,6 +55,34 @@ mixin _DeliveryMixin
     final level = state.channelLevel(serverId, channelId);
     if (!level.announces(mentioned: _rowNamesMe(serverId, row))) return;
 
+    unawaited(_speakForChannelMessage(serverId, channelId, row, level));
+  }
+
+  /// Chime, say or notify for a channel message the badge already counted —
+  /// once the database confirms it.
+  ///
+  /// The ring's payload is anybody's to write: any member may broadcast on
+  /// the server's topic, a timed-out one included. Taken at its word, one
+  /// broadcast naming the admin and `mentions_all` chimed in every window
+  /// and put "New message in #general" over every unfocused one, about a
+  /// message that never existed (review, Nov 23). The badge it added is put
+  /// right by the next count; what was said out loud could not be taken back.
+  Future<void> _speakForChannelMessage(
+    String serverId,
+    String channelId,
+    Map<String, dynamic> ring,
+    NotificationLevel level,
+  ) async {
+    final real = await _announcedRow(serverId, ring, dm: false);
+    if (real == null ||
+        real['channel_id'] != channelId ||
+        real['sender_id'] != ring['sender_id'] ||
+        isClosed) {
+      return;
+    }
+    final named = _rowNamesMe(serverId, real);
+    if (!level.announces(mentioned: named)) return;
+
     // It rang, so it is likely to be opened next, from the notification or
     // the badge: read it into the channel's saved copy now, so that opening
     // it shows this message at once rather than a ping after the click.
@@ -63,13 +91,17 @@ mixin _DeliveryMixin
     // Looking at the app but not at this channel: no notification, which
     // would be a banner over the window you are using, but the chime. An
     // unfocused window gets it from [NotificationService] instead.
-    if (focused) {
+    if (WindowFocusService.instance.isFocused) {
+      // Opened while the row was being asked for: it is read, not news.
+      if (_channelOnScreen &&
+          serverId == _openServerId &&
+          channelId == _openChannelId) {
+        return;
+      }
       unawaited(SoundService.instance.play(AppSound.message));
       // A mention says where it is, too: the chime alone sent the person
       // looking through the badges for it.
-      if (_rowNamesMe(serverId, row)) {
-        unawaited(_sayMentionInApp(serverId, channelId, row));
-      }
+      if (named) unawaited(_sayMentionInApp(serverId, channelId, real));
       return;
     }
     // Loaded is what counts here, not on screen: ChannelChatCubit speaks for
@@ -79,15 +111,33 @@ mixin _DeliveryMixin
     if (!chatSpeaks) {
       final server = _serverById(serverId);
       final channelName = _channelName(server, channelId);
-      NotificationService.instance.showMessage(
+      await NotificationService.instance.showMessage(
         title: server?.name ?? 'Rift',
         body: channelName != null
             ? 'New message in #$channelName'
             : 'New message',
         target: ConversationNotificationPayload.channel(serverId, channelId),
-        messageId: row['id'] as int?,
+        messageId: real['id'] as int?,
       );
     }
+  }
+
+  /// The row a `message` or `dm` ring names, as the database has it; null
+  /// when it does not exist, cannot be seen, or could not be asked about.
+  Future<Map<String, dynamic>?> _announcedRow(
+    String serverId,
+    Map<String, dynamic> ring, {
+    required bool dm,
+  }) async {
+    final id = ring['id'];
+    if (id is! int || !_subs.containsKey(serverId)) return null;
+    final answer = await UnreadApi(
+      _session.on(serverId),
+    ).announcedRow(dm: dm, messageId: id);
+    if (!answer.success) return null;
+    final data = answer.data;
+    final row = data is Map<String, dynamic> ? data['message'] : null;
+    return row is Map<String, dynamic> ? row : null;
   }
 
   /// Badge an incoming DM, and notify for it if no one else will.
@@ -119,6 +169,31 @@ mixin _DeliveryMixin
     // A DM has nobody else in it to be named among, so `mentions` reads as
     // `all` here — the same answer the server's ring trigger gives it.
     if (state.dmLevel(serverId, peerId).isMuted) return;
+    unawaited(_speakForDm(serverId, peerId, row));
+  }
+
+  /// The DM half of [_speakForChannelMessage]: a co-member may broadcast on
+  /// this member's own topic, so "Anyone sent you a message" was theirs to
+  /// say until the row was asked for.
+  Future<void> _speakForDm(
+    String serverId,
+    String peerId,
+    Map<String, dynamic> ring,
+  ) async {
+    final focused = WindowFocusService.instance.isFocused;
+    // Unfocused on the listed server, DmCubit speaks from its list, which is
+    // read from the database already.
+    if (!focused && serverId == _dmCubit.serverId) {
+      _dmCubit.refreshSavedCopy(serverId, peerId);
+      return;
+    }
+    final real = await _announcedRow(serverId, ring, dm: true);
+    if (real == null ||
+        real['sender_id'] != peerId ||
+        real['recipient_id'] != _subs[serverId]?.userId ||
+        isClosed) {
+      return;
+    }
     // As for a channel: opened next, it shows this message at once.
     _dmCubit.refreshSavedCopy(serverId, peerId);
 
@@ -126,12 +201,15 @@ mixin _DeliveryMixin
     // DmCubit never speaks while the window is focused, so this is the only
     // one that does.
     if (WindowFocusService.instance.isFocused) {
+      if (_dmOnScreen && serverId == _openDmServerId && peerId == _openPeerId) {
+        return;
+      }
       unawaited(SoundService.instance.play(AppSound.message));
       unawaited(_sayDmInApp(serverId, peerId));
       return;
     }
     if (serverId != _dmCubit.serverId) {
-      unawaited(_notifyBackgroundDm(serverId, peerId, row['id'] as int?));
+      await _notifyBackgroundDm(serverId, peerId, real['id'] as int?);
     }
   }
 

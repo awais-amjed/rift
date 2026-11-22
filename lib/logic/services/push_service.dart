@@ -17,8 +17,9 @@ import 'push_wake/push_wake_service.dart';
 /// means they stop the moment the system decides the app has been in the
 /// background long enough. Only a push can wake it.
 ///
-/// **The push carries nothing.** Not the sender, not the text, not which
-/// server — not even encrypted bytes. It is a doorbell, and the same reasoning
+/// **The push carries nothing** but which of two doorbells it is: central's
+/// own (`central`, a Rift DM) or one a server forwarded (`wake`). Not the
+/// sender, not the text, not which server — not even encrypted bytes. It is a doorbell, and the same reasoning
 /// applies as to the Realtime doorbells the app already uses: the database is
 /// the source of truth, so a ping only has to say "look again".
 ///
@@ -104,5 +105,7 @@ Future<void> pushBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   // No Activity here, so nothing to hang a permission dialog on.
   await NotificationService.instance.init(askForPermission: false);
-  await PushWakeService.run();
+  await PushWakeService.run(
+    aboutCentral: message.data['kind'] == PushWakeService.centralKind,
+  );
 }
