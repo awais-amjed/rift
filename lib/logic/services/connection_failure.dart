@@ -42,8 +42,12 @@ class ConnectionFailure {
 
   /// The connection failed but nothing recorded why. Should not happen; if it
   /// does, retrying is the only sensible offer.
+  ///
+  /// Every case that can reach a DM call says "call", not "channel": a
+  /// voice channel's is a call too, and a DM call's read as a channel's
+  /// (live check, Nov 23).
   const ConnectionFailure.unknown()
-    : title = 'Could not join the channel',
+    : title = 'Could not join the call',
       message = 'The connection failed without saying why.',
       detail = null,
       canRetry = true;
@@ -59,8 +63,8 @@ class ConnectionFailure {
   const ConnectionFailure.noLiveKitUrl()
     : title = 'Voice not configured',
       message =
-          'This server has no LiveKit URL set, so it cannot host voice '
-          'channels. That has to be fixed on the server.',
+          'This server has no LiveKit URL set, so it cannot host calls. '
+          'That has to be fixed on the server.',
       detail = null,
       canRetry = false;
 
@@ -69,9 +73,9 @@ class ConnectionFailure {
   /// Retryable on purpose: this call is also what creates the LiveKit room, so
   /// a transient failure here is exactly the kind another attempt clears.
   const ConnectionFailure.tokenRequest(String? error)
-    : title = 'Could not get access to this channel',
+    : title = 'Could not get access to this call',
       message =
-          'The server would not let this device into the channel. You may '
+          'The server would not let this device into the call. You may '
           'have lost access to it, or the server may be having trouble.',
       detail = error,
       canRetry = true;
@@ -191,7 +195,7 @@ class ConnectionFailure {
     }
 
     return ConnectionFailure(
-      title: 'Could not join the channel',
+      title: 'Could not join the call',
       message: 'Something went wrong while connecting.',
       detail: detail,
     );

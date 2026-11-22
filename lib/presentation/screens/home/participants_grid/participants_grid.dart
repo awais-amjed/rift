@@ -119,6 +119,7 @@ class ParticipantsGrid extends StatelessWidget {
                     onLeave: () => dm != null
                         ? context.read<DmCallCubit>().hangUp()
                         : context.read<LiveKitCubit>().disconnect(),
+                    leaveLabel: dm != null ? 'Hang up' : 'Leave channel',
                   ),
                   members: dm == null,
                 );

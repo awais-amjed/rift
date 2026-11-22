@@ -6,7 +6,7 @@ import '../../../../common/button_footer.dart';
 import '../../../../common/empty_state.dart';
 import '../../../../theme/theme_context.dart';
 
-/// Shown when a voice channel could not be joined.
+/// Shown when a call — a voice channel's or a DM's — could not be joined.
 ///
 /// Three registers, largest first: what went wrong, what it means and what to
 /// do, then the original error text kept quiet at the bottom. The last line is
@@ -26,11 +26,15 @@ class ErrorView extends StatelessWidget {
   /// Lets the user out of the channel without having to enter another one.
   final VoidCallback? onLeave;
 
+  /// What [onLeave] is called: a DM call is hung up, not left as a channel.
+  final String leaveLabel;
+
   const ErrorView({
     super.key,
     required this.failure,
     this.onRetry,
     this.onLeave,
+    this.leaveLabel = 'Leave channel',
   });
 
   @override
@@ -50,7 +54,7 @@ class ErrorView extends StatelessWidget {
                 buttons: [
                   if (onLeave != null)
                     AppButton(
-                      label: 'Leave channel',
+                      label: leaveLabel,
                       variant: AppButtonVariant.secondary,
                       onPressed: onLeave,
                     ),

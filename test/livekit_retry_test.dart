@@ -49,6 +49,7 @@ Future<void> _pumpErrorView(
   WidgetTester tester, {
   VoidCallback? onRetry,
   VoidCallback? onLeave,
+  String leaveLabel = 'Leave channel',
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -63,6 +64,7 @@ Future<void> _pumpErrorView(
             ),
             onRetry: onRetry,
             onLeave: onLeave,
+            leaveLabel: leaveLabel,
           ),
         ),
       ),
@@ -136,6 +138,21 @@ void main() {
 
       expect(find.text('Try again'), findsOneWidget);
       expect(find.text('Leave channel'), findsOneWidget);
+    });
+
+    testWidgets('a DM call that could not connect is hung up, not left', (
+      tester,
+    ) async {
+      // Found live, Nov 23: a DM call's failure offered "Leave channel".
+      await _pumpErrorView(
+        tester,
+        onRetry: () {},
+        onLeave: () {},
+        leaveLabel: 'Hang up',
+      );
+
+      expect(find.text('Hang up'), findsOneWidget);
+      expect(find.text('Leave channel'), findsNothing);
     });
 
     testWidgets('shows no actions for a precondition failure', (tester) async {

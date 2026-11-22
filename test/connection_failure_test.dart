@@ -209,7 +209,7 @@ void main() {
         ConnectionFailure.tokenRefused(
           refused(ErrorCode.permissionDenied),
         ).title,
-        'Could not get access to this channel',
+        'Could not get access to this call',
       );
     });
   });

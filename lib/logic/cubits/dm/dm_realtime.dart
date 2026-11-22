@@ -101,6 +101,13 @@ mixin _DmRealtimeMixin
       unawaited(retryOpen());
     } else {
       _rereadOpen();
+      // Its calls too: one answered or ended while the connection was down
+      // rang a doorbell nobody heard, and the log stayed without its
+      // "Call in progress" line until the next call moved (live check,
+      // Nov 23).
+      if (state.chatStatus == DmChatStatus.ready) {
+        unawaited(refreshCallLog());
+      }
     }
   }
 
