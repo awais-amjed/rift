@@ -1,10 +1,12 @@
+import '../classes/server_invite.dart';
 import '../repositories/server_pass_repository.dart';
 import '../repositories/server_repository.dart';
 import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
 
-/// Invite links: making one for a server, and throwing one away. Reading one
-/// before joining is `JoiningApi`'s, since there is no server to be on yet.
+/// Invite links: making one for a server, listing them, and throwing one away.
+/// Reading one before joining is `JoiningApi`'s, since there is no server to
+/// be on yet.
 ///
 /// Holds nothing, so a widget builds one from the session.
 class InvitesApi {
@@ -103,6 +105,58 @@ class InvitesApi {
         inviteCode: inviteCode,
         bearerToken: token,
       ),
+    );
+  }
+
+  /// The server's links, newest first: every one for an administrator, a
+  /// member's own otherwise (and an administrator's own on a server from
+  /// before Nov 22 2026). Null on failure, so a page can tell "none" from
+  /// "could not read them".
+  Future<List<ServerInvite>?> listInvites() async {
+    final server = _target.server;
+    if (server == null) return null;
+    final response = await _session.callFor(
+      server,
+      (token) => _repository.listInvites(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: token,
+      ),
+    );
+    if (!response.success) return null;
+    final rows =
+        (response.data as Map<String, dynamic>)['invites'] as List? ?? const [];
+    return [
+      for (final r in rows.cast<Map<String, dynamic>>())
+        ServerInvite.fromJson(r),
+    ];
+  }
+
+  /// Revoke one listed link. No row removed is a refusal, said as one.
+  Future<({bool success, String? error})> revoke(String inviteId) async {
+    final server = _target.server;
+    if (server == null) return (success: false, error: ServerSession.gone);
+    final response = await _session.callFor(
+      server,
+      (token) => _repository.revokeInvite(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: token,
+        inviteId: inviteId,
+      ),
+    );
+    if (!response.success) {
+      return (
+        success: false,
+        error: response.error ?? "Couldn't revoke that link.",
+      );
+    }
+    final deleted = (response.data as Map?)?['deleted'] == true;
+    return (
+      success: deleted,
+      error: deleted
+          ? null
+          : "That link wasn't revoked. It may be used up or gone already.",
     );
   }
 }

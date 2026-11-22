@@ -769,6 +769,11 @@ POST https://<server>/functions/v1/webhook/<secret>
 
 Rate-limited per webhook, because the credential is a URL and a URL leaks.
 
+Listing, making and revoking them takes `MANAGE_CHANNELS` and `MANAGE_WEBHOOKS` together
+(`app.can_manage_webhooks`), or an administrator. Before Nov 22 2026 the server asked only the
+first, so taking the webhook bit off a role stopped nobody; a server from before that still
+does, and the app gates its pages on both either way.
+
 An edge function rather than PostgREST: it runs before any caller is authenticated, which is the
 same reason `resolve_invite` and `register` are functions.
 

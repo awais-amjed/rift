@@ -70,17 +70,31 @@ class RoleLadder {
 
   /// Everything they may **hand out**, which is not the same list.
   ///
-  /// Editing is strictly below your own rank; assigning has no rank at all
-  /// (`app.may_assign_role`): an administrator may hand out or take away any
-  /// role but `@everyone` and the owner's, Admin from another admin included.
-  /// Both are an administrator's alone, and the owner role is on neither
+  /// Editing is strictly below your own rank; handing out goes up to it
+  /// (`app.may_assign_role`), so the only admin on a server can make a second
+  /// one. Both are an administrator's alone, and the owner role is on neither
   /// list — it outranks everybody and moves only by transfer.
   static List<Role> assignable(
     List<Role> roles, {
     required bool isAdministrator,
+    required int rank,
   }) => [
     if (isAdministrator)
       for (final role in roles)
-        if (!role.isEveryone && !role.isOwner) role,
+        if (!role.isEveryone && !role.isOwner && role.position <= rank) role,
   ];
+
+  /// Whether they may take [role] off somebody, themselves included: only a
+  /// role strictly below their own rank (`member_roles_delete`). So one admin
+  /// cannot take Admin off another, nor anybody their own top role. Before
+  /// Nov 22 2026 a server asked no rank of taking a role off somebody else.
+  static bool mayTake(
+    Role role, {
+    required bool isAdministrator,
+    required int rank,
+  }) =>
+      isAdministrator &&
+      !role.isEveryone &&
+      !role.isOwner &&
+      role.position < rank;
 }

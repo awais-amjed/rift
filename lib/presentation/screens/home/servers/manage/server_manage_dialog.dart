@@ -13,6 +13,7 @@ import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/theme_context.dart';
 import 'panels/bots_panel.dart';
 import 'panels/danger_zone_panel.dart';
+import 'panels/invites_panel.dart';
 import 'panels/limits_panel.dart';
 import 'panels/members_panel.dart';
 import 'panels/overview_panel.dart';
@@ -178,6 +179,7 @@ class _ServerManageDialogState extends State<ServerManageDialog> {
     ServerManageTab.limits => LimitsPanel(server: server),
     ServerManageTab.roles => RolesPanel(serverId: server.id),
     ServerManageTab.members => MembersPanel(server: server),
+    ServerManageTab.invites => const InvitesPanel(),
     ServerManageTab.reports => const ReportsPanel(),
     ServerManageTab.bots => BotsPanel(server: server),
     ServerManageTab.webhooks => WebhooksPanel(server: server),

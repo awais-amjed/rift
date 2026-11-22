@@ -17,6 +17,7 @@ void main() {
         ServerManageTab.limits,
         ServerManageTab.roles,
         ServerManageTab.members,
+        ServerManageTab.invites,
         ServerManageTab.reports,
         ServerManageTab.bots,
         ServerManageTab.webhooks,

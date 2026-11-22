@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -25,8 +27,9 @@ import '../../../../theme/theme_context.dart';
 /// roles in a row is the common case, the same reason the mute toggle leaves
 /// the menu up.
 ///
-/// A role the viewer may not hand out — any, for somebody who is not an
-/// administrator, and the owner's for everybody ([RoleLadder.assignable]) — is
+/// A role the viewer may not hand out or take away — any, for somebody who is
+/// not an administrator, one above their rank (or at it, to take away), and
+/// the owner's for everybody ([RoleLadder.assignable], [RoleLadder.mayTake]) — is
 /// listed and inert rather than hidden. Leaving it out would suggest it does
 /// not exist; showing it greyed says the rule that is actually being applied.
 class ParticipantRolesMenu extends StatefulWidget {
@@ -43,6 +46,22 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
   /// the same member would race on the refresh that follows each of them.
   String? _pendingId;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // The viewer's own roles decide how far up the ladder they reach, and the
+    // roster reads roles only for the rows on screen.
+    final members = context.read<ServerMembersCubit>();
+    final myId = context
+        .read<ServerCubit>()
+        .state
+        .meOn(ServerScope.read(context).serverId)
+        ?.id;
+    if (myId != null && !members.state.memberRoles.containsKey(myId)) {
+      unawaited(members.reloadRolesOf(myId));
+    }
+  }
 
   Future<void> _toggle(Role role, bool next) async {
     if (_pendingId != null) return;
@@ -82,10 +101,18 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
     final myBits = context.select<ServerCubit, int>(
       (c) => c.state.permissionsOn(serverId)?.bits ?? 0,
     );
+    final isAdministrator = myBits.has(ServerPermission.administrator);
+    final myId = context.select<ServerCubit, String?>(
+      (c) => c.state.meOn(serverId)?.id,
+    );
+    // A role goes on up to the viewer's rank and comes off only below it
+    // (`app.may_assign_role`, `member_roles_delete`).
+    final rank = RoleLadder.rankOf(roster.memberRoles, myId);
     final assignable = {
       for (final role in RoleLadder.assignable(
         roster.roles,
-        isAdministrator: myBits.has(ServerPermission.administrator),
+        isAdministrator: isAdministrator,
+        rank: rank,
       ))
         role.id,
     };
@@ -93,6 +120,9 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
       for (final role in roster.memberRoles[widget.userId] ?? const <Role>[])
         role.id,
     };
+    bool reachable(Role role) => held.contains(role.id)
+        ? RoleLadder.mayTake(role, isAdministrator: isAdministrator, rank: rank)
+        : assignable.contains(role.id);
     final listed = roster.roles.where((r) => !r.isEveryone).toList();
 
     final themeState = context.theme;
@@ -120,14 +150,12 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
             // role you may not hand out does nothing, which is what the
             // database would have said a round trip later.
             onTap: () {
-              if (assignable.contains(role.id)) {
-                _toggle(role, !held.contains(role.id));
-              }
+              if (reachable(role)) _toggle(role, !held.contains(role.id));
             },
             trailing: _trailing(
               role: role,
               isHeld: held.contains(role.id),
-              outranked: !assignable.contains(role.id),
+              outranked: !reachable(role),
               themeState: themeState,
             ),
           ),

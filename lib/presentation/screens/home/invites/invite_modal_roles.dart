@@ -29,9 +29,14 @@ mixin _InviteRolesMixin on State<InviteModal> {
     // The server the invite is for, which the rail's menu can open on a
     // server the person is not looking at.
     final serverId = widget.server.id;
-    final all = await RolesApi(
-      context.read<SessionRepository>().on(serverId),
-    ).listRoles();
+    final myId = cubit.state.meOn(serverId)?.id;
+    final api = RolesApi(context.read<SessionRepository>().on(serverId));
+    final (all, mine) = await (
+      api.listRoles(),
+      // The minter's own, since a link hands out only a role up to their
+      // rank (`invites_insert` asks `app.may_assign_role`).
+      myId == null ? Future.value(null) : api.memberRolesFor([myId]),
+    ).wait;
     if (!mounted) return;
 
     final bits = cubit.state.permissionsOn(serverId)?.bits ?? 0;
@@ -39,6 +44,7 @@ mixin _InviteRolesMixin on State<InviteModal> {
       roles = RoleLadder.assignable(
         all,
         isAdministrator: bits.has(ServerPermission.administrator),
+        rank: RoleLadder.rankOf(mine ?? const {}, myId),
       );
     });
   }

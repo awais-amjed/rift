@@ -183,27 +183,52 @@ void main() {
         isNot(contains(everyone)),
       );
       expect(
-        RoleLadder.assignable(all, isAdministrator: true),
+        RoleLadder.assignable(all, isAdministrator: true, rank: 400),
         isNot(contains(everyone)),
       );
     });
 
-    test('assigning has no rank, and is an administrator\'s alone', () {
-      // The exemption exists so the only admin on a server can make a second
-      // one. Everybody else hands out nothing, whatever they hold.
-      expect(RoleLadder.assignable(all, isAdministrator: false), isEmpty);
-      expect(RoleLadder.assignable(all, isAdministrator: true), [
-        admin,
-        mod,
-        members,
-      ]);
+    test(
+      'handing out goes up to your rank, and is an administrator\'s alone',
+      () {
+        // Up to and not only below, so the only admin on a server can make a
+        // second one. Everybody else hands out nothing, whatever they hold.
+        expect(
+          RoleLadder.assignable(all, isAdministrator: false, rank: 300),
+          isEmpty,
+        );
+        expect(RoleLadder.assignable(all, isAdministrator: true, rank: 300), [
+          admin,
+          mod,
+          members,
+        ]);
+        expect(RoleLadder.assignable(all, isAdministrator: true, rank: 200), [
+          mod,
+          members,
+        ]);
+      },
+    );
+
+    test('taking a role off anybody is strictly below your rank', () {
+      // So one admin cannot take Admin off another (`member_roles_delete`).
+      expect(
+        RoleLadder.mayTake(admin, isAdministrator: true, rank: 300),
+        false,
+      );
+      expect(RoleLadder.mayTake(mod, isAdministrator: true, rank: 300), true);
+      expect(RoleLadder.mayTake(admin, isAdministrator: true, rank: 400), true);
+      expect(RoleLadder.mayTake(mod, isAdministrator: false, rank: 400), false);
+      expect(
+        RoleLadder.mayTake(owner, isAdministrator: true, rank: 400),
+        false,
+      );
     });
 
     test('the owner role is nobody\'s to hand out, not even the owner\'s', () {
       // It outranks everybody and moves only by transfer; the database
       // refuses it — so the ladder says so first.
       expect(
-        RoleLadder.assignable(all, isAdministrator: true),
+        RoleLadder.assignable(all, isAdministrator: true, rank: 400),
         isNot(contains(owner)),
       );
       expect(RoleLadder.below(all, 400, isAdministrator: true), [

@@ -26,6 +26,7 @@ part 'server_repository_chat.dart';
 part 'server_repository_chat_reads.dart';
 part 'server_repository_dm_calls.dart';
 part 'server_repository_dm_requests.dart';
+part 'server_repository_invites.dart';
 part 'server_repository_members.dart';
 part 'server_repository_moderation.dart';
 part 'server_repository_ownership.dart';
@@ -70,6 +71,7 @@ class ServerRepository
         _ChatReadApiMixin,
         _DmCallsApiMixin,
         _DmRequestsApiMixin,
+        _InviteListApiMixin,
         _MemberApiMixin,
         _ModerationApiMixin,
         _PushApiMixin,
@@ -86,6 +88,9 @@ class ServerRepository
         _WebhookApiMixin {
   /// The most of a list `listReports` reads at once.
   static const reportsPage = 50;
+
+  /// The most links `listInvites` reads at once.
+  static const invitesPage = 200;
 
   /// [client] and [askAgainAfter] are for a test; the app posts with
   /// `http.post`, a connection per call, as it always has.

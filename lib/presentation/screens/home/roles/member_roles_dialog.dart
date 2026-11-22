@@ -49,6 +49,17 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
     if (!members.state.memberRoles.containsKey(widget.member.id)) {
       unawaited(members.reloadRolesOf(widget.member.id));
     }
+    // And the viewer's own, which decide how far up the ladder they reach.
+    final myId = context
+        .read<ServerCubit>()
+        .state
+        .meOn(ServerScope.read(context).serverId)
+        ?.id;
+    if (myId != null &&
+        myId != widget.member.id &&
+        !members.state.memberRoles.containsKey(myId)) {
+      unawaited(members.reloadRolesOf(myId));
+    }
   }
 
   Future<void> _toggle(Role role, {required bool held}) async {
@@ -88,6 +99,17 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
           false,
     );
 
+    final myId = context.select<ServerCubit, String?>(
+      (c) => c.state.meOn(serverId)?.id,
+    );
+    final myRoles = context.select<ServerMembersCubit, List<Role>?>(
+      (c) => c.state.memberRoles[myId],
+    );
+    // Where the viewer stands: a role goes on up to it and comes off only
+    // below it (`app.may_assign_role`, `member_roles_delete`), so one admin
+    // cannot take Admin off another, nor their own top role off themselves.
+    final rank = RoleLadder.rankOf({?myId: ?myRoles}, myId);
+
     final listed = roles.where((r) => !r.isEveryone).toList();
     // Which of them this viewer may actually hand out. Not the same as the
     // ones they may *edit* — see [RoleLadder.assignable].
@@ -95,25 +117,22 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
       for (final role in RoleLadder.assignable(
         roles,
         isAdministrator: isAdministrator,
+        rank: rank,
       ))
         role.id,
     };
     final held = {for (final role in heldRoles ?? const <Role>[]) role.id};
+    // The viewer's own roles not read yet reads as rank 0, every row locked
+    // for the moment they take, rather than a spinner a failed read would
+    // leave up.
     final isLoading = heldRoles == null;
-    // Your own: `member_roles_delete` lets you drop only a role beneath your
-    // top one, so the top one stays ticked.
-    final isSelf =
-        context.select<ServerCubit, String?>(
-          (c) => c.state.meOn(serverId)?.id,
-        ) ==
-        widget.member.id;
-    final ownRank = isSelf
-        ? RoleLadder.rankOf({
-            widget.member.id: heldRoles ?? const [],
-          }, widget.member.id)
-        : null;
-    bool fixed(Role role) =>
-        ownRank != null && held.contains(role.id) && role.position >= ownRank;
+    bool locked(Role role) => held.contains(role.id)
+        ? !RoleLadder.mayTake(
+            role,
+            isAdministrator: isAdministrator,
+            rank: rank,
+          )
+        : !assignable.contains(role.id);
 
     return AppModal(
       title: 'Roles',
@@ -145,20 +164,11 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: RoleRow(
-                        role: role,
-                        // Handing out has no rank: an administrator may give
-                        // any role but the owner's ([RoleLadder.assignable]),
-                        // which is how the only admin makes a second one.
-                        locked: !assignable.contains(role.id) || fixed(role),
-                      ),
+                      child: RoleRow(role: role, locked: locked(role)),
                     ),
                     Checkbox(
                       value: held.contains(role.id),
-                      onChanged:
-                          !assignable.contains(role.id) ||
-                              fixed(role) ||
-                              _busyId != null
+                      onChanged: locked(role) || _busyId != null
                           ? null
                           : (_) => _toggle(role, held: held.contains(role.id)),
                     ),

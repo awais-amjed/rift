@@ -3,7 +3,8 @@ part of 'server_repository.dart';
 /// Webhook management on a self-hosted server (BOTS.md §7).
 ///
 /// Reads and deletes are direct table calls under `webhooks_select` /
-/// `webhooks_delete`, both of which require `app.can_manage_channels()`.
+/// `webhooks_delete`, both of which require `app.can_manage_webhooks()`
+/// (`app.can_manage_channels()` alone on a server from before Nov 22 2026).
 /// Creating one is not: minting the secret is the whole operation, and a secret
 /// the caller chose is not a secret — so it goes through `create_webhook`,
 /// which is also where the per-channel ceiling lives.
