@@ -433,6 +433,9 @@ mixin _VaultBackupMixin on Cubit<VaultState> {
         _identityCache.clear();
         _chatIdentityCache.clear();
       }
+      // After the forgetting, which retires the seed it wipes: a reset and
+      // then this same backup would otherwise leave it saving nothing.
+      MessageCache.instance.adopt(masterSeedB64);
 
       emit(VaultState(status: AuthStatus.unlocked, masterSeed: masterSeedB64));
       _onServersImported?.call(manifest);

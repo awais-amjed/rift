@@ -204,6 +204,17 @@ void main() {
       expect(await cache.read(seedOf(9), channel), data);
     });
 
+    test('the same seed restored after a reset saves again', () async {
+      await cache.write(seed, channel, data);
+      await cache.clear();
+      await cache.write(seed, channel, data);
+      expect(await cache.read(seed, channel), isNull);
+
+      cache.adopt(seed);
+      await cache.write(seed, channel, data);
+      expect(await cache.read(seed, channel), data);
+    });
+
     test('clear removes everything', () async {
       await cache.write(seed, channel, data);
       await cache.write(seed, MessageCacheSlot.centralDm(peerId: 'p1'), data);

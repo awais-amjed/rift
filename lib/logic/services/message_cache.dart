@@ -37,7 +37,7 @@ import 'storage_namespace.dart';
 /// them notice, a moment *after* the wipe. So every operation runs in the
 /// order it was asked for, and a wipe shuts its scope (or, for [clear], the
 /// seed) to writes asked for after it. [reopenScope] lets a rejoined server
-/// or a signed-in account save again.
+/// or a signed-in account save again, and [adopt] a restored seed.
 class MessageCache {
   final CryptoRepository _crypto;
   final Future<Directory> Function() _root;
@@ -219,6 +219,14 @@ class MessageCache {
       }
     });
   }
+
+  /// Let [seed] be saved under again — a vault was put on this device with
+  /// it, by a restore or a new vault. [clear] shuts out the seed it wiped so
+  /// that saves the closing conversations ask for afterwards land nowhere,
+  /// but a reset followed by a restore of the same backup brings that very
+  /// identity back, and without this its conversations saved nothing until
+  /// the app restarted.
+  void adopt(String seed) => _retiredSeeds.remove(seed);
 
   bool _refuses(String seed, String scope) =>
       _retiredSeeds.contains(seed) || _shutScopes.contains(scope);
