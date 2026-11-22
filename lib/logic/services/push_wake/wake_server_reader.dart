@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:rift_crypto/rift_crypto.dart';
@@ -56,39 +57,69 @@ class WakeServerReader with _WakeChannelKeysMixin, _WakeChannelsMixin {
   /// notifications at once is a wall, not news.
   static const maxScopes = 5;
 
+  /// How long one server may take to say which calls ring. A wake asks
+  /// every server about calls before reading any messages, and one server
+  /// down must not hold the others' rings past the caller's thirty seconds.
+  static const callsDeadline = Duration(seconds: 8);
+
+  /// Which DM calls started or stopped ringing on [server] since the last
+  /// wake, and the token signed in for it, for [read] to go on with.
+  ///
+  /// Its own step, asked of every server before any is read in full: a call
+  /// is the one thing that will not wait, and asked inside [read] it waited
+  /// on every server before it — the sign-in, the unread counts, the keys and
+  /// decrypts — and could reach the shade after the caller had given up.
+  Future<({String? token, List<WakeCallChange> changes})> readCalls(
+    WakeServer server,
+    Uint8List seed,
+    WakeCalls calls,
+  ) async {
+    try {
+      return await _readCalls(server, seed, calls).timeout(callsDeadline);
+    } on TimeoutException {
+      return (token: null, changes: const <WakeCallChange>[]);
+    }
+  }
+
+  Future<({String? token, List<WakeCallChange> changes})> _readCalls(
+    WakeServer server,
+    Uint8List seed,
+    WakeCalls calls,
+  ) async {
+    final token = await _signIn(server, seed);
+    if (token == null) return (token: null, changes: const <WakeCallChange>[]);
+    final answer = await _repo.myDmCalls(
+      server.supabaseUrl,
+      anonKey: server.anonKey,
+      bearerToken: token,
+      known: calls.shownOn(server.id),
+    );
+    if (!answer.success) {
+      return (token: token, changes: const <WakeCallChange>[]);
+    }
+    return (
+      token: token,
+      changes: calls.apply(
+        serverId: server.id,
+        myId: server.userId,
+        fetched: DmCall.listFrom(answer.data),
+        now: DateTime.now(),
+      ),
+    );
+  }
+
   /// What is new on [server] that this device has not been told about.
   ///
-  /// With [calls], also which DM calls started or stopped ringing here since
-  /// the last wake — added to [callChanges]. A call is asked about first: it
-  /// is the one thing on the server that will not wait.
+  /// [token] is the one [readCalls] signed in with, when it did; without
+  /// one this signs in itself.
   Future<WakeHarvest> read(
     WakeServer server,
     Uint8List seed,
     WakeMarks marks, {
-    WakeCalls? calls,
-    List<WakeCallChange>? callChanges,
+    String? token,
   }) async {
-    final token = await _signIn(server, seed);
+    token ??= await _signIn(server, seed);
     if (token == null) return failedHarvest;
-
-    if (calls != null && callChanges != null) {
-      final answer = await _repo.myDmCalls(
-        server.supabaseUrl,
-        anonKey: server.anonKey,
-        bearerToken: token,
-        known: calls.shownOn(server.id),
-      );
-      if (answer.success) {
-        callChanges.addAll(
-          calls.apply(
-            serverId: server.id,
-            myId: server.userId,
-            fetched: DmCall.listFrom(answer.data),
-            now: DateTime.now(),
-          ),
-        );
-      }
-    }
 
     final unread = await _repo.unreadCounts(
       server.supabaseUrl,

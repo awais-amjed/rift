@@ -20,6 +20,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
 
   /// Implemented by the cubit: see [CallSteps].
   CallSteps get _callSteps;
+  void _forgetDmMediaKey();
   void _applyStoredSettings();
   bool _mutedHere(Room room, Participant participant, TrackPublication pub);
   bool _hearsAudio(
@@ -192,6 +193,9 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
 
     if (cleanUp || state.room != null) await _cleanupRoom();
     if (leaving != channelId) forgetChannelToken(leaving);
+    // A DM call's key goes with the call, here as on a full leave: switched
+    // to a channel, it stayed in memory until the next one.
+    _forgetDmMediaKey();
     if (!current()) return;
 
     emit(state.copyWith(clearRoom: true));

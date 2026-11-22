@@ -21,6 +21,7 @@ import '../../services/call_refusal.dart';
 import '../../services/dm_call_ledger.dart';
 import '../../services/host_platform.dart';
 import '../../services/notification_service.dart';
+import '../../services/push_wake/wake_calls.dart';
 import '../../services/server_realtime.dart';
 import '../../services/server_topics.dart';
 import '../../services/sound_service.dart';
@@ -130,7 +131,13 @@ class DmCallCubit extends Cubit<DmCallState>
           ServerTopics.user(user.id),
         );
         if (lease == null) continue;
-        lease.onBroadcast(ServerEvent.dmCalls, (_) => _ask(server.id));
+        lease
+          ..onBroadcast(ServerEvent.dmCalls, (_) => _ask(server.id))
+          // A doorbell rung while the topic was down is gone for good: the
+          // caller never heard the answer and hung up a live call at thirty
+          // seconds, the callee kept ringing for a call already cancelled
+          // (review, Nov 22). So a return asks again.
+          ..onReopen(() => _ask(server.id));
         _topics[server.id] = (lease: lease, token: server.token);
         _ask(server.id);
       } else if (held.token != server.token) {
@@ -190,13 +197,14 @@ class DmCallCubit extends Cubit<DmCallState>
     final folded = DmCallLedger.apply(
       serverId: serverId,
       myId: myId,
-      ringing: [for (final e in before) (serverId: e.serverId, call: e.call)],
+      ringing: [for (final e in before) e.ringing],
       // Read again: the call we are in may have changed while this was out.
       activeId: state.active?.serverId == serverId
           ? state.active!.call.id
           : null,
       fetched: DmCall.listFrom(response.data),
       now: DateTime.now(),
+      settled: _settled,
     );
 
     final names = {for (final s in _session.servers) s.id: s.name};
@@ -206,6 +214,7 @@ class DmCallCubit extends Cubit<DmCallState>
           serverId: entry.serverId,
           serverName: names[entry.serverId] ?? 'Rift',
           call: entry.call,
+          seenAt: entry.seenAt,
         ),
     ];
     final fresh = [
@@ -223,12 +232,15 @@ class DmCallCubit extends Cubit<DmCallState>
     // A ring that stopped any other way — answered on another device, or
     // given up on at once — leaves nothing in the shade. A missed one is the
     // push's to turn into "Missed call".
+    final ended = <String>[];
     for (final gone in before) {
       if (gone.serverId != serverId) continue;
       if (incoming.any((e) => e.call.id == gone.call.id)) continue;
       if (folded.missed.any((m) => m.id == gone.call.id)) continue;
+      ended.add(gone.call.id);
       unawaited(NotificationService.instance.cancelCall(gone.call.id));
     }
+    if (HostPlatform.isAndroid) unawaited(WakeCalls.forgetAll(ended));
     final active = folded.active;
     if (active != null) await _onActiveRow(active);
     _syncSounds();

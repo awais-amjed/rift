@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/data/classes/api_response.dart';
 import 'package:rift/data/classes/dm_call.dart';
 import 'package:rift/data/enums/dm_call_outcome.dart';
+import 'package:rift/data/repositories/server_repository.dart';
 import 'package:rift/logic/services/call_log_label.dart';
 import 'package:rift/logic/services/call_refusal.dart';
 import 'package:rift/logic/services/dm_call_ledger.dart';
@@ -109,20 +111,61 @@ void main() {
       expect(folded.ringing.map((e) => e.call.id), ['in']);
     });
 
-    test('a ring past its window is not offered', () {
+    test('a new ring is offered whatever this device\'s clock says', () {
+      // The server leaves out rings past its window; a clock 45 s fast
+      // dropped every ring the moment it was fetched.
       final folded = DmCallLedger.apply(
         serverId: 's1',
         myId: me,
         ringing: const [],
         activeId: null,
         fetched: [call()],
-        now: t0.add(DmCallLedger.ringWindow),
+        now: t0.add(const Duration(minutes: 2)),
+      );
+      expect(folded.ringing.map((e) => e.call.id), ['c1']);
+    });
+
+    test('a ring shown here for its window is not offered again', () {
+      final seen = t0.add(const Duration(minutes: 2));
+      final folded = DmCallLedger.apply(
+        serverId: 's1',
+        myId: me,
+        ringing: [(serverId: 's1', call: call(), seenAt: seen)],
+        activeId: null,
+        fetched: [call()],
+        now: seen.add(DmCallLedger.ringWindow),
+      );
+      expect(folded.ringing, isEmpty);
+    });
+
+    test('a ring keeps the time it was first seen', () {
+      final folded = DmCallLedger.apply(
+        serverId: 's1',
+        myId: me,
+        ringing: [(serverId: 's1', call: call(), seenAt: t0)],
+        activeId: null,
+        fetched: [call()],
+        now: t0.add(const Duration(seconds: 10)),
+      );
+      expect(folded.ringing.single.seenAt, t0);
+    });
+
+    test('a ring this device already refused does not come back', () {
+      // An answer fetched before the Decline, landing after it.
+      final folded = DmCallLedger.apply(
+        serverId: 's1',
+        myId: me,
+        ringing: const [],
+        activeId: null,
+        fetched: [call()],
+        now: t0,
+        settled: {'c1'},
       );
       expect(folded.ringing, isEmpty);
     });
 
     test('another server\'s rings pass through untouched', () {
-      final elsewhere = (serverId: 's2', call: call(id: 'x'));
+      final elsewhere = (serverId: 's2', call: call(id: 'x'), seenAt: t0);
       final folded = DmCallLedger.apply(
         serverId: 's1',
         myId: me,
@@ -148,7 +191,7 @@ void main() {
     });
 
     test('a ring that ended missed is reported once, for a missed call', () {
-      final ringing = [(serverId: 's1', call: call())];
+      final ringing = [(serverId: 's1', call: call(), seenAt: t0)];
       final folded = DmCallLedger.apply(
         serverId: 's1',
         myId: me,
@@ -167,7 +210,7 @@ void main() {
       final folded = DmCallLedger.apply(
         serverId: 's1',
         myId: me,
-        ringing: [(serverId: 's1', call: call())],
+        ringing: [(serverId: 's1', call: call(), seenAt: t0)],
         activeId: null,
         fetched: [call(answered: t0.add(const Duration(seconds: 4)))],
         now: t0.add(const Duration(seconds: 5)),
@@ -177,11 +220,13 @@ void main() {
     });
 
     test('expire drops rings whose doorbell never came', () {
+      // By when each was first seen here, not by the server's clock.
       final kept = DmCallLedger.expire([
-        (serverId: 's1', call: call(id: 'old')),
+        (serverId: 's1', call: call(id: 'old'), seenAt: t0),
         (
           serverId: 's1',
-          call: call(id: 'new', started: t0.add(const Duration(seconds: 40))),
+          call: call(id: 'new'),
+          seenAt: t0.add(const Duration(seconds: 40)),
         ),
       ], t0.add(const Duration(seconds: 50)));
       expect(kept.map((e) => e.call.id), ['new']);
@@ -283,7 +328,40 @@ void main() {
     });
   });
 
+  group('endDmRing — a decline or a give-up', () {
+    test('a ring still ringing is ended', () async {
+      final repo = _Calls([row()]);
+      await repo.endDmRing('u', anonKey: 'k', callId: 'c1');
+      expect(repo.ended, ['c1']);
+    });
+
+    test('one answered a moment ago is left going', () async {
+      // Decline on the phone after answering on the PC, or the caller's
+      // thirty seconds running out as the answer lands.
+      final repo = _Calls([row(answered: t0.add(const Duration(seconds: 29)))]);
+      final answer = await repo.endDmRing('u', anonKey: 'k', callId: 'c1');
+      expect(repo.ended, isEmpty);
+      expect(DmCall.fromJson(answer.data as Map<String, dynamic>).isLive, true);
+    });
+
+    test('a server that could not be asked is still told', () async {
+      final repo = _Calls(null);
+      await repo.endDmRing('u', anonKey: 'k', callId: 'c1');
+      expect(repo.ended, ['c1']);
+    });
+  });
+
   group('WakeCalls — a phone woken by a push', () {
+    test('a ring is posted whatever the phone\'s clock says', () {
+      final changes = WakeCalls({}).apply(
+        serverId: 's1',
+        myId: me,
+        fetched: [call()],
+        now: t0.add(const Duration(minutes: 5)),
+      );
+      expect(changes.single, isA<WakeCallRinging>());
+    });
+
     test('a ring is posted once, however many pushes follow', () {
       final shown = WakeCalls({});
       final first = shown.apply(
@@ -364,4 +442,33 @@ void main() {
       expect(callNotificationId('c1'), isNot(stableNotificationId('c1')));
     });
   });
+}
+
+/// `my_dm_calls` answering [rows] (null: not reachable), and every
+/// `end_dm_call` written down.
+class _Calls extends ServerRepository {
+  final List<Map<String, dynamic>>? rows;
+  final List<String> ended = [];
+
+  _Calls(this.rows);
+
+  @override
+  Future<APIResponse> myDmCalls(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    List<String> known = const [],
+  }) async =>
+      rows == null ? APIResponse.error('offline') : APIResponse.success(rows);
+
+  @override
+  Future<APIResponse> endDmCall(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required String callId,
+  }) async {
+    ended.add(callId);
+    return APIResponse.success(null);
+  }
 }

@@ -56,6 +56,46 @@ mixin _DmCallsApiMixin {
     'p_call': callId,
   });
 
+  /// End [callId] only if it is still ringing: a decline, or the caller
+  /// giving up at thirty seconds. Answers the row as the server now has it —
+  /// ended, or, when it had been answered after all, still going.
+  ///
+  /// `end_dm_call` ends a call in any state. Pressed on a ring that was
+  /// answered a moment ago — Decline on the phone after answering on the PC,
+  /// or the caller's thirty seconds running out while the answer was on its
+  /// way — it hung up a call somebody was in (review, Nov 22). Asking first
+  /// leaves that to the gap of one round trip; closing it altogether would
+  /// take a function on the server.
+  Future<APIResponse> endDmRing(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required String callId,
+  }) async {
+    final asked = await myDmCalls(
+      supabaseUrl,
+      anonKey: anonKey,
+      bearerToken: bearerToken,
+      known: [callId],
+    );
+    final rows = asked.success ? asked.data : null;
+    if (rows is List) {
+      for (final row in rows) {
+        if (row is Map<String, dynamic> &&
+            row['id'] == callId &&
+            row['answered_at'] != null) {
+          return APIResponse.success(row);
+        }
+      }
+    }
+    return endDmCall(
+      supabaseUrl,
+      anonKey: anonKey,
+      bearerToken: bearerToken,
+      callId: callId,
+    );
+  }
+
   /// The heartbeat. `true` while the call is still going.
   Future<APIResponse> dmCallAlive(
     String supabaseUrl, {

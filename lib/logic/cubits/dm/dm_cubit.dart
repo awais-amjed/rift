@@ -229,11 +229,16 @@ class DmCubit extends Cubit<DmState>
   /// switch. A conversation opened before then would be wiped by the switch
   /// finishing behind it — which is what answering a call from another server
   /// does, selecting that server and opening the caller at once.
-  Future<void> readyFor(String serverId) async {
-    if (_readyServerId == serverId) return;
+  ///
+  /// Answers whether it got there: false after five seconds without, when
+  /// what was waiting must not go on as though it had — opening a person
+  /// then opened them on whichever server this cubit was still on.
+  Future<bool> readyFor(String serverId) async {
+    if (_readyServerId == serverId) return true;
     await stream
         .firstWhere((_) => _readyServerId == serverId)
         .timeout(const Duration(seconds: 5), onTimeout: () => state);
+    return _readyServerId == serverId;
   }
 
   /// Resolves once [serverId]'s conversation list has come in, after a

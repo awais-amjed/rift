@@ -6,14 +6,21 @@ class IncomingDmCall extends Equatable {
   final String serverName;
   final DmCall call;
 
+  /// When this device first heard it ring, by its own clock — what its
+  /// window is counted from ([RingingCall]).
+  final DateTime seenAt;
+
   const IncomingDmCall({
     required this.serverId,
     required this.serverName,
     required this.call,
+    required this.seenAt,
   });
 
+  RingingCall get ringing => (serverId: serverId, call: call, seenAt: seenAt);
+
   @override
-  List<Object?> get props => [serverId, serverName, call];
+  List<Object?> get props => [serverId, serverName, call, seenAt];
 }
 
 /// The call this device is on — placed here, or answered here.

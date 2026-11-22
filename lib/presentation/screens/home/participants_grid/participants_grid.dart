@@ -85,9 +85,13 @@ class ParticipantsGrid extends StatelessWidget {
             }
 
             // Our own DM call, still ringing at the other end: who we are
-            // calling, rather than a room with only us in it.
+            // calling, rather than a room with only us in it. Unless joining
+            // it failed — drawn as ringing, a refused token or LiveKit down
+            // read as "Ringing…" for the whole thirty seconds.
             final dm = livekitState.dmCall;
-            if (dm != null && ringingOut) {
+            if (dm != null &&
+                ringingOut &&
+                livekitState.connectionState != LiveKitConnectionState.error) {
               return _headerless(DmRingingView(place: dm), members: false);
             }
 

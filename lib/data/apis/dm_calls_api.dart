@@ -51,6 +51,17 @@ class DmCallsApi {
     ),
   );
 
+  /// Refuse or give up on a ring, leaving it be if it was answered after
+  /// all ([ServerRepository.endDmRing]).
+  Future<APIResponse> endDmRing(String callId) => _target.call(
+    (server, token) => _repository.endDmRing(
+      server.supabaseUrl,
+      anonKey: _keyOf(server),
+      bearerToken: token,
+      callId: callId,
+    ),
+  );
+
   Future<APIResponse> dmCallAlive(String callId) => _target.call(
     (server, token) => _repository.dmCallAlive(
       server.supabaseUrl,

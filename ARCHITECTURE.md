@@ -841,7 +841,13 @@ regions.
 **Its media key comes from the pair's DM key** — `HMAC-SHA256(dmKey,
 "dmcall:v1:<callId>")` — which the server never holds. So unlike a channel call,
 where the admin can hold the key like any member, **a DM call is private from the
-server's operator.** What the server does keep is the call record — who called
+server's operator.** That holds only while the other person's key is really
+theirs, and the server is what hands it over, in the call's own row. So the app
+treats that key the way a conversation does. It records it as theirs, which
+puts a change in front of the person in the conversation. A contact whose
+safety code was compared, and whose key has changed since, cannot be called or
+answered until the code is compared again (`KeyCheckGate`'s rule for sending).
+What the server does keep is the call record — who called
 whom, when, whether it was answered, how long — because that is what rings the
 other side and draws "Missed call" in the conversation. That is metadata, and
 visible like the rest.
@@ -850,7 +856,11 @@ A call follows the DM rules exactly: only an open conversation (a request has to
 be accepted first), never across a block, not while timed out, not without
 `CONNECT`, and at most five unanswered calls to one person an hour. The client
 rings for 30 seconds; the server allows 45 so an answer given at the last moment
-still lands. Central (friends) DMs have no calls, because central has no LiveKit.
+still lands. A decline, or the caller giving up at 30 seconds, first asks
+whether the ring was answered in the meantime, since `end_dm_call` ends a call
+in any state; one answered on another device is left alone. A ring is timed
+from when the device first heard it, never against the row's `started_at`,
+because a device's clock that disagrees with the server's dropped every ring. Central (friends) DMs have no calls, because central has no LiveKit.
 
 ### Soundboard — [Implemented September 2026]
 

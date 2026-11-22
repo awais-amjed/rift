@@ -40,8 +40,10 @@ class ServerDmOpener {
       final server = _servers.state.serverById(serverId);
       if (server == null) return;
       _servers.selectServer(server);
-      await _dms.readyFor(serverId);
+      if (!await _dms.readyFor(serverId)) return;
     }
+    // Another server picked while that one came up: this person is not on it.
+    if (serverId != null && _dms.serverId != serverId) return;
     // Only one DM surface is open at a time.
     _central.closeConversation();
     await _dms.openConversation(

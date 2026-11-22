@@ -3,7 +3,6 @@ import 'dart:io';
 
 import '../../../data/classes/dm_call.dart';
 import '../../../data/enums/dm_call_outcome.dart';
-import '../dm_call_ledger.dart';
 import '../storage_namespace.dart';
 
 /// What a push-woken isolate should do about one DM call.
@@ -87,13 +86,28 @@ class WakeCalls {
     }
 
     for (final call in fetched) {
+      // No window check here: the server leaves out a ring past its own,
+      // and this device's clock against the row's `started_at` is a
+      // comparison of two clocks — one running fast dropped every ring.
       if (!call.isRinging || !call.isIncomingFor(myId)) continue;
-      if (now.difference(call.startedAt) >= DmCallLedger.ringWindow) continue;
       if (_shown.containsKey(call.id)) continue;
       _shown[call.id] = (serverId: serverId, peerName: call.peerName);
       changes.add(WakeCallRinging(serverId, call.id, call.peerName));
     }
     return changes;
+  }
+
+  /// Forget [callIds] in the saved file — calls the running app has seen
+  /// end with the person looking at it. A push that lands with the app in
+  /// front is not read ([PushService]), so without this a call left there
+  /// was still "shown" at the next wake, perhaps days later, and came up
+  /// then as a fresh "Missed call".
+  static Future<void> forgetAll(Iterable<String> callIds) async {
+    if (callIds.isEmpty) return;
+    final shown = await read();
+    final before = shown._shown.length;
+    callIds.forEach(shown.forget);
+    if (shown._shown.length != before) await shown.save();
   }
 
   static Future<File> _file() async {

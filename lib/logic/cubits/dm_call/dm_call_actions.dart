@@ -16,11 +16,18 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
   void _ask(String serverId);
   void _syncSounds();
   void _syncTimers();
+  void _watchPeer(ActiveDmCall active, LiveKitState lk);
 
   /// The call whose room this device asked LiveKit to join. Set only once the
   /// join has been asked for, so a LiveKit state without it can be read as
   /// "left from somewhere else" — the leave button, or a voice channel.
   String? _joinedCallId;
+
+  /// Calls this device has answered, refused or hung up. A `my_dm_calls`
+  /// answer fetched just before the press and landing just after it still
+  /// says they ring, and folded in as it came it put a declined ring back on
+  /// screen (review, Nov 22).
+  final Set<String> _settled = {};
 
   /// Ring [peerId] on [serverId], the server the conversation or profile it
   /// was pressed from is about.
@@ -35,9 +42,11 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     final server = _server(serverId);
     if (server == null || state.busy) return;
     if (state.isWith(server.id, peerId)) return;
+    // Held before the hang-up, not after: the call before this one takes
+    // half a second to leave, and a second press in it began this twice.
+    emit(state.copyWith(busy: true));
     if (state.active != null) await hangUp();
 
-    emit(state.copyWith(busy: true));
     final response = await _callsOn(server).startDmCall(peerId);
     emit(state.copyWith(busy: false));
     if (!response.success) {
@@ -62,11 +71,13 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
   Future<bool> answer(IncomingDmCall incoming) async {
     final server = _server(incoming.serverId);
     if (server == null || state.busy) return false;
+    if (_keyHeld(incoming.call)) return false;
+    emit(state.copyWith(busy: true));
     if (state.active != null) await hangUp();
 
     // A phone woken by the push may be showing this call in the shade too.
     unawaited(NotificationService.instance.cancelCall(incoming.call.id));
-    emit(state.copyWith(busy: true));
+    _settled.add(incoming.call.id);
     final response = await _callsOn(server).answerDmCall(incoming.call.id);
     emit(
       state.copyWith(
@@ -79,6 +90,9 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     );
     _syncSounds();
     if (!response.success) {
+      // Not answered: if it still rings, the next answer from the server may
+      // offer it again. One answered elsewhere or over is not listed ringing.
+      _settled.remove(incoming.call.id);
       emit(
         state.copyWith(
           notice: Notice.error(
@@ -113,6 +127,18 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
           .timeout(const Duration(minutes: 1), onTimeout: () => _vault.state);
     }
     final response = await _callsOn(server).myDmCalls(known: [callId]);
+    // Not asked is not over: a phone just opened from the shade may not be
+    // online yet, and "already ended" took down a call still ringing.
+    if (!response.success) {
+      emit(
+        state.copyWith(
+          notice: Notice.error(
+            response.error ?? 'Couldn\'t reach the server to answer.',
+          ),
+        ),
+      );
+      return false;
+    }
     final call = DmCall.listFrom(
       response.data,
     ).where((c) => c.id == callId).firstOrNull;
@@ -124,7 +150,12 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
       return false;
     }
     return answer(
-      IncomingDmCall(serverId: server.id, serverName: server.name, call: call),
+      IncomingDmCall(
+        serverId: server.id,
+        serverName: server.name,
+        call: call,
+        seenAt: DateTime.now(),
+      ),
     );
   }
 
@@ -141,8 +172,9 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
         ],
       ),
     );
+    _settled.add(callId);
     _syncSounds();
-    await _callsOn(server).endDmCall(callId);
+    await _callsOn(server).endDmRing(callId);
   }
 
   /// Refuse [incoming]. Recorded as declined, which the caller is told.
@@ -156,10 +188,13 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
         ],
       ),
     );
+    _settled.add(incoming.call.id);
     _syncSounds();
     final server = _server(incoming.serverId);
     if (server == null) return;
-    await _callsOn(server).endDmCall(incoming.call.id);
+    // Only while it rings: a decline pressed here a moment after another of
+    // our devices answered must not end the call that one is in.
+    await _callsOn(server).endDmRing(incoming.call.id);
   }
 
   /// End the call this device is in, from our end. Also what quitting does
@@ -167,11 +202,74 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
   Future<void> hangUp() async {
     final active = state.active;
     if (active == null) return;
-    await _dropActive(hangUpRoom: true);
-    final server = _server(active.serverId);
-    if (server != null) {
-      await _callsOn(server).endDmCall(active.call.id);
+    _settled.add(active.call.id);
+    try {
+      await _dropActive(hangUpRoom: true);
+    } finally {
+      // Told even when leaving the room threw — stopping a share on the way
+      // out, say — or the other end waits out its grace in a dead call.
+      final server = _server(active.serverId);
+      if (server != null) {
+        await _callsOn(server).endDmCall(active.call.id);
+      }
     }
+  }
+
+  /// Our ring has gone unanswered for [DmCall.ringFor]. Given up on only if
+  /// it still rings: an answer that landed in the last moment — its doorbell
+  /// still on the way, or lost — is a call to stay in, not one to end.
+  Future<void> _giveUpRinging(String callId) async {
+    final active = state.active;
+    if (active == null || active.call.id != callId) return;
+    final server = _server(active.serverId);
+    final response = server == null
+        ? null
+        : await _callsOn(server).endDmRing(callId);
+    if (state.active?.call.id != callId) return;
+    final data = response?.data;
+    if (response != null && response.success && data is Map<String, dynamic>) {
+      // Answered after all, or ended — [_onActiveRow] says which, and names
+      // a ring that went unanswered.
+      await _onActiveRow(DmCall.fromJson(data));
+      return;
+    }
+    _settled.add(callId);
+    await _dropActive(hangUpRoom: true);
+    emit(
+      state.copyWith(
+        notice: Notice.info(
+          'Call ended',
+          '${active.call.peerName} didn\'t answer.',
+        ),
+      ),
+    );
+  }
+
+  /// Whether [call] is held because the other person's key changed since
+  /// it was verified — said, when it is.
+  ///
+  /// A call's media key is derived from the key in the call's row, which the
+  /// server hands over. Used without the checks a DM's sending makes, a
+  /// server that swapped it for calls alone could listen in, and nothing
+  /// said so even for a contact whose safety code was compared (review,
+  /// Nov 22). So it is noted as theirs, as opening the conversation would —
+  /// which puts the change in front of the person there — and a verified
+  /// contact's changed key stops the call, as it stops sending.
+  bool _keyHeld(DmCall call) {
+    final key = call.peerChatPublicKey;
+    if (key == null || key.isEmpty) return false;
+    final person = 'server:${call.peerId}';
+    _app.noteChatKey(person, key);
+    if (!_app.state.keyChangedSinceVerified(person)) return false;
+    emit(
+      state.copyWith(
+        notice: Notice.error(
+          '${call.peerName}\'s key has changed since you verified it. '
+          'Compare your safety code again in your messages before calling.',
+        ),
+      ),
+    );
+    return true;
   }
 
   /// This device is now on [call]: hold it, and join its room — the caller
@@ -185,6 +283,10 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     _syncSounds();
     _syncTimers();
 
+    if (_keyHeld(call)) {
+      await hangUp();
+      return;
+    }
     final key = await _mediaKey(server, call);
     // Hung up while the key was being worked out — and perhaps another call
     // begun, which the hang-up below must not end.
@@ -246,9 +348,21 @@ mixin _DmCallActionsMixin on Cubit<DmCallState> {
     final active = state.active;
     if (active == null || active.call.id != call.id) return;
     if (!call.isEnded) {
-      emit(state.copyWith(active: active.withCall(call)));
+      // A call only moves forward. An answer fetched before ours committed
+      // and landing after it said "ringing" again — stopping the heartbeat
+      // and, on the caller, arming the thirty seconds a second time.
+      if (active.call.isAnswered && !call.isAnswered) return;
+      final next = active.withCall(call);
+      emit(state.copyWith(active: next));
+      _syncSounds();
+      _syncTimers();
+      // The row turning live comes with nothing from the room, and a caller
+      // alone in it hears no room events either: watched from here, so a
+      // callee who answered and never arrived ends the call too.
+      if (_joinedCallId == call.id) _watchPeer(next, _livekit.state);
       return;
     }
+    _settled.add(call.id);
     await _dropActive(hangUpRoom: true);
     final peer = call.peerName;
     final ours = call.callerId != call.peerId;

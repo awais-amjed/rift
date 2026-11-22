@@ -31,8 +31,11 @@ Future<void> openCallConversation(
   if (server == null) return;
   if (servers.state.selectedServerId != serverId) {
     servers.selectServer(server);
-    await dms.readyFor(serverId);
+    if (!await dms.readyFor(serverId)) return;
   }
+  // Another server picked while this one was coming up: the conversation
+  // belongs to the server the call rang on, not that one.
+  if (dms.serverId != serverId) return;
   // Only one DM surface is open at a time.
   central.closeConversation();
   await dms.openConversation(

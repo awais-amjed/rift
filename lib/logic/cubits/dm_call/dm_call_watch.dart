@@ -21,6 +21,16 @@ mixin _DmCallWatchMixin on Cubit<DmCallState>, _DmCallActionsMixin {
   /// sitting in a dead call for the best part of a minute.
   static const _peerGrace = Duration(seconds: 15);
 
+  /// How long somebody who answered has to turn up in the room at all: a
+  /// phone answering from its lock screen still derives the key, fetches a
+  /// token and connects. Past it they are not coming — their token was
+  /// refused, or the app died on the way — and the call ends rather than
+  /// sitting "in progress" for both until somebody presses Leave.
+  static const _peerFirstArrival = Duration(seconds: 30);
+
+  /// The call the other person has been seen in the room for.
+  String? _peerSeenIn;
+
   Timer? _ringTimeout;
   Timer? _heartbeatTimer;
   Timer? _expiryTimer;
@@ -52,22 +62,31 @@ mixin _DmCallWatchMixin on Cubit<DmCallState>, _DmCallActionsMixin {
   /// An answered call where the other person is not in the room, for longer
   /// than a reconnect takes, is over — they closed the app, lost signal for
   /// good, or crashed, and none of those say goodbye.
+  @override
   void _watchPeer(ActiveDmCall active, LiveKitState lk) {
     final connected = lk.connectionState == LiveKitConnectionState.connected;
-    if (!active.call.isLive || !connected || _peerIn(active, lk)) {
+    final here = _peerIn(active, lk);
+    if (here) _peerSeenIn = active.call.id;
+    if (!active.call.isLive || !connected || here) {
       _peerGone?.cancel();
       _peerGone = null;
       return;
     }
-    _peerGone ??= Timer(_peerGrace, () {
+    final grace = _peerSeenIn == active.call.id
+        ? _peerGrace
+        : _peerFirstArrival;
+    _peerGone ??= Timer(grace, () {
       _peerGone = null;
       final still = state.active;
       if (still == null || still.call.id != active.call.id) return;
+      final peer = active.call.peerName;
       emit(
         state.copyWith(
           notice: Notice.info(
             'Call ended',
-            '${active.call.peerName} lost their connection.',
+            _peerSeenIn == active.call.id
+                ? '$peer lost their connection.'
+                : '$peer couldn\'t join the call.',
           ),
         ),
       );
@@ -123,7 +142,7 @@ mixin _DmCallWatchMixin on Cubit<DmCallState>, _DmCallActionsMixin {
       _ringTimeout ??= Timer(DmCall.ringFor, () {
         _ringTimeout = null;
         if (state.active?.call.id == callId && state.isRingingOut) {
-          unawaited(hangUp());
+          unawaited(_giveUpRinging(callId));
         }
       });
     }
@@ -142,7 +161,7 @@ mixin _DmCallWatchMixin on Cubit<DmCallState>, _DmCallActionsMixin {
     } else {
       _expiryTimer ??= Timer.periodic(const Duration(seconds: 5), (_) {
         final kept = DmCallLedger.expire([
-          for (final e in state.incoming) (serverId: e.serverId, call: e.call),
+          for (final e in state.incoming) e.ringing,
         ], DateTime.now());
         if (kept.length == state.incoming.length) return;
         for (final e in state.incoming) {
@@ -206,7 +225,17 @@ mixin _DmCallWatchMixin on Cubit<DmCallState>, _DmCallActionsMixin {
   }
 
   void _announceMissed(DmCall call, String? serverName) {
-    if (!HostPlatform.isDesktop) return;
+    if (!HostPlatform.isDesktop) {
+      // A phone in the background leaves this to the stop push. One in
+      // front ignores that push, so the ring it posted earlier, Answer and
+      // Decline on it, stayed in the shade: taken down here instead, by
+      // somebody who watched it ring out.
+      if (WindowFocusService.instance.isFocused) {
+        unawaited(NotificationService.instance.cancelCall(call.id));
+        if (HostPlatform.isAndroid) unawaited(WakeCalls.forgetAll([call.id]));
+      }
+      return;
+    }
     // Back in front by now: nobody needs telling, but a ring posted while
     // the window was behind would otherwise stay up saying it is calling.
     if (WindowFocusService.instance.isFocused) {

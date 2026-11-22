@@ -75,7 +75,23 @@ class PushWakeService {
       final marks = await WakeMarks.read();
       final index = await WakeIndex.read();
       final calls = await WakeCalls.read();
-      final callChanges = <WakeCallChange>[];
+      final reader = servers ?? WakeServerReader();
+
+      // Calls before messages, on every server at once: a person waiting on
+      // the line is the one thing here that stops being answerable in a few
+      // seconds. Asked one server after another, behind each one's messages,
+      // a ring could reach the shade after the caller had hung up.
+      final callReads = await Future.wait([
+        for (final server in index.servers)
+          reader.readCalls(server, seed, calls),
+      ]);
+      final names = {for (final s in index.servers) s.id: s.name};
+      for (final read in callReads) {
+        for (final change in read.changes) {
+          await _post(change, names[change.serverId] ?? 'Rift');
+        }
+      }
+      await calls.save();
 
       final centralHarvest = await (central ?? WakeCentralReader()).read(
         seed,
@@ -83,23 +99,9 @@ class PushWakeService {
         storageSuffix: suffix,
       );
       final serverHarvests = <WakeHarvest>[
-        for (final server in index.servers)
-          await (servers ?? WakeServerReader()).read(
-            server,
-            seed,
-            marks,
-            calls: calls,
-            callChanges: callChanges,
-          ),
+        for (final (i, server) in index.servers.indexed)
+          await reader.read(server, seed, marks, token: callReads[i].token),
       ];
-
-      // Calls before messages: a person waiting on the line is the one thing
-      // here that stops being answerable in a few seconds.
-      final names = {for (final s in index.servers) s.id: s.name};
-      for (final change in callChanges) {
-        await _post(change, names[change.serverId] ?? 'Rift');
-      }
-      await calls.save();
 
       final items = [
         ...centralHarvest.items,

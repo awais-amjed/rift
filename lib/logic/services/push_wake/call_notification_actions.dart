@@ -45,7 +45,9 @@ Future<void> declineFromNotification(CallNotificationPayload call) async {
       CryptoRepository.fromBase64(seedB64),
     );
     if (token == null) return;
-    await ServerRepository().endDmCall(
+    // Only while it still rings: Decline on the phone just after answering
+    // on the PC must not end the call the PC is in.
+    await ServerRepository().endDmRing(
       server.supabaseUrl,
       anonKey: server.anonKey,
       bearerToken: token,
