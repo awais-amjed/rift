@@ -7,6 +7,7 @@
 
 #include <libavcodec/avcodec.h>
 #include <libavutil/avstring.h>
+#include <libavutil/dict.h>
 #include <libavutil/hwcontext.h>
 #include <libavutil/opt.h>
 #include <libavutil/pixdesc.h>
@@ -386,6 +387,16 @@ static int open_codec(RiftFfenc* enc, const AVCodec* codec,
       break;
     default:
       break;
+  }
+  // A test's own encoder options, over the ones above, to compare settings
+  // without a rebuild: RIFT_FFENC_OPTS="rc=vbr_latency:max_au_size=600000".
+  const char* extra = getenv("RIFT_FFENC_OPTS");
+  if (extra && *extra) {
+    AVDictionary* opts = NULL;
+    if (av_dict_parse_string(&opts, extra, "=", ":", 0) >= 0) {
+      av_opt_set_dict(c->priv_data, &opts);
+    }
+    av_dict_free(&opts);
   }
   return avcodec_open2(c, codec, NULL);
 }
