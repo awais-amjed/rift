@@ -12,6 +12,7 @@ import '../../../../../../logic/services/role_ladder.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../common/loading_block.dart';
+import '../../../../../common/message_banner.dart';
 import '../../../../../common/server_scope.dart';
 import '../../../../../common/show_custom_dialog.dart';
 import '../../../roles/role_editor_dialog.dart';
@@ -22,9 +23,10 @@ import '../widgets/manage_panel.dart';
 ///
 /// Every role on the server, most senior first.
 ///
-/// Open to anybody. What roles exist and who holds them is not a secret from
-/// the people they are exercised on — and a member who cannot see the ladder
-/// cannot tell whether the person muting them was meant to be able to.
+/// The tab is an administrator's (`ServerManageTab`), but the rows still lock
+/// for somebody without the bit, in case that ever changes. A locked row opens
+/// the editor to look at, not to change: the server filters out a write to a
+/// role at or above your own rather than refusing it.
 ///
 /// Drawn from [ServerMembersCubit], the same copy the member list's chips
 /// come from, so a change made here or by another admin shows in both. The
@@ -73,13 +75,21 @@ class _RolesPanelState extends State<RolesPanel> {
   /// they are standing on.
   int get _myRank => RoleLadder.rankOf(_members.state.memberRoles, _myId);
 
-  /// Where a new role goes: one rung above the highest one already beneath the
-  /// viewer, so it lands at the top of what they can manage without landing on
-  /// anything. Capped one below their own rank, which is the only ceiling the
-  /// delegation rule allows.
+  /// Where a new role goes: at the bottom, halfway between `@everyone` and
+  /// the lowest role above it, so it outranks nothing until somebody moves it
+  /// up and leaves room for the next one beneath it.
+  ///
+  /// It went to the top of the viewer's band, which for the owner is above
+  /// Admin: a colour role the owner made was then out of every admin's reach,
+  /// and an admin given it outranked the Admin role and could edit or delete
+  /// it. With no gap left at the bottom it goes one above the top of the band,
+  /// capped one below the viewer's own rank, the only ceiling the delegation
+  /// rule allows.
   int get _newPosition {
-    final below = _manageable.map((r) => r.position);
-    final top = below.isEmpty ? 0 : below.reduce((a, b) => a > b ? a : b);
+    final below = _manageable.map((r) => r.position).toList();
+    final lowest = below.fold(_myRank, (a, b) => b < a ? b : a);
+    if (lowest ~/ 2 >= 1) return lowest ~/ 2;
+    final top = below.fold(0, (a, b) => b > a ? b : a);
     return top + 1 < _myRank ? top + 1 : _myRank - 1;
   }
 
@@ -92,7 +102,11 @@ class _RolesPanelState extends State<RolesPanel> {
       context: context,
       build: (_) => BlocProvider.value(
         value: context.read<ServerCubit>(),
-        child: RoleEditorDialog(role: role, newPosition: _newPosition),
+        child: RoleEditorDialog(
+          role: role,
+          newPosition: _newPosition,
+          readOnly: role != null && _locked(role),
+        ),
       ),
     );
     if (changed == true) await _members.refreshRoles();
@@ -155,22 +169,33 @@ class _RolesPanelState extends State<RolesPanel> {
 
   @override
   Widget build(BuildContext context) {
+    // The getters above read the viewer's permissions; this makes the panel
+    // rebuild when they move (a transfer, an edit to their own role).
+    context.select<ServerCubit, int>(
+      (c) => c.state.permissionsOn(widget.serverId)?.bits ?? 0,
+    );
     return BlocBuilder<ServerMembersCubit, ServerMembersState>(
       buildWhen: (a, b) => _frameOf(a) != _frameOf(b),
-      builder: (context, roster) => _panel(roster.roleCounts),
+      builder: (context, roster) =>
+          _panel(roster.roleCounts, failed: roster.roleCountFailed),
     );
   }
 
   /// Everything the rows and the getters above read: the roles, how many hold
   /// each, and the viewer's own, which set their rank.
-  (List<Role>, Map<String, int>?, List<Role>?) _frameOf(
+  (List<Role>, Map<String, int>?, bool, List<Role>?) _frameOf(
     ServerMembersState roster,
-  ) => (roster.roles, roster.roleCounts, roster.memberRoles[_myId]);
+  ) => (
+    roster.roles,
+    roster.roleCounts,
+    roster.roleCountFailed,
+    roster.memberRoles[_myId],
+  );
 
   String? get _myId =>
       context.read<ServerCubit>().state.meOn(widget.serverId)?.id;
 
-  Widget _panel(Map<String, int>? counts) {
+  Widget _panel(Map<String, int>? counts, {required bool failed}) {
     final isLoading = counts == null;
     return ManagePanel(
       title: 'Roles',
@@ -185,7 +210,17 @@ class _RolesPanelState extends State<RolesPanel> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isLoading)
+          if (isLoading && failed)
+            MessageBanner(
+              message: "Couldn't read the roles on this server.",
+              kind: MessageBannerKind.error,
+              action: AppButton(
+                label: 'Try again',
+                variant: AppButtonVariant.secondary,
+                onPressed: () => unawaited(_members.countRoles()),
+              ),
+            )
+          else if (isLoading)
             const LoadingBlock(height: 180)
           else ...[
             if (!_mayManage) ...[

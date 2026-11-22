@@ -31,6 +31,10 @@ import 'ownership_actions.dart';
 /// comes from the member list, which carries the real flag either way.
 class MemberManagePanel extends StatelessWidget {
   final ServerMember member;
+
+  /// The viewer's own row, which offers Roles and nothing that acts on a
+  /// person: the server refuses kicking, banning or muting yourself.
+  final bool isSelf;
   final bool isBusy;
   final bool canManagePermissions;
   final bool canModerate;
@@ -40,6 +44,7 @@ class MemberManagePanel extends StatelessWidget {
   const MemberManagePanel({
     super.key,
     required this.member,
+    this.isSelf = false,
     required this.isBusy,
     required this.canManagePermissions,
     required this.canModerate,
@@ -108,6 +113,17 @@ class MemberManagePanel extends StatelessWidget {
     // Manage server opens from the rail for any server, and a row there acts
     // on *that* one.
     final serverId = ServerScope.of(context).serverId;
+    // Selected, not read: a transfer or a role change moves these while the
+    // panel is open, and a read left Transfer ownership up after it.
+    final (mayKick, mayBan, mayTransfer) = context
+        .select<ServerCubit, (bool, bool, bool)>((c) {
+          final mine = c.state.permissionsOn(serverId);
+          return (
+            !isSelf && (mine?.can(ServerPermission.kickMembers) ?? false),
+            !isSelf && (mine?.can(ServerPermission.banMembers) ?? false),
+            OwnershipActions.canTransferTo(c, member, serverId: serverId),
+          );
+        });
     return Container(
       margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
       decoration: BoxDecoration(
@@ -140,11 +156,7 @@ class MemberManagePanel extends StatelessWidget {
           // Owner only, and only for somebody who could hold it. Below
           // roles rather than among them: it is not a role you hand out,
           // it is the one you give up.
-          if (OwnershipActions.canTransferTo(
-            context.read<ServerCubit>(),
-            member,
-            serverId: serverId,
-          ))
+          if (mayTransfer)
             _PanelRow(
               icon: Icons.workspace_premium_outlined,
               label: 'Transfer ownership',
@@ -156,22 +168,10 @@ class MemberManagePanel extends StatelessWidget {
             member: member,
             isBusy: isBusy,
             canModerate: canModerate,
-            canKick:
-                context
-                    .read<ServerCubit>()
-                    .state
-                    .permissionsOn(serverId)
-                    ?.can(ServerPermission.kickMembers) ??
-                false,
+            canKick: mayKick,
             // `BAN_MEMBERS`, which admins hold by implication and a server
             // may also give a moderator role.
-            canBan:
-                context
-                    .read<ServerCubit>()
-                    .state
-                    .permissionsOn(serverId)
-                    ?.can(ServerPermission.banMembers) ??
-                false,
+            canBan: mayBan,
             dividerAbove: canManagePermissions,
             onModerate: onModerate,
             onToggleBan: () => _toggleBan(context),

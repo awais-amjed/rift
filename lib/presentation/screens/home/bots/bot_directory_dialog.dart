@@ -2,7 +2,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../data/classes/public_bot.dart';
-import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/public_bots/public_bots_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
@@ -55,7 +54,7 @@ class _BotDirectoryDialogState extends State<BotDirectoryDialog> {
   /// A browser that offered Add on every row and then showed an empty picker
   /// would be asking somebody to find out the hard way.
   bool get _canAdd => context.watch<ServerCubit>().state.servers.any(
-    (s) => s.user?.permissions.can(ServerPermission.manageBots) ?? false,
+    (s) => s.user?.permissions.mayAddBots ?? false,
   );
 
   @override

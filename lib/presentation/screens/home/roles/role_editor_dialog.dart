@@ -17,16 +17,27 @@ import 'widgets/role_colour_picker.dart';
 ///
 /// Position is not editable here, and that is deliberate rather than missing:
 /// rank is the whole of the delegation rule, and a number field next to a name
-/// field reads like a display preference. A new role is minted one step below
-/// its author, which is the only rank they could give it anyway.
+/// field reads like a display preference. A new role goes in at the bottom of
+/// the ladder, and the Roles page moves it from there.
 class RoleEditorDialog extends StatefulWidget {
   /// Null to create one.
   final Role? role;
 
-  /// The rank a new role is given — one below the author's own.
+  /// The rank a new role is given (`RolesPanel._newPosition`).
   final int newPosition;
 
-  const RoleEditorDialog({super.key, this.role, required this.newPosition});
+  /// A role the viewer cannot change — at or above their own, or anybody's
+  /// when they are not an administrator. Shown with every control off: a save
+  /// the server filters out changes nothing, and this used to close as though
+  /// it had saved.
+  final bool readOnly;
+
+  const RoleEditorDialog({
+    super.key,
+    this.role,
+    required this.newPosition,
+    this.readOnly = false,
+  });
 
   @override
   State<RoleEditorDialog> createState() => _RoleEditorDialogState();
@@ -54,7 +65,11 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
       _permissions != widget.role!.permissions ||
       _color != widget.role!.color;
 
-  bool get _canSave => _name.isNotEmpty && _changed && !_isSaving;
+  bool get _canSave =>
+      !widget.readOnly && _name.isNotEmpty && _changed && !_isSaving;
+
+  /// Whether the fields take input at all.
+  bool get _editable => !_isSaving && !widget.readOnly;
 
   int get _viewerPermissions =>
       context
@@ -132,8 +147,16 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
   @override
   Widget build(BuildContext context) {
     return AppModal(
-      title: _isNew ? 'New role' : 'Edit role',
-      subtitle: _isEveryone
+      title: _isNew
+          ? 'New role'
+          : widget.readOnly
+          ? widget.role!.name
+          : 'Edit role',
+      subtitle: widget.readOnly
+          ? 'You can see what this role does, but not change it: it is at or '
+                'above your own role, or changing roles is up to an '
+                'administrator.'
+          : _isEveryone
           ? 'What everybody can do, before any role is handed out'
           : null,
       maxWidth: 560,
@@ -149,47 +172,49 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
             // The baseline is not a role you hand out, so its name is not a
             // label anybody chose — renaming it would only make it harder to
             // recognise in the one place it appears.
-            enabled: !_isSaving && !_isEveryone,
+            enabled: _editable && !_isEveryone,
             autofocus: _isNew,
+            maxLength: Role.maxNameLength,
             onChanged: (_) => setState(() => _error = null),
           ),
           if (!_isEveryone) ...[
             const SizedBox(height: 16),
             RoleColourPicker(
               value: _color,
-              onChanged: _isSaving ? null : (c) => setState(() => _color = c),
+              onChanged: _editable ? (c) => setState(() => _color = c) : null,
             ),
           ],
           PermissionMatrix(
             permissions: _permissions,
             viewerPermissions: _viewerPermissions,
-            onChanged: _isSaving
-                ? null
-                : (permission, value) => setState(() {
+            onChanged: _editable
+                ? (permission, value) => setState(() {
                     _permissions = value
                         ? _permissions.with_(permission)
                         : _permissions.without(permission);
-                  }),
+                  })
+                : null,
           ),
         ],
       ),
       actions: [
-        if (!_isNew && !_isEveryone)
+        if (!_isNew && !_isEveryone && !widget.readOnly)
           AppButton(
             label: 'Delete',
             variant: AppButtonVariant.danger,
             onPressed: _isSaving ? null : _delete,
           ),
         AppButton(
-          label: 'Cancel',
+          label: widget.readOnly ? 'Close' : 'Cancel',
           variant: AppButtonVariant.secondary,
           onPressed: _isSaving ? null : () => Navigator.of(context).pop(false),
         ),
-        AppButton(
-          label: _isSaving ? 'Saving...' : 'Save',
-          isLoading: _isSaving,
-          onPressed: _canSave ? _save : null,
-        ),
+        if (!widget.readOnly)
+          AppButton(
+            label: _isSaving ? 'Saving...' : 'Save',
+            isLoading: _isSaving,
+            onPressed: _canSave ? _save : null,
+          ),
       ],
     );
   }

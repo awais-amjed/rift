@@ -171,6 +171,7 @@ class MemberRow extends StatelessWidget {
         if (isExpanded && _expandable)
           MemberManagePanel(
             member: member,
+            isSelf: isSelf,
             isBusy: isBusy,
             canManagePermissions: canManagePermissions,
             canModerate: canModerate,

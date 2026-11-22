@@ -120,10 +120,15 @@ class ProfileModeration extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Never against another admin: `moderate_user` refuses it, and a button
-    // that comes back "cannot_moderate_admin" is worse than no button.
+    // that comes back "cannot_moderate_admin" is worse than no button. Their
+    // roles are another matter — the server lets an admin change another
+    // admin's, as the Members page does — so Edit roles stays.
     final reachable = !member.permissions.isServerAdmin;
-    if (!reachable ||
-        (!canModerate && !isAdmin && !canTimeOut && !canKick && !canBan)) {
+    final mutes = reachable && canModerate;
+    final timesOut = reachable && canTimeOut;
+    final kicks = reachable && canKick;
+    final bans = reachable && canBan;
+    if (!mutes && !isAdmin && !timesOut && !kicks && !bans) {
       return const SizedBox.shrink();
     }
     final until = member.timedOutUntil;
@@ -132,7 +137,7 @@ class ProfileModeration extends StatelessWidget {
     // whole width read as a stack of consequences, and only the last two of
     // these are.
     final removals = [
-      if (canTimeOut)
+      if (timesOut)
         QuietDangerButton(
           icon: Icons.timer_outlined,
           label: member.isTimedOut ? 'End time-out' : 'Time out',
@@ -141,14 +146,14 @@ class ProfileModeration extends StatelessWidget {
         ),
       // Not for somebody already out: kicking a banned member would turn the
       // ban into something an invite lifts, and the server refuses it.
-      if (canKick && !member.isBanned)
+      if (kicks && !member.isBanned)
         QuietDangerButton(
           icon: Icons.logout_rounded,
           label: 'Kick',
           isDangerous: true,
           onTap: isBusy ? null : () => unawaited(_kick(context)),
         ),
-      if (canBan)
+      if (bans)
         QuietDangerButton(
           icon: banned ? Icons.lock_open_rounded : Icons.gavel_rounded,
           label: banned ? 'Lift ban' : 'Ban from server',
@@ -166,7 +171,7 @@ class ProfileModeration extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 6,
         children: [
-          if (canModerate)
+          if (mutes)
             Row(
               spacing: 6,
               children: [

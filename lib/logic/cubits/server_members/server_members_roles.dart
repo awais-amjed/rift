@@ -34,7 +34,9 @@ mixin _MembersRolesMixin on Cubit<ServerMembersState> {
     if (serverId == null || wanted.isEmpty) return;
 
     final roles = await _rolesOn(serverId).memberRolesFor(wanted);
-    if (isClosed || serverId != _watcher.serverId) return;
+    // A failed read is no answer: recorded as one, a single lost request in a
+    // doorbell's refresh blanked every chip and colour on screen.
+    if (roles == null || isClosed || serverId != _watcher.serverId) return;
     emit(
       state.copyWith(
         memberRoles: {
@@ -53,14 +55,15 @@ mixin _MembersRolesMixin on Cubit<ServerMembersState> {
   /// which is what decides how far down the ladder they reach.
   Future<void> countRoles() async {
     _countingRoles = true;
+    if (state.roleCountFailed) emit(state.copyWith(roleCountFailed: false));
     await _countRoles();
   }
 
   /// Nothing is showing the counts any more; stop reading every assignment.
   void stopCountingRoles() {
     _countingRoles = false;
-    if (!isClosed && state.roleCounts != null) {
-      emit(state.copyWith(clearRoleCounts: true));
+    if (!isClosed && (state.roleCounts != null || state.roleCountFailed)) {
+      emit(state.copyWith(clearRoleCounts: true, roleCountFailed: false));
     }
   }
 
@@ -89,8 +92,12 @@ mixin _MembersRolesMixin on Cubit<ServerMembersState> {
     final serverId = _watcher.serverId;
     if (serverId == null) return;
     final held = await _rolesOn(serverId).listMemberRoles();
-    if (held == null || isClosed || serverId != _watcher.serverId) return;
-    if (!_countingRoles) return;
+    if (isClosed || serverId != _watcher.serverId || !_countingRoles) return;
+    if (held == null) {
+      // What was counted before stays; only a page with nothing yet says so.
+      if (state.roleCounts == null) emit(state.copyWith(roleCountFailed: true));
+      return;
+    }
 
     final counts = <String, int>{};
     for (final roles in held.values) {
@@ -106,6 +113,7 @@ mixin _MembersRolesMixin on Cubit<ServerMembersState> {
           ...held,
         },
         roleCounts: counts,
+        roleCountFailed: false,
       ),
     );
   }

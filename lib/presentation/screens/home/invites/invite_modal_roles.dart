@@ -13,8 +13,8 @@ mixin _InviteRolesMixin on State<InviteModal> {
   String? roleId;
 
   /// Only what the minter may actually hand out. The policy refuses the rest,
-  /// and an option that always fails is worse than no option — so a member with
-  /// no `MANAGE_ROLES` gets an empty list, and the picker hides itself.
+  /// and an option that always fails is worse than no option — so anybody but
+  /// an administrator gets an empty list, and the picker hides itself.
   List<Role> roles = const [];
 
   Role? get selectedRole {

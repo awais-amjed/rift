@@ -100,6 +100,20 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
     };
     final held = {for (final role in heldRoles ?? const <Role>[]) role.id};
     final isLoading = heldRoles == null;
+    // Your own: `member_roles_delete` lets you drop only a role beneath your
+    // top one, so the top one stays ticked.
+    final isSelf =
+        context.select<ServerCubit, String?>(
+          (c) => c.state.meOn(serverId)?.id,
+        ) ==
+        widget.member.id;
+    final ownRank = isSelf
+        ? RoleLadder.rankOf({
+            widget.member.id: heldRoles ?? const [],
+          }, widget.member.id)
+        : null;
+    bool fixed(Role role) =>
+        ownRank != null && held.contains(role.id) && role.position >= ownRank;
 
     return AppModal(
       title: 'Roles',
@@ -133,16 +147,18 @@ class _MemberRolesDialogState extends State<MemberRolesDialog> {
                     Expanded(
                       child: RoleRow(
                         role: role,
-                        // An administrator may hand out a role at their own
-                        // rank, which is how the only admin on a server makes
-                        // a second one. Everybody else is strictly below.
-                        locked: !assignable.contains(role.id),
+                        // Handing out has no rank: an administrator may give
+                        // any role but the owner's ([RoleLadder.assignable]),
+                        // which is how the only admin makes a second one.
+                        locked: !assignable.contains(role.id) || fixed(role),
                       ),
                     ),
                     Checkbox(
                       value: held.contains(role.id),
                       onChanged:
-                          !assignable.contains(role.id) || _busyId != null
+                          !assignable.contains(role.id) ||
+                              fixed(role) ||
+                              _busyId != null
                           ? null
                           : (_) => _toggle(role, held: held.contains(role.id)),
                     ),

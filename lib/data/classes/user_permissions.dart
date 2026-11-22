@@ -47,6 +47,13 @@ class UserPermissions extends Equatable {
     };
   }
 
+  /// Whether this member may mint a bot invite: `invites_insert` asks for
+  /// Add bots on top of being able to invite at all. Manage bots, which this
+  /// used to ask, is what a bot may do once it is in, and a default Moderator
+  /// holds Add bots without it.
+  bool get mayAddBots =>
+      can(ServerPermission.createInvite) && can(ServerPermission.addBots);
+
   /// These permissions as [channel] has them: its overrides applied, as
   /// the server worked them out (`Channel.myPermissions`). The server's own
   /// for no channel, or one from a server without overrides.

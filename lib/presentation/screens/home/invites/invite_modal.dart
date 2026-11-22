@@ -79,7 +79,7 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
           maxUses: inviteUsesOptions[_usesIndex].value,
           expiresInSeconds: inviteExpiryOptions[_expiryIndex].seconds,
           isBot: _isBot,
-          roleId: roleId,
+          roleId: _isBot ? null : roleId,
           needsAccount: _needsAccount && !_isBot,
         );
 
@@ -114,13 +114,20 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
         ServerPermission.administrator,
       ),
     );
+    // A bot link takes Add bots as well (`invites_insert`), which a member
+    // who may invite people does not hold by default.
+    final mayAddBots = context.select(
+      (ServerCubit c) =>
+          c.state.permissionsOn(serverId)?.can(ServerPermission.addBots) ??
+          false,
+    );
 
     return AppModal(
       title: 'Invite to ${widget.server.name}',
       subtitle: InviteSummary.of(
         expiryIndex: _expiryIndex,
         usesIndex: _usesIndex,
-        role: selectedRole,
+        role: _isBot ? null : selectedRole,
       ),
       content: InviteForm(
         expiryIndex: _expiryIndex,
@@ -141,13 +148,15 @@ class _InviteModalState extends State<InviteModal> with _InviteRolesMixin {
           // no longer matches what the picker says.
           _resetToken();
         }),
-        isBot: _isBot,
-        onIsBotChanged: (value) => setState(() {
-          _isBot = value;
-          // A link already on screen was minted as the other kind, so it
-          // no longer matches what the switch says.
-          _resetToken();
-        }),
+        isBot: _isBot && mayAddBots,
+        onIsBotChanged: mayAddBots
+            ? (value) => setState(() {
+                _isBot = value;
+                // A link already on screen was minted as the other kind, so
+                // it no longer matches what the switch says.
+                _resetToken();
+              })
+            : null,
         needsAccount: isAdmin && !_isBot ? _needsAccount : null,
         onNeedsAccountChanged: (value) => setState(() {
           _needsAccount = value;

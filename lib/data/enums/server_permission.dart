@@ -38,11 +38,15 @@ enum ServerPermission {
     'Everything below, and everything added later. Cannot be taken back by '
         'anybody holding a lower role.',
   ),
+
+  /// Never read by the server, which leaves the server's own settings to its
+  /// administrators (`update_server`). Hidden from the editor, like the four
+  /// below that nothing enforces either ([isRetired]).
   manageServer(
     1,
     PermissionGroup.server,
     'Manage server',
-    'Rename the server, change its icon, and set how long messages are kept.',
+    'Not used. The server\'s name, icon and settings are an administrator\'s.',
   ),
 
   /// Retired when bots arrived: roles are an administrator's to shape, and
@@ -58,8 +62,9 @@ enum ServerPermission {
     3,
     PermissionGroup.server,
     'Manage channels',
-    'Create, rename and delete channels the whole server can see. Does not '
-        'reach inside a private channel.',
+    'Create, rename and delete channels the whole server can see, and in '
+        'calls server-mute, deafen, move and disconnect people. Does not reach '
+        'inside a private channel.',
   ),
   createInvite(
     4,
@@ -102,8 +107,8 @@ enum ServerPermission {
     9,
     PermissionGroup.text,
     'View channels',
-    'See a channel and read it. A private channel answers to its own member '
-        'list instead — this cannot open one.',
+    'Not used. Every member sees every channel but the private ones, which '
+        'answer to their own member list.',
   ),
   sendMessages(
     10,
@@ -158,26 +163,28 @@ enum ServerPermission {
     'Share screen',
     'Share a screen or a window in a call.',
   ),
+
+  /// Named for muting, which went to Manage channels: the server reads it
+  /// for time-outs alone (`time_out_member`).
   muteMembers(
     18,
-    PermissionGroup.voice,
-    'Mute members',
-    'Server-mute somebody in calls, which survives them rejoining, and '
-        'time them out, which stops them posting, reacting and starting '
-        'calls for a while.',
+    PermissionGroup.server,
+    'Time out members',
+    'Time somebody out, which stops them posting, reacting and starting calls '
+        'for a while. Nobody can time out an admin, or someone else who holds '
+        'this.',
   ),
   deafenMembers(
     19,
     PermissionGroup.voice,
     'Deafen members',
-    'Server-deafen somebody. Deafening denies the microphone as well as the '
-        'ears.',
+    'Not used. Server-deafening is Manage channels\'.',
   ),
   moveMembers(
     20,
     PermissionGroup.voice,
     'Move members',
-    'Drag somebody into another call, or disconnect them from one.',
+    'Not used. Moving and disconnecting people is Manage channels\'.',
   ),
 
   // ── Private channels ─────────────────────────────────────────────
@@ -264,8 +271,18 @@ enum ServerPermission {
       values.where((p) => p.group == group && !p.isRetired).toList()
         ..sort((a, b) => a.bit.compareTo(b.bit));
 
-  /// A bit the server no longer reads. Not offered, never granted.
-  bool get isRetired => this == manageRoles;
+  /// A bit the server does not read. Not offered: a box that turns nothing on
+  /// or off tells whoever ticks it something untrue. A role may still carry
+  /// one (the seeded roles do), and the editor keeps it as it was.
+  bool get isRetired => _unread.contains(this);
+
+  static const _unread = {
+    manageServer,
+    manageRoles,
+    viewChannel,
+    deafenMembers,
+    moveMembers,
+  };
 }
 
 /// The bits a member or a role holds.

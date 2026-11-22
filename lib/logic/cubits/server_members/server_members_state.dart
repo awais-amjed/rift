@@ -53,6 +53,10 @@ class ServerMembersState extends Equatable {
   /// every assignment on the server, and only the Roles page needs it.
   final Map<String, int>? roleCounts;
 
+  /// The last count could not be read, so the Roles page offers to try again
+  /// rather than show its loading block until the next doorbell.
+  final bool roleCountFailed;
+
   /// Every banned member. Null unless the Members page is showing them
   /// ([ServerMembersCubit.showBanned]): nothing else draws somebody who is
   /// not in the room, and the people pages leave them out.
@@ -82,6 +86,7 @@ class ServerMembersState extends Equatable {
     this.roles = const [],
     this.memberRoles = const {},
     this.roleCounts,
+    this.roleCountFailed = false,
     this.banned,
     this.search,
     this.loaded = false,
@@ -150,6 +155,7 @@ class ServerMembersState extends Equatable {
     Map<String, List<Role>>? memberRoles,
     Map<String, int>? roleCounts,
     bool clearRoleCounts = false,
+    bool? roleCountFailed,
     List<ServerMember>? banned,
     bool clearBanned = false,
     ({String query, List<ServerMember> matches})? search,
@@ -166,6 +172,7 @@ class ServerMembersState extends Equatable {
     roles: roles ?? this.roles,
     memberRoles: memberRoles ?? this.memberRoles,
     roleCounts: clearRoleCounts ? null : (roleCounts ?? this.roleCounts),
+    roleCountFailed: roleCountFailed ?? this.roleCountFailed,
     banned: clearBanned ? null : (banned ?? this.banned),
     search: clearSearch ? null : (search ?? this.search),
     loaded: loaded ?? this.loaded,
@@ -183,6 +190,7 @@ class ServerMembersState extends Equatable {
     roles,
     memberRoles,
     roleCounts,
+    roleCountFailed,
     banned,
     search,
     loaded,

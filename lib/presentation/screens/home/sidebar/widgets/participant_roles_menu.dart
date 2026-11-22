@@ -25,9 +25,10 @@ import '../../../../theme/theme_context.dart';
 /// roles in a row is the common case, the same reason the mute toggle leaves
 /// the menu up.
 ///
-/// A role at or above the viewer's own rank is listed and inert rather than
-/// hidden. Leaving it out would suggest it does not exist; showing it greyed
-/// says the rule that is actually being applied.
+/// A role the viewer may not hand out — any, for somebody who is not an
+/// administrator, and the owner's for everybody ([RoleLadder.assignable]) — is
+/// listed and inert rather than hidden. Leaving it out would suggest it does
+/// not exist; showing it greyed says the rule that is actually being applied.
 class ParticipantRolesMenu extends StatefulWidget {
   final String userId;
 
@@ -75,14 +76,12 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
     final roster = context.watch<ServerMembersCubit>().state;
     final member = roster.byId[widget.userId];
 
-    // An administrator's to hand out, and nobody else's.
-    final myBits =
-        context
-            .read<ServerCubit>()
-            .state
-            .permissionsOn(ServerScope.of(context).serverId)
-            ?.bits ??
-        0;
+    // An administrator's to hand out, and nobody else's. Selected, so a
+    // menu left open while that changes follows it.
+    final serverId = ServerScope.of(context).serverId;
+    final myBits = context.select<ServerCubit, int>(
+      (c) => c.state.permissionsOn(serverId)?.bits ?? 0,
+    );
     final assignable = {
       for (final role in RoleLadder.assignable(
         roster.roles,
@@ -118,7 +117,7 @@ class _ParticipantRolesMenuState extends State<ParticipantRolesMenu> {
             icon: Icons.shield_outlined,
             label: role.name,
             // Inert rather than absent, so the rule is visible. Tapping a
-            // role you do not outrank does nothing, which is what the
+            // role you may not hand out does nothing, which is what the
             // database would have said a round trip later.
             onTap: () {
               if (assignable.contains(role.id)) {

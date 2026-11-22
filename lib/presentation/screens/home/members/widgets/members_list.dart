@@ -98,9 +98,11 @@ class MembersList extends StatelessWidget {
           isExpanded: expandedId == member.id,
           isBusy: busyId == member.id,
           // Named for what it now gates: the Roles row and the ban button.
-          // Both refuse a self-edit at the server, so neither is offered on
-          // your own row.
-          canManagePermissions: viewerIsAdmin && !isSelf,
+          // On your own row only Roles: the server lets an admin give
+          // themselves a role, or drop one beneath their top, and nowhere
+          // else offered it. Kick and ban refuse a self-edit, so the panel
+          // leaves them off ([MemberManagePanel.isSelf]).
+          canManagePermissions: viewerIsAdmin,
           // Moderators mute/deafen non-admins.
           canModerate:
               viewerIsModerator && !isSelf && !member.permissions.isServerAdmin,

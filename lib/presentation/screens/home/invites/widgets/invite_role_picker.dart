@@ -8,10 +8,9 @@ import '../../../../theme/theme_context.dart';
 
 /// Which role, if any, the link hands out.
 ///
-/// Only roles the minter outranks are offered — the policy refuses the rest,
-/// and an option that always fails is worse than no option. That is the same
-/// rule as "an invite can never carry more than its maker holds", which is what
-/// three booleans used to say.
+/// Only roles the minter may hand out are offered (`RoleLadder.assignable`:
+/// an administrator's, any role but the owner's) — the policy refuses the
+/// rest, and an option that always fails is worse than no option.
 ///
 /// "No role" is first and selected by default. Handing somebody a role by link
 /// is the deliberate case; joining as an ordinary member is the common one.

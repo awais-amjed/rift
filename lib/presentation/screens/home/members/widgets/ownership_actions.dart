@@ -3,8 +3,10 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/apis/ownership_api.dart';
 import '../../../../../data/classes/server_member.dart';
+import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/server_events/server_events_cubit.dart';
+import '../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/server_scope.dart';
@@ -40,12 +42,24 @@ class OwnershipActions {
     ServerMember member,
   ) async {
     final server = ServerScope.read(context);
+    // `transfer_ownership` gives the old owner the most senior other role
+    // that carries Administrator, and nothing when there is none — so "you
+    // stay an admin" is said only when one exists.
+    final roles = context.read<ServerMembersCubit>().state.roles;
+    final staysAdmin = roles.any(
+      (r) => !r.isOwner && r.carries(ServerPermission.administrator),
+    );
+    final after = roles.isEmpty
+        ? 'You stay an admin if the server has an admin role.'
+        : staysAdmin
+        ? 'You stay an admin.'
+        : 'No other role here is an admin, so you keep no admin powers.';
     final confirmed = await showConfirmDialog(
       context: context,
       title: 'Make ${member.displayName} the owner?',
       message:
           'They become the one person who can delete this server or hand it '
-          'on. You stay an admin. This cannot be undone from your side.',
+          'on. $after This cannot be undone from your side.',
       confirmLabel: 'Transfer ownership',
       icon: Icons.workspace_premium_outlined,
       isDestructive: true,

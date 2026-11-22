@@ -188,7 +188,7 @@ void main() {
       );
     });
 
-    test('assigning is at-or-below, and an administrator\'s alone', () {
+    test('assigning has no rank, and is an administrator\'s alone', () {
       // The exemption exists so the only admin on a server can make a second
       // one. Everybody else hands out nothing, whatever they hold.
       expect(RoleLadder.assignable(all, isAdministrator: false), isEmpty);

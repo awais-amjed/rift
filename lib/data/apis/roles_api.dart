@@ -79,10 +79,12 @@ class RolesApi {
   /// [listMemberRoles] reads the whole server, which is one row per (member,
   /// role) and so hits the response ceiling sooner than the roster itself does.
   /// It is still the right call for a screen that shows everyone at once; this
-  /// is the one for a list that pages.
-  Future<Map<String, List<Role>>> memberRolesFor(List<String> userIds) async {
+  /// is the one for a list that pages. Null when the read failed, as for
+  /// [listMemberRoles].
+  Future<Map<String, List<Role>>?> memberRolesFor(List<String> userIds) async {
     final server = _target.server;
-    if (server == null || userIds.isEmpty) return const {};
+    if (server == null) return null;
+    if (userIds.isEmpty) return const {};
 
     final response = await _session.callFor(
       server,
@@ -93,7 +95,7 @@ class RolesApi {
         ids: userIds,
       ),
     );
-    if (!response.success) return const {};
+    if (!response.success) return null;
     return RoleLadder.byUser(_assignmentRows(response));
   }
 
@@ -128,7 +130,7 @@ class RolesApi {
       ),
     );
     if (!response.success) {
-      return (role: null, error: _roleFailure(response.error));
+      return (role: null, error: _roleFailure(response));
     }
     return (
       role: Role.fromJson(response.data as Map<String, dynamic>),
@@ -144,6 +146,7 @@ class RolesApi {
     String? color,
     bool clearColor = false,
   }) => _changeRole(
+    refused: _outranked,
     (server, token) => _repository.updateRole(
       server.supabaseUrl,
       roleId,
@@ -159,6 +162,7 @@ class RolesApi {
 
   Future<({bool success, String? error})> deleteRole(String roleId) =>
       _changeRole(
+        refused: _outranked,
         (server, token) => _repository.deleteRole(
           server.supabaseUrl,
           roleId,
@@ -172,6 +176,12 @@ class RolesApi {
     required String roleId,
     required bool held,
   }) => _changeRole(
+    // An assignment the server refuses fails the insert outright; only a
+    // removal comes back empty.
+    refused: held
+        ? null
+        : 'You cannot take that role away. It may be at or above your own, '
+              'or no longer held.',
     (server, token) => held
         ? _repository.assignRole(
             server.supabaseUrl,
@@ -189,11 +199,20 @@ class RolesApi {
           ),
   );
 
+  static const _outranked =
+      'That role is at or above your own, so you cannot change it.';
+
   /// Every role write ends the same way: the three cached booleans on `users`
   /// have moved, and this device's own copy of its permissions with them.
+  ///
+  /// [refused] is said when a write that answers with its rows changed none:
+  /// a row policy filters out what the caller may not touch rather than
+  /// refusing it, and read as success an edit to a locked role closed its
+  /// editor as though saved.
   Future<({bool success, String? error})> _changeRole(
-    Future<APIResponse> Function(Server server, String token) call,
-  ) async {
+    Future<APIResponse> Function(Server server, String token) call, {
+    String? refused,
+  }) async {
     final server = _target.server;
     if (server == null) {
       return (success: false, error: ServerSession.gone);
@@ -204,26 +223,37 @@ class RolesApi {
       (token) => call(server, token),
     );
     if (!response.success) {
-      return (success: false, error: _roleFailure(response.error));
+      return (success: false, error: _roleFailure(response));
+    }
+    final rows = (response.data as Map?)?['rows'] as List?;
+    if (refused != null && rows != null && rows.isEmpty) {
+      return (success: false, error: refused);
     }
 
     await _session.refreshDetails(server);
     return (success: true, error: null);
   }
 
-  /// The database refuses in two ways worth naming, and both read as
-  /// gibberish otherwise. Everything else is passed through, because a
-  /// message invented here would be a guess about what went wrong.
-  static String _roleFailure(String? error) {
-    final raw = error ?? 'Could not save that role';
-    final lower = raw.toLowerCase();
-    if (lower.contains('row-level security') || lower.contains('violates')) {
-      return 'That role is at or above your own, or carries something you do '
-          'not hold yourself.';
-    }
-    if (lower.contains('duplicate') || lower.contains('unique')) {
-      return 'A role with that name already exists';
-    }
-    return raw;
+  /// The database's refusals worth naming, by their code: each reads as
+  /// gibberish otherwise, and matched on the message instead, "violates"
+  /// caught the unique and check constraints too, so a taken name was
+  /// reported as a role above your own. Everything else is passed through,
+  /// because a message invented here would be a guess about what went wrong.
+  static String _roleFailure(APIResponse response) {
+    final raw = response.error ?? 'Could not save that role';
+    return switch (response.errorCode) {
+      '42501' =>
+        'That role is at or above your own, or carries something you do '
+            'not hold yourself.',
+      '23505' => 'A role with that name already exists',
+      '23514' =>
+        'A role needs a name of 1 to ${Role.maxNameLength} characters, and '
+            'a position of 0 or more.',
+      'owner_is_permanent' => 'The owner role cannot be deleted.',
+      'everyone_is_permanent' => 'The @everyone role cannot be deleted.',
+      'owner_is_singular' => 'Only one person can hold the owner role.',
+      'bot_cannot_own' => 'A bot cannot hold the owner role.',
+      _ => raw,
+    };
   }
 }

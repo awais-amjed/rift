@@ -9,6 +9,7 @@ import '../../../../../../data/classes/role.dart';
 import '../../../../../../data/enums/server_permission.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
+import '../../../../../../logic/services/role_ladder.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/chip_selector.dart';
 import '../../../../../common/hint_card.dart';
@@ -44,6 +45,10 @@ class _ChannelPermissionsPanelState extends State<ChannelPermissionsPanel> {
   Map<String, ChannelOverride> _draft = const {};
   String? _selectedRoleId;
 
+  /// The viewer's own rank, the highest role they hold. Null when it could
+  /// not be read, which leaves the decision to the server.
+  int? _myRank;
+
   bool _isLoading = true;
   bool _failedToLoad = false;
   bool _isSaving = false;
@@ -78,13 +83,16 @@ class _ChannelPermissionsPanelState extends State<ChannelPermissionsPanel> {
 
   Future<void> _load() async {
     final session = ServerScope.read(context);
+    final me = context.read<ServerCubit>().state.meOn(session.serverId)?.id;
     final results = await Future.wait([
       RolesApi(session).listRoles(),
       ChannelOverridesApi(session).list(_channel.id),
+      RolesApi(session).memberRolesFor([?me]),
     ]);
     if (!mounted) return;
     final roles = results[0] as List<Role>;
     final overrides = results[1] as Map<String, ChannelOverride>?;
+    final mine = results[2] as Map<String, List<Role>>?;
     if (overrides == null || roles.isEmpty) {
       // A server before permissions per channel answers the read with a 404.
       HelperMethods.printDebug(
@@ -106,8 +114,19 @@ class _ChannelPermissionsPanelState extends State<ChannelPermissionsPanel> {
       _original = overrides ?? const {};
       _draft = {..._original};
       _selectedRoleId = _everyone?.id;
+      _myRank = mine == null || me == null ? null : RoleLadder.rankOf(mine, me);
     });
   }
+
+  /// Whether the viewer may change [role]'s rules here. `set_channel_override`
+  /// refuses anybody but an administrator a role at or above their own; drawn
+  /// open, a default Moderator could set every switch on the Moderator chip
+  /// and have Save refuse it.
+  bool _reaches(Role role, int viewerBits) =>
+      viewerBits.has(ServerPermission.administrator) ||
+      role.isEveryone ||
+      _myRank == null ||
+      role.position < _myRank!;
 
   void _edit(ChannelOverride row) =>
       setState(() => _draft = {..._draft, row.roleId: row});
@@ -199,6 +218,13 @@ class _ChannelPermissionsPanelState extends State<ChannelPermissionsPanel> {
               selectedIndex: _roles.indexWhere((r) => r.id == _selectedRoleId),
               onSelected: (i) => setState(() => _selectedRoleId = _roles[i].id),
             ),
+            if (selected != null && !_reaches(selected, viewerBits))
+              HintCard(
+                icon: Icons.lock_outline_rounded,
+                text:
+                    '${selected.name} is at or above your own role, so only '
+                    'an admin can change what it can do here.',
+              ),
             if (selected != null)
               OverrideList(
                 type: _channel.channelType,
@@ -207,7 +233,9 @@ class _ChannelPermissionsPanelState extends State<ChannelPermissionsPanel> {
                 everyone: everyone,
                 everyoneRow: _rowFor(everyone.id),
                 viewerBits: viewerBits,
-                onChanged: _isSaving ? null : _edit,
+                onChanged: _isSaving || !_reaches(selected, viewerBits)
+                    ? null
+                    : _edit,
               ),
             const HintCard(
               icon: Icons.shield_outlined,

@@ -5,7 +5,6 @@ import '../../../../data/apis/invites_api.dart';
 import '../../../../data/classes/public_bot.dart';
 import '../../../../data/classes/server.dart';
 import '../../../../data/constants.dart';
-import '../../../../data/enums/server_permission.dart';
 import '../../../../data/invite_link.dart';
 import '../../../../data/repositories/session_repository.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
@@ -55,14 +54,12 @@ class _AddBotModalState extends State<AddBotModal> {
 
   /// The servers this account may put a bot on.
   ///
-  /// `manageBots` rather than admin: it is the bit that governs bots
-  /// everywhere else, and minting a bot invite is refused by the invite
-  /// policy for anybody without it — so offering a server here that the
-  /// server itself would refuse is offering a dead end.
+  /// Whoever may mint a bot invite there ([UserPermissions.mayAddBots]),
+  /// which is what this does — so offering a server the server itself would
+  /// refuse is offering a dead end.
   List<Server> get _eligible => [
     for (final server in context.read<ServerCubit>().state.servers)
-      if (server.user?.permissions.can(ServerPermission.manageBots) ?? false)
-        server,
+      if (server.user?.permissions.mayAddBots ?? false) server,
   ];
 
   Future<void> _mint(Server server) async {
@@ -131,7 +128,7 @@ class _AddBotModalState extends State<AddBotModal> {
         icon: Icons.dns_outlined,
         title: 'No server to add it to',
         message:
-            'Adding a bot needs a server where you can manage bots. Join one '
+            'Adding a bot needs a server where you can add bots. Join one '
             'as an admin, or create your own.',
       );
     }

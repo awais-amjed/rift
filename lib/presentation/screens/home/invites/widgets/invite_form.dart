@@ -24,12 +24,15 @@ class InviteForm extends StatelessWidget {
   /// Whether this link will mint a bot rather than a member.
   final bool isBot;
 
-  /// Roles the minter may hand out — everything below their own rank. Empty
-  /// where they hold no `MANAGE_ROLES`, which hides the picker entirely.
+  /// Roles the minter may hand out (`RoleLadder.assignable`). Empty for
+  /// anybody but an administrator, which hides the picker entirely.
   final List<Role> roles;
   final String? roleId;
   final ValueChanged<String?> onRoleSelected;
-  final ValueChanged<bool> onIsBotChanged;
+
+  /// Null for somebody who may not make a bot link (Add bots), who is not
+  /// offered the choice at all: `invites_insert` refuses it.
+  final ValueChanged<bool>? onIsBotChanged;
 
   /// Whether joining through this link needs a Rift account. Null hides the
   /// choice: only an admin may make such a link, and a bot has no account.
@@ -75,22 +78,23 @@ class InviteForm extends StatelessWidget {
         // fields. The line under it says what actually differs, because
         // "it's a bot" tells somebody nothing about what the thing will and
         // will not be able to read.
-        SegmentedControl<bool>(
-          value: isBot,
-          onChanged: onIsBotChanged,
-          options: const [
-            SegmentOption(
-              value: false,
-              label: 'Person',
-              icon: Icons.person_outline_rounded,
-            ),
-            SegmentOption(
-              value: true,
-              label: 'Bot',
-              icon: Icons.smart_toy_outlined,
-            ),
-          ],
-        ),
+        if (onIsBotChanged case final onChanged?)
+          SegmentedControl<bool>(
+            value: isBot,
+            onChanged: onChanged,
+            options: const [
+              SegmentOption(
+                value: false,
+                label: 'Person',
+                icon: Icons.person_outline_rounded,
+              ),
+              SegmentOption(
+                value: true,
+                label: 'Bot',
+                icon: Icons.smart_toy_outlined,
+              ),
+            ],
+          ),
         if (isBot) ...[
           const SizedBox(height: 8),
           Text(
@@ -100,7 +104,7 @@ class InviteForm extends StatelessWidget {
             style: AppText.secondary.copyWith(color: themeState.textTertiary),
           ),
         ],
-        const SizedBox(height: 16),
+        if (onIsBotChanged != null) const SizedBox(height: 16),
 
         FieldLabel(label: 'Expires in', textColor: themeState.textTertiary),
         const SizedBox(height: 8),
@@ -120,12 +124,16 @@ class InviteForm extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        InviteRolePicker(
-          roles: roles,
-          selectedId: roleId,
-          onSelected: onRoleSelected,
-        ),
-        if (roles.isNotEmpty) const SizedBox(height: 16),
+        // Not for a bot: a role on a bot link is handed to the bot, which the
+        // Members page then offers no way to take back.
+        if (!isBot) ...[
+          InviteRolePicker(
+            roles: roles,
+            selectedId: roleId,
+            onSelected: onRoleSelected,
+          ),
+          if (roles.isNotEmpty) const SizedBox(height: 16),
+        ],
 
         // For a link posted where strangers find it: a ban then holds
         // against the account, not one identity that costs nothing to make

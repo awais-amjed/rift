@@ -33,6 +33,9 @@ class Role extends Equatable {
   /// case for it — only the screens that would offer to assign it do.
   final bool isOwner;
 
+  /// The longest name `roles` accepts (its `CHECK` on the trimmed name).
+  static const maxNameLength = 40;
+
   const Role({
     required this.id,
     required this.name,
