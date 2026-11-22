@@ -76,7 +76,10 @@ mixin _ChannelChatEditMixin on Cubit<ChannelChatState> {
         emit(
           state.copyWith(
             notice: Notice.error(
-              EditRefusal.describe(response.errorCode, timedOut: true) ??
+              EditRefusal.describe(
+                    response.errorCode,
+                    timedOut: user.isTimedOut,
+                  ) ??
                   response.error ??
                   'Failed to edit message',
             ),

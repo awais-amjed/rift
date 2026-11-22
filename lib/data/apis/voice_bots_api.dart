@@ -135,7 +135,7 @@ class VoiceBotsApi {
   /// channel at once and a query per row would be a query per row.
   Future<Map<String, List<({String id, String name})>>>
   voiceListenersByChannel() async {
-    final rows = await _voiceListenerRows(null);
+    final rows = await _voiceListenerRows(null) ?? const [];
     final byChannel = <String, List<({String id, String name})>>{};
     for (final row in rows) {
       (byChannel[row['channel_id'] as String] ??= []).add((
@@ -184,8 +184,10 @@ class VoiceBotsApi {
   /// The ids of the bots that can hear [channelId] — for the dialog that
   /// changes them, where [voiceListenersByChannel] is names for the marker
   /// every member reads.
-  Future<Set<String>> voiceListenerIds(String channelId) async {
+  /// Null when the read failed.
+  Future<Set<String>?> voiceListenerIds(String channelId) async {
     final rows = await _voiceListenerRows(channelId);
+    if (rows == null) return null;
     return {for (final row in rows) row['bot_id'] as String};
   }
 
@@ -195,19 +197,24 @@ class VoiceBotsApi {
   /// bot, because this is the same one round trip the sidebar already makes
   /// and the table has one row per grant — which is a number of rows an admin
   /// typed in by hand, one at a time.
-  Future<Set<String>> voiceChannelsHeardBy(String botId) async {
+  ///
+  /// Null when the read failed: the dialog deciding on a grant must not read
+  /// that as "hears nothing".
+  Future<Set<String>?> voiceChannelsHeardBy(String botId) async {
     final rows = await _voiceListenerRows(null);
+    if (rows == null) return null;
     return {
       for (final row in rows)
         if (row['bot_id'] == botId) row['channel_id'] as String,
     };
   }
 
-  Future<List<Map<String, dynamic>>> _voiceListenerRows(
+  /// Null when the read failed.
+  Future<List<Map<String, dynamic>>?> _voiceListenerRows(
     String? channelId,
   ) async {
     final server = _target.server;
-    if (server == null) return const [];
+    if (server == null) return null;
 
     final response = await _session.callFor(
       server,
@@ -218,7 +225,7 @@ class VoiceBotsApi {
         channelId: channelId,
       ),
     );
-    if (!response.success) return const [];
+    if (!response.success) return null;
 
     return ((response.data as Map<String, dynamic>)['listeners'] as List? ??
             const [])

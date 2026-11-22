@@ -68,10 +68,16 @@ class ServerManageTabs {
       if (p.isServerAdmin) ServerManageTab.voice,
       if (p.isServerAdmin) ServerManageTab.limits,
       if (p.isServerAdmin) ServerManageTab.roles,
-      if (p.isServerAdmin || p.isChannelManager) ServerManageTab.members,
+      // The ban list is where a ban is lifted, so kicking or banning alone
+      // opens it too.
+      if (p.isServerAdmin ||
+          p.isChannelManager ||
+          p.can(ServerPermission.kickMembers) ||
+          p.can(ServerPermission.banMembers))
+        ServerManageTab.members,
       if (p.can(ServerPermission.reviewReports)) ServerManageTab.reports,
       if (p.can(ServerPermission.manageBots)) ServerManageTab.bots,
-      if (p.can(ServerPermission.manageWebhooks)) ServerManageTab.webhooks,
+      if (p.mayManageWebhooks) ServerManageTab.webhooks,
       if (p.can(ServerPermission.manageSoundboard)) ServerManageTab.soundboard,
       if (p.isOwner) ServerManageTab.danger,
     ];

@@ -119,11 +119,19 @@ class WebhooksApi {
         webhookId: id,
       ),
     );
+    if (!response.success) {
+      return (
+        success: false,
+        error: response.error ?? 'Could not delete that webhook',
+      );
+    }
+    final deleted = (response.data as Map?)?['deleted'] == true;
     return (
-      success: response.success,
-      error: response.success
+      success: deleted,
+      error: deleted
           ? null
-          : response.error ?? 'Could not delete that webhook',
+          : 'That webhook wasn\'t removed. It may be gone already, or you '
+                'may no longer manage webhooks here.',
     );
   }
 }

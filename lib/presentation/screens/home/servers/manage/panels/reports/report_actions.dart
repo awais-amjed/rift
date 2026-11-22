@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../../../../data/classes/api_response.dart';
 import '../../../../../../../data/classes/user_permissions.dart';
+import '../../../../../../../data/enums/report_outcome.dart';
 import '../../../../../../../data/enums/server_permission.dart';
 import '../../../../../../../logic/cubits/reports/reports_cubit.dart';
 import '../../../../../../../logic/cubits/server/server_cubit.dart';
@@ -17,7 +18,7 @@ import '../../../../reports/time_out_picker.dart';
 /// What a reviewer can do about an open report — only what they hold the
 /// permission for, and only what applies: no deletion for a report about a
 /// person, no time-out, kick or ban for a webhook, none of them for somebody
-/// already out.
+/// already out — who instead gets a close that records how they went.
 ///
 /// Each action is done, then recorded (`ReportsCubit`); the server checks the
 /// record against what happened, so a refusal on the way is said plainly.
@@ -43,10 +44,13 @@ class _ReportActionsState extends State<ReportActions> {
       'That didn\'t go through, so the report is still open. The message '
           'may be in a channel you can\'t moderate.',
     'already_resolved' => 'Someone else closed this report already.',
+    'report_not_found' => 'This report is gone.',
+    'not_authorized' => 'You can\'t do that here any more.',
     // A server older than bot kicks. Ban removes one there.
     'cannot_kick_bot' => 'This server can\'t kick a bot yet. Ban it instead.',
     'cannot_moderate_peer' ||
     'cannot_kick_peer' ||
+    'cannot_ban_peer' ||
     'cannot_moderate_admin' => 'You can\'t do that to this person.',
     _ => response.error ?? 'Something went wrong.',
   };
@@ -152,6 +156,26 @@ class _ReportActionsState extends State<ReportActions> {
             label: 'Ban',
             variant: AppButtonVariant.secondary,
             onPressed: _busy ? null : () => unawaited(_ban(cubit)),
+          ),
+        // Put out some other way — from a profile, the voice menu, or a ban
+        // whose record failed. Closing it as that is the true record, and
+        // the server checks it.
+        if (target != null && target.isBanned)
+          AppButton(
+            label: target.isKicked ? 'Close as kicked' : 'Close as banned',
+            variant: AppButtonVariant.secondary,
+            onPressed: _busy
+                ? null
+                : () => unawaited(
+                    _run(
+                      () => cubit.recordDone(
+                        widget.entry,
+                        target.isKicked
+                            ? ReportOutcome.kicked
+                            : ReportOutcome.banned,
+                      ),
+                    ),
+                  ),
           ),
         AppButton(
           label: 'Dismiss',

@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../central_failure.dart';
 import '../classes/api_response.dart';
 import '../enums/listing_kind.dart';
 import '../enums/report_reason.dart';
@@ -33,18 +34,25 @@ class ListingReportRepository {
       );
       return APIResponse.success(null);
     } on PostgrestException catch (e) {
-      final identifier = e.message.trim();
+      if (CentralFailure.isUnreachable(e)) return CentralFailure.response(e);
+      // Signed out: the function is granted to `authenticated` only, so a
+      // browser of the directory without an account is refused before it
+      // runs, in Postgres's words rather than central's.
+      final identifier = e.code == '42501'
+          ? 'not_authenticated'
+          : e.message.trim();
       return APIResponse.error(
         _messages[identifier] ?? e.message,
         errorCode: identifier,
       );
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
   }
 
   // Central raises bare identifiers; these are the ones a person can act on.
   static const _messages = {
+    'not_authenticated': 'Sign in to your Rift account to report a listing.',
     'reporter_has_no_profile':
         'Claim a handle on your Rift account before reporting a listing.',
     'listing_not_found': 'That listing is no longer in the directory.',

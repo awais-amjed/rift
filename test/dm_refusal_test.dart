@@ -37,10 +37,16 @@ void main() {
   });
 
   group('EditRefusal', () {
-    test('a refused channel edit is a time-out, the only cause there is', () {
+    test('a refused channel edit is a time-out or the channel', () {
+      expect(
+        EditRefusal.describe('42501', timedOut: true),
+        contains('timed out'),
+      );
+      // `messages_update_own` asks Send messages in the channel too, so a
+      // read-only channel refuses an edit without anybody being timed out.
       expect(
         EditRefusal.describe('42501', timedOut: false),
-        contains('timed out'),
+        allOf(isNot(contains('timed out')), contains('this channel')),
       );
     });
 

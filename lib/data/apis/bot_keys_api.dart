@@ -96,13 +96,13 @@ class BotKeysApi {
   };
 
   /// What one bot can read: the channels, and whether it is server-wide.
-  Future<({Set<String> channelIds, bool serverWide})> botChannels(
+  /// Null when the read failed, which the dialog deciding on a grant must not
+  /// draw as "reads nothing".
+  Future<({Set<String> channelIds, bool serverWide})?> botChannels(
     String botId,
   ) async {
     final server = _target.server;
-    if (server == null) {
-      return (channelIds: <String>{}, serverWide: false);
-    }
+    if (server == null) return null;
 
     final response = await _session.callFor(
       server,
@@ -113,9 +113,7 @@ class BotKeysApi {
         botId: botId,
       ),
     );
-    if (!response.success) {
-      return (channelIds: <String>{}, serverWide: false);
-    }
+    if (!response.success) return null;
 
     final data = response.data as Map<String, dynamic>;
     return (
@@ -132,8 +130,11 @@ class BotKeysApi {
   /// Separate from [channelListeners], which is the same query answered for a
   /// different audience: that one is names for a chip every member reads, this
   /// one is ids for the dialog that changes them.
-  Future<Set<String>> channelListenerIds(String channelId) async {
+  ///
+  /// Null when the read failed.
+  Future<Set<String>?> channelListenerIds(String channelId) async {
     final rows = await _listeners(channelId);
+    if (rows == null) return null;
     return {for (final r in rows) r['bot_id'] as String};
   }
 
@@ -143,16 +144,17 @@ class BotKeysApi {
   /// standing marker is the point (BOTS.md §6, rule 4). A dialog somebody has
   /// to go looking for tells the people who already knew.
   Future<List<String>> channelListeners(String channelId) async {
-    final rows = await _listeners(channelId);
+    final rows = await _listeners(channelId) ?? const [];
     return [
       for (final r in rows)
         (r['display_name'] as String?) ?? (r['username'] as String? ?? 'a bot'),
     ];
   }
 
-  Future<List<Map<String, dynamic>>> _listeners(String channelId) async {
+  /// Null when the read failed.
+  Future<List<Map<String, dynamic>>?> _listeners(String channelId) async {
     final server = _target.server;
-    if (server == null) return const [];
+    if (server == null) return null;
 
     final response = await _session.callFor(
       server,
@@ -163,7 +165,7 @@ class BotKeysApi {
         channelId: channelId,
       ),
     );
-    if (!response.success) return const [];
+    if (!response.success) return null;
 
     final rows =
         (response.data as Map<String, dynamic>)['listeners'] as List? ??

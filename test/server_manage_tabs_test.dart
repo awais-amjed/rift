@@ -37,8 +37,48 @@ void main() {
     });
 
     test('a channel manager gets members, not the overview or roles', () {
+      // A server from before the bits: Manage channels is all there is, and
+      // it is what the server asks of webhooks.
       const mod = UserPermissions(isChannelManager: true);
-      expect(ServerManageTabs.visible(mod), [ServerManageTab.members]);
+      expect(ServerManageTabs.visible(mod), [
+        ServerManageTab.members,
+        ServerManageTab.webhooks,
+      ]);
+    });
+
+    test('kicking or banning alone opens members, where a ban is lifted', () {
+      final banner = UserPermissions(bits: ServerPermission.banMembers.mask);
+      expect(ServerManageTabs.visible(banner), [ServerManageTab.members]);
+      final kicker = UserPermissions(bits: ServerPermission.kickMembers.mask);
+      expect(ServerManageTabs.visible(kicker), [ServerManageTab.members]);
+    });
+
+    test('webhooks need Manage channels too, which the server asks', () {
+      final hooksOnly = UserPermissions(
+        bits: ServerPermission.manageWebhooks.mask,
+      );
+      expect(
+        ServerManageTabs.visible(hooksOnly),
+        isNot(contains(ServerManageTab.webhooks)),
+      );
+      final both = UserPermissions(
+        isChannelManager: true,
+        bits: ServerPermission.manageWebhooks.mask.with_(
+          ServerPermission.manageChannels,
+        ),
+      );
+      expect(
+        ServerManageTabs.visible(both),
+        contains(ServerManageTab.webhooks),
+      );
+      final channelsOnly = UserPermissions(
+        isChannelManager: true,
+        bits: ServerPermission.manageChannels.mask,
+      );
+      expect(
+        ServerManageTabs.visible(channelsOnly),
+        isNot(contains(ServerManageTab.webhooks)),
+      );
     });
 
     test('inviting alone opens no page: that is the rail menu\'s', () {

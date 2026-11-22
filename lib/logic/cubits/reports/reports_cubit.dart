@@ -9,9 +9,11 @@ import '../../../data/apis/moderation_api.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/member_report.dart';
+import '../../../data/classes/poll.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/enums/report_outcome.dart';
 import '../../../data/enums/server_permission.dart';
+import '../../../data/repositories/server_repository.dart';
 import '../../../data/repositories/server_session.dart';
 import '../../../data/repositories/session_repository.dart';
 import '../../services/attachment_cleanup.dart';
@@ -134,9 +136,21 @@ class ReportsCubit extends Cubit<ReportsState> {
   Future<void> loadClosed() async {
     final serverId = _watchingServerId;
     if (serverId == null) return;
+    emit(state.copyWith(closedLoading: true, clearClosedError: true));
     final entries = await _read(open: false);
-    if (isClosed || _watchingServerId != serverId || entries == null) return;
-    emit(state.copyWith(closed: entries, closedLoaded: true));
+    if (isClosed || _watchingServerId != serverId) return;
+    if (entries == null) {
+      emit(
+        state.copyWith(
+          closedLoading: false,
+          closedError: 'Could not load closed reports.',
+        ),
+      );
+      return;
+    }
+    emit(
+      state.copyWith(closed: entries, closedLoaded: true, closedLoading: false),
+    );
   }
 
   Future<List<ReportEntry>?> _read({required bool open}) async {
@@ -144,6 +158,7 @@ class ReportsCubit extends Cubit<ReportsState> {
     if (serverId == null) return null;
     final response = await _moderation.listReports(open: open);
     if (!response.success) return null;
+    _opener.newRead();
     final entries = <ReportEntry>[];
     for (final row in (response.data as List).cast<Map<String, dynamic>>()) {
       final report = MemberReport.fromJson(row);
@@ -157,6 +172,7 @@ class ReportsCubit extends Cubit<ReportsState> {
           report: report,
           content: opened.content,
           message: opened.message,
+          poll: opened.poll,
         ),
       );
     }
@@ -172,14 +188,19 @@ class ReportsCubit extends Cubit<ReportsState> {
   /// the paths are the reporter's word against its sender's, and a body
   /// naming other people's files would have had them deleted too
   /// (`AttachmentCleanup.forMessage`). A message its author already deleted
-  /// is already the outcome wanted.
+  /// is already the outcome wanted: the delete then finds nothing, and the
+  /// record goes in anyway, the server checking the message is gone. Only if
+  /// that is refused too does the delete's own error stand.
   Future<APIResponse> deleteMessage(ReportEntry entry) async {
     final reported = entry.report.message;
     if (reported == null) return APIResponse.error('Not a message report');
     final messages = _messages;
     final attachments = _attachments;
     final deleted = await messages.deleteChatMessage(messageId: reported.id);
-    if (!deleted.success) return deleted;
+    if (!deleted.success) {
+      final recorded = await _record(entry, ReportOutcome.deleted);
+      return recorded.success ? recorded : deleted;
+    }
     unawaited(
       AttachmentCleanup.forMessage(
         entry.message,
@@ -218,6 +239,12 @@ class ReportsCubit extends Cubit<ReportsState> {
     if (!done.success) return done;
     return _record(entry, ReportOutcome.kicked);
   }
+
+  /// Close a report as banned or kicked when that was done somewhere else —
+  /// from a profile or the voice menu, or a ban whose record failed. The
+  /// server checks the person is out the way [outcome] says.
+  Future<APIResponse> recordDone(ReportEntry entry, ReportOutcome outcome) =>
+      _record(entry, outcome);
 
   Future<APIResponse> _record(ReportEntry entry, ReportOutcome outcome) async {
     final response = await _moderation.resolveReport(

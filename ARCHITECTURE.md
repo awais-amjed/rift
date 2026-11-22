@@ -909,7 +909,11 @@ or a member. A message report copies the **sealed envelope** — ciphertext, non
 key version, signature, author — never the text, so the database still holds no
 plaintext; a moderator's client opens it with the channel key it already holds and
 checks the signature. That makes a report unforgeable, and it survives the author
-deleting the message. The reporter is never named to the reported. Server DMs
+deleting the message. A member's message sent in the clear (a command, or a
+channel with encryption off) is checked against their signature in the same way;
+only a webhook's, which names no person, is shown as it came. A signature that
+holds over a body this device's key will not open is drawn as locked, not as a
+forgery (verified Nov 22 in `reported_message_opener_test.dart`). The reporter is never named to the reported. Server DMs
 cannot be reported as messages, because their key belongs to the pair; the person
 can be, with a note.
 

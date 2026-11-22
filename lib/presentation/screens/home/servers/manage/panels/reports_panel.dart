@@ -39,9 +39,10 @@ class _ReportsPanelState extends State<ReportsPanel> {
       subtitle: switch (state.openCount) {
         0 => 'Nothing waiting',
         1 => '1 open report',
+        final n when state.openMayBeMore => '$n+ open reports, newest first',
         final n => '$n open reports',
       },
-      error: state.error,
+      error: _showClosed ? state.closedError : state.error,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -55,9 +56,11 @@ class _ReportsPanelState extends State<ReportsPanel> {
             ),
           ),
           const SizedBox(height: 14),
-          if (state.loading && entries.isEmpty)
+          if ((_showClosed ? state.closedLoading : state.loading) &&
+              entries.isEmpty)
             const LoadingBlock()
-          else if (entries.isEmpty)
+          else if (entries.isEmpty &&
+              (_showClosed ? state.closedError : state.error) == null)
             HintCard(
               icon: _showClosed
                   ? Icons.history_rounded

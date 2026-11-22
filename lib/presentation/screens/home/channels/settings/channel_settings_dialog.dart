@@ -75,7 +75,14 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
     }
 
     final canManage = canManageChannel(context, channel);
-    final tabs = visibleChannelSettingsTabs(channel, canManage: canManage);
+    final canManageWebhooks = context.select<ServerCubit, bool>(
+      (c) => c.state.permissionsOn(serverId)?.mayManageWebhooks ?? false,
+    );
+    final tabs = visibleChannelSettingsTabs(
+      channel,
+      canManage: canManage,
+      canManageWebhooks: canManageWebhooks,
+    );
     final title = canManage ? 'Channel settings' : 'Who can see this';
     final subtitle = channel.hasMessages ? '#${channel.name}' : channel.name;
 

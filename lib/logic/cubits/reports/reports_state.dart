@@ -11,10 +11,18 @@ class ReportEntry extends Equatable {
   /// attachments to delete with it. Null when it could not be opened.
   final ChatMessage? message;
 
-  const ReportEntry({required this.report, this.content, this.message});
+  /// The reported poll's question and options, drawn as words.
+  final PollBody? poll;
+
+  const ReportEntry({
+    required this.report,
+    this.content,
+    this.message,
+    this.poll,
+  });
 
   @override
-  List<Object?> get props => [report, content, message];
+  List<Object?> get props => [report, content, message, poll];
 }
 
 /// One server's reports, for somebody who may review them.
@@ -32,6 +40,11 @@ class ReportsState extends Equatable {
   final List<ReportEntry> closed;
   final bool loading;
   final bool closedLoaded;
+  final bool closedLoading;
+
+  /// A failed read of the closed list, kept apart from [error] so the page
+  /// says it only on the tab it is about.
+  final String? closedError;
 
   /// Whether the member may review reports here at all. False hides the page
   /// and the badge.
@@ -44,17 +57,26 @@ class ReportsState extends Equatable {
     this.closed = const [],
     this.loading = false,
     this.closedLoaded = false,
+    this.closedLoading = false,
+    this.closedError,
     this.canReview = false,
     this.error,
   });
 
   int get openCount => open.length;
 
+  /// Whether there may be more open reports than were read: the list is one
+  /// page, newest first, and a full page says no more than that.
+  bool get openMayBeMore => open.length >= ServerRepository.reportsPage;
+
   ReportsState copyWith({
     List<ReportEntry>? open,
     List<ReportEntry>? closed,
     bool? loading,
     bool? closedLoaded,
+    bool? closedLoading,
+    String? closedError,
+    bool clearClosedError = false,
     bool? canReview,
     String? error,
     bool clearError = false,
@@ -64,6 +86,8 @@ class ReportsState extends Equatable {
     closed: closed ?? this.closed,
     loading: loading ?? this.loading,
     closedLoaded: closedLoaded ?? this.closedLoaded,
+    closedLoading: closedLoading ?? this.closedLoading,
+    closedError: clearClosedError ? null : (closedError ?? this.closedError),
     canReview: canReview ?? this.canReview,
     error: clearError ? null : (error ?? this.error),
   );
@@ -75,6 +99,8 @@ class ReportsState extends Equatable {
     closed,
     loading,
     closedLoaded,
+    closedLoading,
+    closedError,
     canReview,
     error,
   ];

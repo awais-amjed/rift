@@ -66,6 +66,7 @@ class _ReportDialogState extends State<ReportDialog> {
           'have been looked at.',
     'cannot_report_self' => 'You cannot report yourself.',
     'message_not_found' => 'That message is gone.',
+    'user_not_found' => 'They aren\'t on this server any more.',
     _ => response.error ?? 'Could not send the report.',
   };
 

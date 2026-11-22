@@ -44,17 +44,12 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
   List<ServerMember> _bots = const [];
   Set<String> _granted = {};
   bool _isLoading = true;
+
+  /// The read of who holds access failed: drawn as that, not as every bot
+  /// switched off, which offered a revoke only after a "grant".
+  bool _loadFailed = false;
   String? _busyId;
   String? _error;
-
-  bool get _mayManage =>
-      (context
-                  .read<ServerCubit>()
-                  .state
-                  .permissionsOn(ServerScope.readId(context))
-                  ?.bits ??
-              0)
-          .has(ServerPermission.manageBots);
 
   @override
   void initState() {
@@ -77,7 +72,8 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
         for (final bot in bots)
           if (!bot.isBanned) bot,
       ];
-      _granted = listening;
+      _granted = listening ?? {};
+      _loadFailed = listening == null;
       _isLoading = false;
     });
   }
@@ -132,6 +128,15 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final serverId = ServerScope.idOf(context);
+    // Selected, so being given or losing the permission while the page is
+    // open moves the switches; and `can`, which answers on a server from
+    // before the bits.
+    final mayManage = context.select<ServerCubit, bool>(
+      (c) =>
+          c.state.permissionsOn(serverId)?.can(ServerPermission.manageBots) ??
+          false,
+    );
     return ManagePanel(
       title: 'Bots',
       subtitle: 'Bots that can hear calls here',
@@ -142,6 +147,13 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
         children: [
           if (_isLoading)
             const LoadingBlock(height: 140)
+          else if (_loadFailed)
+            const HintCard(
+              icon: Icons.cloud_off_outlined,
+              text:
+                  'Couldn\'t read which bots have access here. Close this '
+                  'and try again.',
+            )
           else if (_bots.isEmpty)
             const HintCard(
               icon: Icons.smart_toy_outlined,
@@ -159,7 +171,7 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
                   'already speak into a call; this is only about hearing one.',
             ),
             const SizedBox(height: 12),
-            if (!_mayManage) ...[
+            if (!mayManage) ...[
               const HintCard(
                 icon: Icons.visibility_outlined,
                 text:
@@ -175,7 +187,7 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
                 busy: _busyId == bot.id,
                 grantedNote: 'Hears everyone in this call.',
                 ungrantedNote: 'Can speak here, hears nothing.',
-                onChanged: _mayManage && _busyId == null
+                onChanged: mayManage && _busyId == null
                     ? () => _toggle(bot)
                     : null,
               ),

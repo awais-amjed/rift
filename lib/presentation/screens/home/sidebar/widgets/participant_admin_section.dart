@@ -40,6 +40,10 @@ class ParticipantAdminSection extends StatelessWidget {
   /// Holds `KICK_MEMBERS`.
   final bool canKick;
 
+  /// Holds `BAN_MEMBERS`, which admins hold by implication and a role may
+  /// give a moderator.
+  final bool canBan;
+
   /// The kick's confirmation says what a bot loses and how it comes back.
   final bool targetIsBot;
 
@@ -68,6 +72,7 @@ class ParticipantAdminSection extends StatelessWidget {
     required this.isModerator,
     required this.isServerAdmin,
     required this.canKick,
+    required this.canBan,
     this.targetIsBot = false,
     required this.isLive,
     required this.voiceChannelId,
@@ -87,10 +92,13 @@ class ParticipantAdminSection extends StatelessWidget {
   bool get _canModerate => isModerator && isLive && !targetIsAdmin;
 
   bool get _showsAnything =>
-      _canModerate || _canMove || isServerAdmin || _canKick;
+      _canModerate || _canMove || isServerAdmin || _canKick || _canBan;
 
   /// Not against an admin, whom `kick_member` refuses.
   bool get _canKick => canKick && !targetIsAdmin;
+
+  /// Not against an admin, whom `moderate_user` refuses.
+  bool get _canBan => canBan && !targetIsAdmin;
 
   @override
   Widget build(BuildContext context) {
@@ -170,9 +178,9 @@ class ParticipantAdminSection extends StatelessWidget {
           canDisconnect: _canDisconnect,
           canKick: _canKick,
           targetIsBot: targetIsBot,
-          // Admin only, matching `moderate_user`'s own `app.is_admin()`,
-          // and never against another admin, which it also refuses.
-          canBan: isServerAdmin && !targetIsAdmin,
+          // `BAN_MEMBERS`, as `moderate_user` asks, and never against an
+          // admin, which it refuses.
+          canBan: _canBan,
         ),
         Divider(height: 9, color: themeState.borderPrimary),
       ],

@@ -84,6 +84,9 @@ class ServerRepository
         _VoiceApiMixin,
         _VoiceRegionsMixin,
         _WebhookApiMixin {
+  /// The most of a list `listReports` reads at once.
+  static const reportsPage = 50;
+
   /// [client] and [askAgainAfter] are for a test; the app posts with
   /// `http.post`, a connection per call, as it always has.
   ServerRepository({

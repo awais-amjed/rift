@@ -13,6 +13,7 @@ import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
 import '../../../../common/confirm_dialog.dart';
+import '../../../../common/hint_card.dart';
 import '../../../../common/loading_block.dart';
 import '../../../../common/server_scope.dart';
 import '../../../settings/widgets/setting_toggle_row.dart';
@@ -46,15 +47,11 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
   bool _serverWide = false;
   bool _isLoading = true;
   bool _isBusy = false;
-  String? _error;
 
-  bool get _mayManage =>
-      context
-          .read<ServerCubit>()
-          .state
-          .permissionsOn(ServerScope.read(context).serverId)
-          ?.can(ServerPermission.manageBots) ??
-      false;
+  /// The read of its access failed. Drawn as that, never as the empty lists,
+  /// which say it reads and hears nothing.
+  bool _loadFailed = false;
+  String? _error;
 
   List<Channel> _channelsIn(Set<String> ids) {
     final all =
@@ -84,10 +81,15 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
     ).voiceChannelsHeardBy(widget.bot.id);
     if (!mounted) return;
     setState(() {
+      _isLoading = false;
+      if (access == null || heard == null) {
+        _loadFailed = true;
+        return;
+      }
+      _loadFailed = false;
       _channelIds = access.channelIds;
       _voiceChannelIds = heard;
       _serverWide = access.serverWide;
-      _isLoading = false;
     });
   }
 
@@ -131,6 +133,12 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
   Widget build(BuildContext context) {
     final channels = _channelsIn(_channelIds);
     final heard = _channelsIn(_voiceChannelIds);
+    final serverId = ServerScope.idOf(context);
+    final mayManage = context.select<ServerCubit, bool>(
+      (c) =>
+          c.state.permissionsOn(serverId)?.can(ServerPermission.manageBots) ??
+          false,
+    );
 
     return AppModal(
       title: 'What it can reach',
@@ -143,6 +151,13 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
         children: [
           if (_isLoading)
             const LoadingBlock(height: 140)
+          else if (_loadFailed)
+            HintCard(
+              icon: Icons.cloud_off_outlined,
+              text:
+                  'Couldn\'t read what ${widget.bot.displayName} can reach. '
+                  'Close this and try again.',
+            )
           else ...[
             BotAccessList(
               label: 'Channels it can read',
@@ -157,7 +172,7 @@ class _BotAccessDialogState extends State<BotAccessDialog> {
                     'Including channels made later. A private channel is '
                     'never covered — that stays one decision at a time.',
                 value: _serverWide,
-                onChanged: _mayManage && !_isBusy ? _toggleServerWide : null,
+                onChanged: mayManage && !_isBusy ? _toggleServerWide : null,
               ),
             ),
             const SizedBox(height: 20),

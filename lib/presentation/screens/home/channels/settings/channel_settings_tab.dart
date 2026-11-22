@@ -56,9 +56,14 @@ bool canManageChannel(BuildContext context, Channel channel) {
 /// channel gets Access alone, read-only: knowing who else can read what you
 /// are about to say is the point of the room being private, and not a thing
 /// you should need a permission to find out. Everyone else gets nothing.
+///
+/// Webhooks need [canManageWebhooks] as well: the server-wide permission
+/// ([UserPermissions.mayManageWebhooks]), which is what the server asks of a
+/// webhook in any channel, private ones included.
 List<ChannelSettingsTab> visibleChannelSettingsTabs(
   Channel channel, {
   required bool canManage,
+  bool canManageWebhooks = false,
 }) {
   if (!canManage) {
     return channel.isPrivate ? const [ChannelSettingsTab.access] : const [];
@@ -68,7 +73,7 @@ List<ChannelSettingsTab> visibleChannelSettingsTabs(
     ChannelSettingsTab.access,
     ChannelSettingsTab.permissions,
     ChannelSettingsTab.bots,
-    if (channel.hasMessages) ChannelSettingsTab.webhooks,
+    if (channel.hasMessages && canManageWebhooks) ChannelSettingsTab.webhooks,
     ChannelSettingsTab.delete,
   ];
 }

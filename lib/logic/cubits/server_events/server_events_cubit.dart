@@ -94,9 +94,19 @@ class ServerEventsCubit extends Cubit<int> {
   /// Re-reading the server is what makes `user.isBanned` current. It used to
   /// run for *anybody's* row, on every member at once.
   /// A ban that arrives while we're in a call is left to `moderate_user`,
-  /// which removes us from LiveKit itself.
+  /// which removes us from LiveKit itself. An open channel on this server is
+  /// closed here: on a desktop the banned notice covers it, but on a phone it
+  /// sits under the pushed chat page, which kept its old messages and a
+  /// composer whose every send failed.
   Future<void> _onMembershipChanged() async {
     await _serverCubit.refreshServerDetails(serverId: _serverId);
+    if (isClosed) return;
+    final server = _session.serverById(_serverId);
+    if ((server?.user?.isBanned ?? false) &&
+        _chatCubit.openServerId == _serverId &&
+        _chatCubit.state.channelId != null) {
+      unawaited(_chatCubit.closeChannel());
+    }
   }
 
   Future<void> _onChannelsChanged() async {

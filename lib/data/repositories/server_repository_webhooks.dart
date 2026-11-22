@@ -61,8 +61,15 @@ mixin _WebhookApiMixin {
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      await db.from('webhooks').delete().eq('id', webhookId);
-      return {'deleted': true};
+      // Asked back, because a delete the policy filters out answers like one
+      // that happened: a manager demoted with the dialog open saw a webhook
+      // "revoked" that was still posting.
+      final rows = await db
+          .from('webhooks')
+          .delete()
+          .eq('id', webhookId)
+          .select('id');
+      return {'deleted': (rows as List).isNotEmpty};
     });
   }
 }

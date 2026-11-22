@@ -300,6 +300,7 @@ class ParticipantContextMenu extends StatelessWidget {
                 // channels.
                 canKick:
                     permissions?.can(ServerPermission.kickMembers) ?? false,
+                canBan: permissions?.can(ServerPermission.banMembers) ?? false,
                 targetIsBot: targetIsBot,
                 isLive: isLive,
                 voiceChannelId: voiceChannelId,

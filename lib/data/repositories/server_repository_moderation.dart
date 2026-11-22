@@ -63,7 +63,7 @@ mixin _ModerationApiMixin {
     required String anonKey,
     String? bearerToken,
     required bool open,
-    int limit = 50,
+    int limit = ServerRepository.reportsPage,
   }) {
     return ServerDb.run(() async {
       // Both people and the channel ride along, each under its own policy:

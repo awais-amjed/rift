@@ -38,12 +38,23 @@ class _TimeOutBuilderState extends State<TimeOutBuilder> {
     if (oldWidget.until != widget.until) _schedule();
   }
 
+  /// The longest single wait. A browser's timer overflows past about 24.8
+  /// days and fires at once, and a time-out may run 28; waking once a day and
+  /// asking again costs nothing.
+  static const _longestWait = Duration(days: 1);
+
+  /// Wait for the end, then ask again: a timer that fires early — the clock
+  /// stepped back, or a capped wait above — re-arms rather than leaving the
+  /// gate up until something else rebuilds it.
   void _schedule() {
     _timer?.cancel();
     _timer = null;
     if (!_active) return;
-    _timer = Timer(widget.until!.difference(DateTime.now()), () {
-      if (mounted) setState(() {});
+    final left = widget.until!.difference(DateTime.now());
+    _timer = Timer(left > _longestWait ? _longestWait : left, () {
+      if (!mounted) return;
+      setState(() {});
+      _schedule();
     });
   }
 

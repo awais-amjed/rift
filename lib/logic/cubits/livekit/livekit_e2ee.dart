@@ -97,7 +97,12 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   Future<Set<String>> _listeningBots(String channelId, String? serverId) async {
     final session = _session;
     if (session == null || serverId == null) return const {};
-    return VoiceBotsApi(session.on(serverId)).voiceListenerIds(channelId);
+    // A failed read keys no bot: the safe direction, since a listener that
+    // misses a call is a bot that hears less, never more.
+    return await VoiceBotsApi(
+          session.on(serverId),
+        ).voiceListenerIds(channelId) ??
+        const {};
   }
 
   /// Load the channel's key from [server], the call's, and build the options

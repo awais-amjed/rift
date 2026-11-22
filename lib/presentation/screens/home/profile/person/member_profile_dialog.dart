@@ -163,6 +163,8 @@ class _MemberProfileDialogState extends State<MemberProfileDialog> {
           'cannot_moderate_peer' =>
             'Someone who can time others out can\'t be timed out.',
           'cannot_moderate_admin' => 'Admins can\'t be timed out.',
+          'not_authorized' => 'You can\'t time people out here any more.',
+          'user_not_found' => 'They aren\'t on this server any more.',
           _ => response.error ?? 'Could not do that.',
         },
       );

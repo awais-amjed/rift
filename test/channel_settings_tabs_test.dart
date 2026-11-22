@@ -21,14 +21,28 @@ void main() {
   );
 
   test('a manager of a text channel gets every page', () {
-    expect(visibleChannelSettingsTabs(text, canManage: true), [
-      ChannelSettingsTab.overview,
-      ChannelSettingsTab.access,
-      ChannelSettingsTab.permissions,
-      ChannelSettingsTab.bots,
-      ChannelSettingsTab.webhooks,
-      ChannelSettingsTab.delete,
-    ]);
+    expect(
+      visibleChannelSettingsTabs(
+        text,
+        canManage: true,
+        canManageWebhooks: true,
+      ),
+      [
+        ChannelSettingsTab.overview,
+        ChannelSettingsTab.access,
+        ChannelSettingsTab.permissions,
+        ChannelSettingsTab.bots,
+        ChannelSettingsTab.webhooks,
+        ChannelSettingsTab.delete,
+      ],
+    );
+  });
+
+  test('webhooks need the server-wide permission the server asks for', () {
+    expect(
+      visibleChannelSettingsTabs(text, canManage: true),
+      isNot(contains(ChannelSettingsTab.webhooks)),
+    );
   });
 
   test('a voice channel has no webhooks, which post messages', () {

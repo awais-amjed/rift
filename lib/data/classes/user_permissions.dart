@@ -54,6 +54,16 @@ class UserPermissions extends Equatable {
   bool get mayAddBots =>
       can(ServerPermission.createInvite) && can(ServerPermission.addBots);
 
+  /// Whether this member may make, list and revoke webhooks. The server asks
+  /// for Manage channels (`create_webhook`, `webhooks_select`,
+  /// `webhooks_delete`), so the bit alone would open a page whose list is
+  /// empty and whose Create is refused; and the bit is what a server's roles
+  /// say about webhooks, so Manage channels alone does not open it either —
+  /// except on a server from before the bits, where it is all there is.
+  bool get mayManageWebhooks =>
+      can(ServerPermission.manageChannels) &&
+      (bits == 0 || can(ServerPermission.manageWebhooks));
+
   /// These permissions as [channel] has them: its overrides applied, as
   /// the server worked them out (`Channel.myPermissions`). The server's own
   /// for no channel, or one from a server without overrides.

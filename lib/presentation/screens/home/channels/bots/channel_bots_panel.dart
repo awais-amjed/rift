@@ -41,17 +41,12 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
   List<ServerMember> _bots = const [];
   Set<String> _granted = {};
   bool _isLoading = true;
+
+  /// The read of who holds access failed: drawn as that, not as every bot
+  /// switched off, which offered a revoke only after a "grant".
+  bool _loadFailed = false;
   String? _busyId;
   String? _error;
-
-  bool get _mayManage =>
-      (context
-                  .read<ServerCubit>()
-                  .state
-                  .permissionsOn(ServerScope.readId(context))
-                  ?.bits ??
-              0)
-          .has(ServerPermission.manageBots);
 
   @override
   void initState() {
@@ -75,7 +70,8 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
         for (final bot in bots)
           if (!bot.isBanned) bot,
       ];
-      _granted = listeners;
+      _granted = listeners ?? {};
+      _loadFailed = listeners == null;
       _isLoading = false;
     });
   }
@@ -132,6 +128,15 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final serverId = ServerScope.idOf(context);
+    // Selected, so being given or losing the permission while the page is
+    // open moves the switches; and `can`, which answers on a server from
+    // before the bits.
+    final mayManage = context.select<ServerCubit, bool>(
+      (c) =>
+          c.state.permissionsOn(serverId)?.can(ServerPermission.manageBots) ??
+          false,
+    );
     return ManagePanel(
       title: 'Bots',
       subtitle: 'Bots that can read this channel',
@@ -142,6 +147,13 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
         children: [
           if (_isLoading)
             const LoadingBlock(height: 140)
+          else if (_loadFailed)
+            const HintCard(
+              icon: Icons.cloud_off_outlined,
+              text:
+                  'Couldn\'t read which bots have access here. Close this '
+                  'and try again.',
+            )
           else if (_bots.isEmpty)
             const HintCard(
               icon: Icons.smart_toy_outlined,
@@ -150,7 +162,7 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
                   'created from “Invite people” with Bot chosen.',
             )
           else ...[
-            if (!_mayManage) ...[
+            if (!mayManage) ...[
               const HintCard(
                 icon: Icons.visibility_outlined,
                 text:
@@ -164,7 +176,7 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
                 bot: bot,
                 granted: _granted.contains(bot.id),
                 busy: _busyId == bot.id,
-                onChanged: _mayManage && _busyId == null
+                onChanged: mayManage && _busyId == null
                     ? () => _toggle(bot)
                     : null,
               ),
