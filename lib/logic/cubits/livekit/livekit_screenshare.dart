@@ -92,7 +92,20 @@ mixin _ScreenshareMixin on Cubit<LiveKitState> {
       }
     }
 
-    if (subscribedAny) {
+    // A desktop share's connection with no picture yet is one about to have
+    // it: a window shared while minimised publishes nothing until it is
+    // opened. Watching stays chosen, the tile says the share is paused, and
+    // the picture is taken when it is published ([TrackPublishedEvent]).
+    // Dropped, Watch did nothing at all, however often it was pressed (AMD
+    // PC, Nov 22 2026).
+    final awaitingPicture =
+        !subscribedAny && ParticipantIdentity.isScreenshare(identity);
+    if (subscribedAny || awaitingPicture) {
+      if (awaitingPicture) {
+        HelperMethods.printDebug(
+          '[LiveKit] $identity has no picture yet; watching once it comes',
+        );
+      }
       _syncParticipants();
       unawaited(_publishSelfState());
     } else {

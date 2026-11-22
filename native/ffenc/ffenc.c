@@ -378,6 +378,11 @@ static int open_codec(RiftFfenc* enc, const AVCodec* codec,
       av_opt_set(c->priv_data, "latency", "1", 0);
       av_opt_set(c->priv_data, "preencode", "0", 0);
       av_opt_set(c->priv_data, "forced_idr", "1", 0);
+      // Held to the buffer above, as NVENC is by itself. Left to AMF's own
+      // default it ran past it in bursts: an RX 9070 XT's busy 1440p60 H265
+      // share at 17 Mbps had 10 to 33 of every 300 pictures left out by the
+      // gate, where NVENC had none (Nov 22 2026).
+      av_opt_set(c->priv_data, "enforce_hrd", "1", 0);
       break;
     default:
       break;

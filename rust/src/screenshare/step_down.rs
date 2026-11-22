@@ -19,7 +19,8 @@
 //! Whether the gate leaves pictures out says whether the share fits, whatever
 //! is on screen: a still desktop at a low rate keeps its size, since it costs
 //! next to nothing. WebRTC's target says when to climb, since a share held
-//! below it cannot show that more would fit.
+//! below it cannot show that more would fit. At the share's cap it also says
+//! the connection is not what leaves pictures out ([`AT_CAP_SHARE`]).
 //!
 //! Neither says anything while nobody watches. The server pauses the picture
 //! then, WebRTC's target stays where it was, low for a share started before
@@ -41,6 +42,15 @@ const WINDOW: Duration = Duration::from_secs(2);
 /// counts against the step. A viewer joining at a healthy rate costs a few
 /// pictures in a window: a keyframe several pictures' worth.
 const LEFT_OUT_SHARE: f64 = 0.1;
+
+/// The part of the share's cap at or above which WebRTC's target says the
+/// connection carries the share. Pictures left out there are the encoder's
+/// overshoot, not the connection's: a smaller picture would not stay, since
+/// the target already carries the step above, and the share climbed straight
+/// back. An RX 9070 XT's 1440p60 share at its 17 Mbps cap stepped down and up
+/// every 13 to 60 s with 35 to 57 Mbps to spare, each step a new encoder and
+/// a keyframe (Nov 22 2026).
+const AT_CAP_SHARE: f64 = 0.9;
 
 /// Windows in a row against the step before the share goes down one.
 const BAD_WINDOWS: u32 = 2;
@@ -258,6 +268,7 @@ impl StepDown {
         } else {
             self.climbable_since = None;
         }
+        let at_cap = self.at_cap(target_bps);
         let (start, offered, left_out) = self.window.get_or_insert((now, 0, 0));
         *offered += 1;
         if !admitted {
@@ -271,7 +282,8 @@ impl StepDown {
         // anything.
         let bad = span < WINDOW * 3 / 2
             && *offered >= FEWEST_PICTURES
-            && f64::from(*left_out) > LEFT_OUT_SHARE * f64::from(*offered);
+            && f64::from(*left_out) > LEFT_OUT_SHARE * f64::from(*offered)
+            && !at_cap;
         let follows = self
             .judged
             .is_some_and(|judged| start.duration_since(judged) < WINDOW / 2);
@@ -333,6 +345,12 @@ impl StepDown {
             width: side(self.full.width),
             height: side(self.full.height),
         }
+    }
+
+    /// Whether WebRTC's target is as good as the share's cap
+    /// ([`AT_CAP_SHARE`]). A share with no cap is never at it.
+    fn at_cap(&self, target_bps: u32) -> bool {
+        self.cap_bps > 0 && f64::from(target_bps) >= AT_CAP_SHARE * f64::from(self.cap_bps)
     }
 
     /// What WebRTC's target must be to climb a step, in bits a second.
@@ -530,6 +548,22 @@ mod tests {
         assert!((4.0..4.2).contains(&at), "{at}");
         assert_eq!(change, Change::Size);
         assert_eq!(step.describe(), "1280x720 at 60 fps");
+    }
+
+    #[test]
+    fn pictures_left_out_at_the_cap_are_the_encoder_s_not_the_link_s() {
+        let mut step = fitted(SharePriority::Smoothness);
+        // An encoder over its rate in bursts, with WebRTC's target at the cap
+        // and just under it.
+        let start = Instant::now();
+        let at = |seconds| start + Duration::from_secs(seconds);
+        for (from, target) in [(0, CAP), (30, CAP * 95 / 100)] {
+            let changes = run(&mut step, at(from), 30.0, target, |n| n % 4 != 0);
+            assert_eq!(changes, [], "at {target}");
+        }
+        // Below it, the connection is what holds the share back.
+        let changes = run(&mut step, at(60), 5.0, CAP * 8 / 10, |n| n % 4 != 0);
+        assert_eq!(changes.len(), 1, "{changes:?}");
     }
 
     #[test]

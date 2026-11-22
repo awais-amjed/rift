@@ -1424,7 +1424,10 @@ what was driven are in `TESTING.md`).
   clip's picture stayed within 0.1 dB PSNR of the second's. The cost is a
   keyframe of still text: at 2 to 8 Mbps it comes out 5 to 15% smaller and 0.1
   to 1.6 dB softer, and half a second on it is still up to 2.5 dB softer. AMF
-  takes the same buffer and is not measured.
+  takes the same buffer, and is told to keep to it (`enforce_hrd`): without that,
+  an RX 9070 XT's busy 1440p60 H265 share at its 17 Mbps cap had 10 to 33 of
+  every 300 pictures left out, where NVENC had none (Nov 22 2026). Not yet
+  measured with it.
 - **A GPU encoder's rate is scaled to the pictures that come**
   (`encoder/frame_rate.rs`). It is opened at the share's frame rate and
   budgets each picture as a share of it, so a game drawing at 40, or capture
@@ -1456,6 +1459,11 @@ what was driven are in `TESTING.md`).
   Nothing is judged for 5 s after a track's first picture, while WebRTC's
   estimate climbs from 1 Mbps, nor for 3 s after a step. A window of under
   thirty pictures, or one stretched by a still spell, is not judged either.
+  Nor is one while WebRTC's target is within a tenth of the share's cap: the
+  connection then carries the share, and pictures left out are the encoder's
+  overshoot, which a smaller picture does not cure. Before this, AMD's AMF at
+  its cap stepped down and climbed straight back every 13 to 60 s, with 35 to
+  57 Mbps to spare, each step a new encoder and a keyframe (Nov 22 2026).
   So a still screen keeps its size at any rate, though a refused still picture
   is offered again every 100 ms. The share climbs back once WebRTC's target
   stays for 10 s at 0.03 bits per pixel of the step above (3.7 Mbps for
