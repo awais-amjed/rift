@@ -1436,8 +1436,12 @@ what was driven are in `TESTING.md`).
   budgets and the share talked itself down (a friend's whole-screen RDR2
   share at 0.3 to 2 Mbps on a 100 Mbps line, Nov 18 2026). The encoder is
   handed the target times the frame rate it was opened at over the rate
-  pictures reached the feed in the last second, up to three times, moved in
-  steps of a tenth, and kept through a still spell. The pictures are counted
+  pictures reached the feed in the last second, up to three times, and kept
+  through a still spell. It is raised only when two seconds in a row call for a
+  tenth more, and lowered as soon as it sits 0.02 above what they call for:
+  moved only in steps of a tenth, a scale raised to 1.10 by one slow second
+  stayed there while 59 of 60 pictures came, and the gate left out up to 40 of
+  every 300 (AMD's AMF beside Warzone, Nov 22 2026). The pictures are counted
   before the gate, or each it left out would make the next ones bigger, but
   after a step down to fewer of them (below), which they are then budgeted for. The
   gate itself still holds the encoder to the target. Proven by unit tests,

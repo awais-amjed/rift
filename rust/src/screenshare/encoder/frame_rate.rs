@@ -25,9 +25,18 @@ const WINDOW: Duration = Duration::from_secs(1);
 /// leaves the next ones out.
 const MOST: f64 = 3.0;
 
-/// How far the scale must move before it is changed, so a rate wavering
+/// How far the scale must rise before it is raised, so a rate wavering
 /// round its mark does not move the encoder every second.
 const STEP: f64 = 0.1;
+
+/// How far the scale may sit above what the pictures coming call for before
+/// it is lowered. Above it, each picture is budgeted for more than its share,
+/// and the rate gate leaves out the difference: held to the step, a scale
+/// raised to 1.10 by one slow second stayed there while 59 of 60 came, and an
+/// RX 9070 XT's Warzone share had up to 40 of every 300 pictures left out
+/// (Nov 22 2026). Lowered at once, the encoder at worst sends a little under
+/// WebRTC's target, which it then gives back.
+const SLACK: f64 = 0.02;
 
 /// The scale from the frame rate the encoder was opened at to the one coming.
 #[derive(Debug)]
@@ -36,6 +45,9 @@ pub(super) struct FrameRateScale {
     /// Pictures offered when the window began, and when it began.
     since: Option<(u32, Instant)>,
     scale: f64,
+    /// What the last window called for, when that was a step above the
+    /// scale: one slow second alone does not raise it, a second in a row does.
+    rising: Option<f64>,
 }
 
 impl FrameRateScale {
@@ -44,6 +56,7 @@ impl FrameRateScale {
             nominal_fps: nominal_fps.max(1),
             since: None,
             scale: 1.0,
+            rising: None,
         }
     }
 
@@ -67,7 +80,16 @@ impl FrameRateScale {
             return;
         }
         let scale = (f64::from(self.nominal_fps) / fps).clamp(1.0, MOST);
-        if (scale - self.scale).abs() >= STEP || (scale == 1.0 && self.scale != 1.0) {
+        if scale >= self.scale + STEP {
+            // Raised once two windows in a row call for it, to the lesser.
+            if let Some(before) = self.rising.replace(scale) {
+                self.scale = before.min(scale);
+                self.rising = None;
+            }
+            return;
+        }
+        self.rising = None;
+        if scale < self.scale - SLACK || (scale == 1.0 && self.scale != 1.0) {
             self.scale = scale;
         }
     }
@@ -101,9 +123,11 @@ mod tests {
         seconds: u64,
         fps: u32,
     ) {
-        for tick in (from_s * 10)..((from_s + seconds) * 10) {
-            *offered += fps / 10;
-            scale.observe(*offered, start + ms(tick * 100 + 100));
+        let base = *offered;
+        for n in 1..=seconds * 10 {
+            // Exactly `fps` a second, spread over the ticks.
+            *offered = base + (u64::from(fps) * n / 10) as u32;
+            scale.observe(*offered, start + ms(from_s * 1000 + n * 100));
         }
     }
 
@@ -150,19 +174,41 @@ mod tests {
     }
 
     #[test]
-    fn small_moves_do_not_change_it_but_the_full_rate_does() {
+    fn small_rises_do_not_change_it_but_any_fall_past_the_slack_does() {
         let start = Instant::now();
         let mut scale = FrameRateScale::new(60);
         let mut offered = 0;
         scale.observe(0, start);
-        feed(&mut scale, start, &mut offered, 0, 2, 40);
+        feed(&mut scale, start, &mut offered, 0, 3, 40);
         assert!((scale.scale() - 1.5).abs() < 1e-9);
-        // 1.5 to about 1.43: under the step, kept.
-        feed(&mut scale, start, &mut offered, 2, 2, 42);
-        assert!((scale.scale() - 1.5).abs() < 1e-9);
+        // 1.5 to about 1.43: lowered, or each picture would get more than
+        // its share.
+        feed(&mut scale, start, &mut offered, 3, 2, 42);
+        assert!((scale.scale() - 60.0 / 42.0).abs() < 1e-9);
+        // Up to 1.5 again: under the step, kept.
+        feed(&mut scale, start, &mut offered, 5, 3, 40);
+        assert!((scale.scale() - 60.0 / 42.0).abs() < 1e-9);
         // Back to the full rate, by any amount.
-        feed(&mut scale, start, &mut offered, 4, 2, 60);
+        feed(&mut scale, start, &mut offered, 8, 2, 60);
         assert!((scale.scale() - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn one_slow_second_does_not_raise_it_nor_does_the_scale_stick_above_the_rate() {
+        let start = Instant::now();
+        let mut scale = FrameRateScale::new(60);
+        let mut offered = 0;
+        scale.observe(0, start);
+        // One second at 50, then 59 a second: never raised (Warzone, Nov 22).
+        feed(&mut scale, start, &mut offered, 0, 1, 50);
+        feed(&mut scale, start, &mut offered, 1, 5, 59);
+        assert!((scale.scale() - 1.0).abs() < 1e-9);
+        // Raised for two slow seconds, then lowered as soon as 59 come again,
+        // not held a step above them.
+        feed(&mut scale, start, &mut offered, 6, 2, 50);
+        assert!((scale.scale() - 1.2).abs() < 1e-9);
+        feed(&mut scale, start, &mut offered, 8, 2, 59);
+        assert!(scale.scale() < 1.0 + SLACK, "{}", scale.scale());
     }
 
     #[test]
