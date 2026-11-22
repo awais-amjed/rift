@@ -29,6 +29,9 @@ class MembersList extends StatelessWidget {
   final bool viewerIsAdmin;
   final bool viewerIsModerator;
 
+  /// Holds Kick members or Ban members, which open a row on their own.
+  final bool viewerCanRemove;
+
   /// Which row is open, and which is waiting on a call.
   final String? expandedId;
   final String? busyId;
@@ -55,6 +58,7 @@ class MembersList extends StatelessWidget {
     required this.viewerId,
     required this.viewerIsAdmin,
     required this.viewerIsModerator,
+    this.viewerCanRemove = false,
     required this.expandedId,
     required this.busyId,
     required this.onTap,
@@ -106,6 +110,9 @@ class MembersList extends StatelessWidget {
           // Moderators mute/deafen non-admins.
           canModerate:
               viewerIsModerator && !isSelf && !member.permissions.isServerAdmin,
+          // Not yourself, and not an admin: the server refuses both.
+          canRemove:
+              viewerCanRemove && !isSelf && !member.permissions.isServerAdmin,
           roles: memberRoles[member.id] ?? const [],
           onTap: () => onTap(member),
           onModerate: ({muted, deafened, banned, kick = false}) => onModerate(

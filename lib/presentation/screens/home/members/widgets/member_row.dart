@@ -23,6 +23,11 @@ class MemberRow extends StatelessWidget {
   final bool canManagePermissions;
   final bool canModerate;
 
+  /// Whether the viewer may kick or ban this member — a role can hold either
+  /// without managing channels, and the row has to open for the panel that
+  /// offers them.
+  final bool canRemove;
+
   /// Every role this member holds, most senior first. This is the screen with
   /// room for all of them — the sidebar shows one, because a row there is
   /// already carrying a name, a presence dot and two moderation icons.
@@ -39,12 +44,13 @@ class MemberRow extends StatelessWidget {
     required this.isBusy,
     required this.canManagePermissions,
     required this.canModerate,
+    this.canRemove = false,
     this.roles = const [],
     required this.onTap,
     required this.onModerate,
   });
 
-  bool get _expandable => canManagePermissions || canModerate;
+  bool get _expandable => canManagePermissions || canModerate || canRemove;
 
   List<Role> get _badges => roles;
 

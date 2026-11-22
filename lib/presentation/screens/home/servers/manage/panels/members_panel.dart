@@ -7,6 +7,7 @@ import '../../../../../../data/apis/moderation_api.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../data/classes/server_member.dart';
 import '../../../../../../data/constants.dart';
+import '../../../../../../data/enums/server_permission.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
 import '../../../../../../logic/cubits/theme/theme_cubit.dart';
@@ -149,6 +150,9 @@ class _MembersPanelState extends State<MembersPanel> {
     final viewerIsAdmin = viewerPerms?.isServerAdmin ?? false;
     final viewerIsModerator =
         viewerIsAdmin || (viewerPerms?.isChannelManager ?? false);
+    final viewerCanRemove =
+        (viewerPerms?.can(ServerPermission.kickMembers) ?? false) ||
+        (viewerPerms?.can(ServerPermission.banMembers) ?? false);
 
     return BlocBuilder<ServerMembersCubit, ServerMembersState>(
       builder: (context, roster) => ManagePanel(
@@ -189,6 +193,7 @@ class _MembersPanelState extends State<MembersPanel> {
                 viewer?.id,
                 viewerIsAdmin,
                 viewerIsModerator,
+                viewerCanRemove,
               ),
             ),
           ],
@@ -208,6 +213,7 @@ class _MembersPanelState extends State<MembersPanel> {
     String? viewerId,
     bool viewerIsAdmin,
     bool viewerIsModerator,
+    bool viewerCanRemove,
   ) {
     final isSearching = roster.search != null;
     if (_searching || (!roster.loaded && !isSearching)) {
@@ -236,6 +242,7 @@ class _MembersPanelState extends State<MembersPanel> {
       viewerId: viewerId,
       viewerIsAdmin: viewerIsAdmin,
       viewerIsModerator: viewerIsModerator,
+      viewerCanRemove: viewerCanRemove,
       expandedId: _expandedId,
       busyId: _busyId,
       onTap: (member) => setState(() {
