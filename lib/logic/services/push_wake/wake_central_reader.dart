@@ -100,7 +100,7 @@ class WakeCentralReader {
           unread: unread,
           myUserId: session.userId,
           myChatKeyPair: identity.keyPair,
-          scopePrefix: 'central',
+          targetFor: ConversationNotificationPayload.centralDm,
           marks: marks,
           levels: levels,
           limit: maxScopes,
@@ -129,6 +129,11 @@ class WakeCentralReader {
   Future<_WakeSession?> _session(String suffix) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      // The instance caches what it first read, and a push isolate can live
+      // as long as the process: without this it went on reading the session
+      // of its first wake — expired an hour later — while the app kept
+      // refreshing the stored one.
+      await prefs.reload();
       final raw = prefs.getString(sessionKey(suffix));
       if (raw == null) return null;
       return _WakeSession.parse(raw);

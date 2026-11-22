@@ -339,8 +339,7 @@ class CentralDmCubit extends Cubit<CentralDmState>
     _notifier.scan(
       conversations,
       titleFor: (c) => c.peerName,
-      payloadFor: (c) =>
-          ConversationNotificationPayload.centralDm(c.peerId).encode(),
+      targetFor: (c) => ConversationNotificationPayload.centralDm(c.peerId),
       muted: (c) => state.levelFor(c.peerId).isMuted,
     );
   }

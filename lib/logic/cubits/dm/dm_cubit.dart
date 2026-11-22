@@ -333,12 +333,9 @@ class DmCubit extends Cubit<DmState>
       titleFor: (c) => c.peerName,
       muted: (c) =>
           serverId != null && (_isMuted?.call(serverId, c.peerId) ?? false),
-      payloadFor: (c) => serverId == null
+      targetFor: (c) => serverId == null
           ? null
-          : ConversationNotificationPayload.serverDm(
-              serverId,
-              c.peerId,
-            ).encode(),
+          : ConversationNotificationPayload.serverDm(serverId, c.peerId),
     );
   }
 

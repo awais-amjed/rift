@@ -88,6 +88,30 @@ mixin _CentralDmPushMixin {
     }
   }
 
+  /// Give up this account's other credentials for one server — every one
+  /// but [keep], the one the server now holds. A server keeps one credential
+  /// at a time, so the rest are slots nothing can use: left by a turn-off
+  /// from another admin's account, whose delete cannot reach this one's
+  /// rows, or by a server reset that lost its copy. Twenty of them and this
+  /// account could turn push on nowhere.
+  Future<APIResponse> revokeOtherPushRelays({
+    required String supabaseUrl,
+    required String serverId,
+    required String keep,
+  }) async {
+    try {
+      await _client
+          .from('push_relays')
+          .delete()
+          .eq('supabase_url', supabaseUrl)
+          .eq('server_id', serverId)
+          .neq('id', keep);
+      return APIResponse.success(null);
+    } catch (e) {
+      return CentralFailure.response(e);
+    }
+  }
+
   /// Give up a credential. The server that held it stops being able to ring
   /// anyone through central, and the slot it occupied is free again.
   Future<APIResponse> revokePushRelay(String relayId) async {

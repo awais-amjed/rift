@@ -1,4 +1,5 @@
 import '../../data/classes/dm_conversation.dart';
+import 'notification_ids.dart';
 import 'notification_service.dart';
 import 'window_focus_service.dart';
 
@@ -32,7 +33,7 @@ class NewMessageNotifier {
 
   /// Inspect the latest conversation snapshot. [titleFor] builds the
   /// notification title for a conversation (e.g. its peer name), and
-  /// [payloadFor] what a press on it opens. A conversation [muted] answers
+  /// [targetFor] the conversation a press on it opens. A conversation [muted] answers
   /// true for raises nothing, though what arrived in it is still counted seen:
   /// unmuted later, it does not announce what came while it was quiet.
   ///
@@ -41,7 +42,7 @@ class NewMessageNotifier {
   List<DmConversation> scan(
     Iterable<DmConversation> conversations, {
     required String Function(DmConversation) titleFor,
-    String? Function(DmConversation)? payloadFor,
+    ConversationNotificationPayload? Function(DmConversation)? targetFor,
     bool Function(DmConversation)? muted,
   }) {
     final fresh = <DmConversation>[];
@@ -65,7 +66,8 @@ class NewMessageNotifier {
       NotificationService.instance.showMessage(
         title: titleFor(convo),
         body: convo.lastMessage!.text,
-        payload: payloadFor?.call(convo),
+        target: targetFor?.call(convo),
+        messageId: int.tryParse(convo.lastMessage!.id),
       );
     }
     return fresh;

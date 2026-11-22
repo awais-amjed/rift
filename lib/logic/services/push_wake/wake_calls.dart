@@ -62,11 +62,17 @@ class WakeCalls {
   /// Pure apart from the bookkeeping it updates, which is the point of it: a
   /// ring is posted once, and one that has stopped is taken down or turned
   /// into a missed call once.
+  ///
+  /// [muted] answers for a caller this person muted to nothing: the server
+  /// does not ring the phone for one, but any other push inside the ring
+  /// put up its full Answer and Decline, ringtone and all. Their call still
+  /// shows in the app, as a muted person's does there.
   List<WakeCallChange> apply({
     required String serverId,
     required String myId,
     required List<DmCall> fetched,
     required DateTime now,
+    bool Function(String peerId)? muted,
   }) {
     final changes = <WakeCallChange>[];
     final byId = {for (final call in fetched) call.id: call};
@@ -91,6 +97,7 @@ class WakeCalls {
       // comparison of two clocks — one running fast dropped every ring.
       if (!call.isRinging || !call.isIncomingFor(myId)) continue;
       if (_shown.containsKey(call.id)) continue;
+      if (muted?.call(call.peerId) ?? false) continue;
       _shown[call.id] = (serverId: serverId, peerName: call.peerName);
       changes.add(WakeCallRinging(serverId, call.id, call.peerName));
     }

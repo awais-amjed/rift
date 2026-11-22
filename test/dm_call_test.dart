@@ -352,6 +352,20 @@ void main() {
   });
 
   group('WakeCalls — a phone woken by a push', () {
+    test('a muted caller does not ring the phone', () {
+      final shown = WakeCalls({});
+      final changes = shown.apply(
+        serverId: 's1',
+        myId: me,
+        fetched: [call()],
+        now: t0,
+        muted: (peerId) => peerId == ben,
+      );
+      expect(changes, isEmpty);
+      // Not remembered either, so nothing is "taken down" when it ends.
+      expect(shown.shownOn('s1'), isEmpty);
+    });
+
     test('a ring is posted whatever the phone\'s clock says', () {
       final changes = WakeCalls({}).apply(
         serverId: 's1',

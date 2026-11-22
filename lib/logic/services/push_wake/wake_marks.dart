@@ -62,8 +62,23 @@ class WakeMarks {
     }
   }
 
+  /// Record one announcement straight into the file — the running app
+  /// saying something the isolate would otherwise say again.
+  static Future<void> note(String scope, int messageId) async {
+    final marks = await read();
+    if (!marks.isFresh(scope, messageId)) return;
+    marks.mark(scope, messageId);
+    await marks.save();
+  }
+
+  /// Writes these marks over the file, keeping any newer mark the file
+  /// already holds: the app and a push isolate each read, mark and save, and
+  /// the one saving second used to put back the other's older marks.
   Future<void> save() async {
     try {
+      for (final entry in (await read())._marks.entries) {
+        mark(entry.key, entry.value);
+      }
       final trimmed = pruned();
       final file = await _file();
       final temp = File('${file.path}.tmp');

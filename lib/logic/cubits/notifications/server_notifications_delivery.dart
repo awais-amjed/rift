@@ -72,7 +72,11 @@ mixin _DeliveryMixin
       }
       return;
     }
-    if (!isOpenChannel) {
+    // Loaded is what counts here, not on screen: ChannelChatCubit speaks for
+    // its channel behind a DM surface too, and asking about the surface
+    // announced a mention there twice, with two chimes.
+    final chatSpeaks = serverId == _openServerId && channelId == _openChannelId;
+    if (!chatSpeaks) {
       final server = _serverById(serverId);
       final channelName = _channelName(server, channelId);
       NotificationService.instance.showMessage(
@@ -80,10 +84,8 @@ mixin _DeliveryMixin
         body: channelName != null
             ? 'New message in #$channelName'
             : 'New message',
-        payload: ConversationNotificationPayload.channel(
-          serverId,
-          channelId,
-        ).encode(),
+        target: ConversationNotificationPayload.channel(serverId, channelId),
+        messageId: row['id'] as int?,
       );
     }
   }
@@ -129,7 +131,7 @@ mixin _DeliveryMixin
       return;
     }
     if (serverId != _dmCubit.serverId) {
-      unawaited(_notifyBackgroundDm(serverId, peerId));
+      unawaited(_notifyBackgroundDm(serverId, peerId, row['id'] as int?));
     }
   }
 
@@ -140,8 +142,10 @@ mixin _DeliveryMixin
     return null;
   }
 
-  /// Say inside the focused window that somebody named us in [channelId].
-  /// The row is ciphertext, so who and where is all there is to say.
+  /// Say inside the focused window that somebody wrote in [channelId] and,
+  /// by the row's say-so, named us. The row is ciphertext, so who and where
+  /// is all there is to say — and "mentioned you" would be the sender's word
+  /// for it, which [_rowNamesMe] is never allowed to put into a sentence.
   Future<void> _sayMentionInApp(
     String serverId,
     String channelId,
@@ -154,16 +158,13 @@ mixin _DeliveryMixin
     if (isClosed) return;
     final server = _serverById(serverId);
     final channelName = _channelName(server, channelId);
-    final me = _subs[serverId]?.userId;
-    final named = row['mentions'];
-    final everyone = !(me != null && named is List && named.contains(me));
     NotificationService.instance.showInApp(
       senderId: senderId,
       sender: name ?? 'Somebody',
       avatarPath: _avatarOf(serverId, senderId),
-      what:
-          'mentioned ${everyone ? 'everyone' : 'you'}'
-          '${channelName == null ? '' : ' in #$channelName'}',
+      what: channelName == null
+          ? 'sent a message'
+          : 'sent a message in #$channelName',
       place: server?.name,
       target: ConversationNotificationPayload.channel(serverId, channelId),
     );
@@ -219,16 +220,18 @@ mixin _DeliveryMixin
   /// Re-checks focus after the name lookup: the user may well have come back to
   /// the window while it was in flight, and a notification for a window being
   /// looked at is the noise this whole tier exists to avoid.
-  Future<void> _notifyBackgroundDm(String serverId, String peerId) async {
+  Future<void> _notifyBackgroundDm(
+    String serverId,
+    String peerId,
+    int? messageId,
+  ) async {
     final name = await _peerDisplayName(serverId, peerId);
     if (isClosed || WindowFocusService.instance.isFocused) return;
     await NotificationService.instance.showMessage(
       title: _serverById(serverId)?.name ?? 'Rift',
       body: name != null ? '$name sent you a message' : 'New direct message',
-      payload: ConversationNotificationPayload.serverDm(
-        serverId,
-        peerId,
-      ).encode(),
+      target: ConversationNotificationPayload.serverDm(serverId, peerId),
+      messageId: messageId,
     );
   }
 }

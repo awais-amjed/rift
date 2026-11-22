@@ -1,32 +1,37 @@
 import '../chat_notice.dart';
 import '../notification_ids.dart';
 
+export '../notification_ids.dart' show ConversationNotificationPayload;
+
 /// One thing worth telling the user about, found by the push background
 /// isolate.
 ///
-/// [scope] names the conversation it belongs to — a channel id, or a peer id
-/// prefixed by where they live. It does two jobs: it is the key the
-/// high-water mark is stored under, and it decides which notification this one
-/// replaces. One notification per conversation, updated in place, rather than
-/// a stack of them saying the same thing about the same chat.
+/// [target] is the conversation it belongs to. It does three jobs: a press on
+/// the notification opens it, its [scope] is the key the high-water mark is
+/// stored under, and it decides which notification this one replaces. One
+/// notification per conversation, updated in place, rather than a stack of
+/// them saying the same thing about the same chat — the same one the running
+/// app posts for that conversation.
 class WakeItem {
-  final String scope;
+  final ConversationNotificationPayload target;
   final ChatNotice notice;
 
   /// The message this is about. The mark moves to it once it has been shown.
   final int messageId;
 
   const WakeItem({
-    required this.scope,
+    required this.target,
     required this.notice,
     required this.messageId,
   });
+
+  String get scope => target.scope;
 
   /// A stable id for the notification, derived from [scope] — see
   /// [stableNotificationId]. An id that moved between wakes would stack a
   /// second notification for a conversation instead of updating the one
   /// already there.
-  int get notificationId => stableNotificationId(scope);
+  int get notificationId => target.notificationId;
 }
 
 /// What one source had to say when the isolate asked it.

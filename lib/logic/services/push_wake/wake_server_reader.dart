@@ -20,7 +20,15 @@ import 'wake_item.dart';
 import 'wake_marks.dart';
 
 part 'wake_channel_keys.dart';
+
 part 'wake_server_channels.dart';
+
+/// What [WakeServerReader.readCalls] found on one server.
+typedef WakeCallRead = ({
+  String? token,
+  APIResponse? unread,
+  List<WakeCallChange> changes,
+});
 
 /// Over the helper budget and one job: reading one server from a push-woken
 /// isolate. Its channels and keys are already parts.
@@ -63,13 +71,16 @@ class WakeServerReader with _WakeChannelKeysMixin, _WakeChannelsMixin {
   static const callsDeadline = Duration(seconds: 8);
 
   /// Which DM calls started or stopped ringing on [server] since the last
-  /// wake, and the token signed in for it, for [read] to go on with.
+  /// wake, and the token signed in for it and its unread counts, for [read]
+  /// to go on with. The counts come with the levels, which is what says
+  /// whether a caller was muted; asked beside the calls, they cost the ring
+  /// no time.
   ///
   /// Its own step, asked of every server before any is read in full: a call
   /// is the one thing that will not wait, and asked inside [read] it waited
   /// on every server before it — the sign-in, the unread counts, the keys and
   /// decrypts — and could reach the shade after the caller had given up.
-  Future<({String? token, List<WakeCallChange> changes})> readCalls(
+  Future<WakeCallRead> readCalls(
     WakeServer server,
     Uint8List seed,
     WakeCalls calls,
@@ -77,55 +88,88 @@ class WakeServerReader with _WakeChannelKeysMixin, _WakeChannelsMixin {
     try {
       return await _readCalls(server, seed, calls).timeout(callsDeadline);
     } on TimeoutException {
-      return (token: null, changes: const <WakeCallChange>[]);
+      return (token: null, unread: null, changes: const <WakeCallChange>[]);
     }
   }
 
-  Future<({String? token, List<WakeCallChange> changes})> _readCalls(
+  Future<WakeCallRead> _readCalls(
     WakeServer server,
     Uint8List seed,
     WakeCalls calls,
   ) async {
     final token = await _signIn(server, seed);
-    if (token == null) return (token: null, changes: const <WakeCallChange>[]);
-    final answer = await _repo.myDmCalls(
-      server.supabaseUrl,
-      anonKey: server.anonKey,
-      bearerToken: token,
-      known: calls.shownOn(server.id),
-    );
-    if (!answer.success) {
-      return (token: token, changes: const <WakeCallChange>[]);
+    if (token == null) {
+      return (token: null, unread: null, changes: const <WakeCallChange>[]);
     }
+    final (answer, unread) = await (
+      _repo.myDmCalls(
+        server.supabaseUrl,
+        anonKey: server.anonKey,
+        bearerToken: token,
+        known: calls.shownOn(server.id),
+      ),
+      _repo.unreadCounts(
+        server.supabaseUrl,
+        anonKey: server.anonKey,
+        bearerToken: token,
+      ),
+    ).wait;
+    if (!answer.success) {
+      return (token: token, unread: unread, changes: const <WakeCallChange>[]);
+    }
+    final prefs = (unread.data as Map<String, dynamic>?)?['prefs'];
+    final dmLevels = NotificationLevel.mapFrom(
+      prefs is Map ? prefs['dms'] : null,
+      fallback: null,
+    );
+    final serverLevel = NotificationLevel.mapFrom(
+      prefs is Map ? prefs['servers'] : null,
+      fallback: null,
+    )[server.id];
     return (
       token: token,
+      unread: unread,
       changes: calls.apply(
         serverId: server.id,
         myId: server.userId,
         fetched: DmCall.listFrom(answer.data),
         now: DateTime.now(),
+        // `app.notify_level`'s answer, which is what `ring_dm_callee` asks.
+        // Counts that could not be read leave every call ringing: a missed
+        // person is worse than a muted one heard.
+        muted: unread.success
+            ? (peerId) => NotificationLevel.resolve(
+                scope: dmLevels[peerId],
+                server: serverLevel,
+                fallback: NotificationLevel.dmDefault,
+              ).isMuted
+            : null,
       ),
     );
   }
 
   /// What is new on [server] that this device has not been told about.
   ///
-  /// [token] is the one [readCalls] signed in with, when it did; without
-  /// one this signs in itself.
+  /// [token] is the one [readCalls] signed in with, when it did, and
+  /// [unread] the counts it read beside the calls; without them this asks.
   Future<WakeHarvest> read(
     WakeServer server,
     Uint8List seed,
     WakeMarks marks, {
     String? token,
+    APIResponse? unread,
   }) async {
+    if (token == null) unread = null;
     token ??= await _signIn(server, seed);
     if (token == null) return failedHarvest;
 
-    final unread = await _repo.unreadCounts(
-      server.supabaseUrl,
-      anonKey: server.anonKey,
-      bearerToken: token,
-    );
+    if (unread == null || !unread.success) {
+      unread = await _repo.unreadCounts(
+        server.supabaseUrl,
+        anonKey: server.anonKey,
+        bearerToken: token,
+      );
+    }
     final counts = unread.data as Map<String, dynamic>?;
     if (!unread.success || counts == null) return failedHarvest;
 
@@ -264,7 +308,8 @@ class WakeServerReader with _WakeChannelKeysMixin, _WakeChannelsMixin {
       unread: unread,
       myUserId: server.userId,
       myChatKeyPair: identity.keyPair,
-      scopePrefix: 'dm:${server.id}',
+      targetFor: (peerId) =>
+          ConversationNotificationPayload.serverDm(server.id, peerId),
       marks: marks,
       levels: levels,
       serverLevel: serverLevel,

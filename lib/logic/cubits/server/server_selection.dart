@@ -2,6 +2,7 @@ part of 'server_cubit.dart';
 
 mixin _ServerSelectionMixin on Cubit<ServerState> {
   SessionRepository get _session;
+  PushApi _pushOn(String serverId);
 
   /// Implemented by [ServerCubit].
   ServerManifest getServersForExport();
@@ -92,7 +93,20 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
   /// Whatever comes back is stamped stale, so the next selection logs in with
   /// the restored identity rather than a token minted for the old one.
   /// Servers the backup does not mention are removed.
+  ///
+  /// The old identity's push rows go first, on every server, while the list
+  /// still holds its tokens: kept, a dropped server went on waking the phone
+  /// for an identity no longer on it, and a kept one refused the restored
+  /// identity's registration for a token the old one held. This device is
+  /// registered again under the restored identity once that is done.
   void syncWithImportedVault(ServerManifest imported) {
+    final forgotten = Future.wait([
+      for (final server in state.servers)
+        _pushOn(server.id).forgetDevice().catchError((Object e) {
+          HelperMethods.printDebug('[Server] forgetting this device: $e');
+        }),
+    ]).timeout(ServerCubit.forgetDeviceWait, onTimeout: () => const []);
+
     final restored = ServerImportMerge.apply(
       existing: state.servers,
       imported: imported.servers,
@@ -125,6 +139,13 @@ mixin _ServerSelectionMixin on Cubit<ServerState> {
         unawaited(_session.reAuthenticate(server.id));
       }
     }
+    unawaited(
+      forgotten.then((_) {
+        for (final server in restored) {
+          unawaited(_pushOn(server.id).registerDevice());
+        }
+      }),
+    );
   }
 
   /// Combines the cloud's server list with this device's and lands it.

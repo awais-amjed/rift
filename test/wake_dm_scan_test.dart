@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/message_body.dart';
+import 'package:rift/logic/services/notification_ids.dart';
 import 'package:rift/logic/services/push_wake/wake_dm_scan.dart';
 import 'package:rift/logic/services/push_wake/wake_marks.dart';
 import 'package:rift_crypto/rift_crypto.dart';
@@ -85,7 +86,7 @@ void main() {
     unread: unread,
     myUserId: myId,
     myChatKeyPair: myChat.keyPair,
-    scopePrefix: 'central',
+    targetFor: ConversationNotificationPayload.centralDm,
     marks: marks ?? WakeMarks({}),
     limit: 5,
   );
@@ -141,7 +142,7 @@ void main() {
       unread: const {peerId: 1},
       myUserId: myId,
       myChatKeyPair: myChat.keyPair,
-      scopePrefix: 'central',
+      targetFor: ConversationNotificationPayload.centralDm,
       marks: WakeMarks({}),
       limit: 2,
     );

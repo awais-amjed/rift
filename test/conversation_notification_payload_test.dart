@@ -31,4 +31,35 @@ void main() {
     expect(ConversationNotificationPayload.decode('chan||c1'), isNull);
     expect(ConversationNotificationPayload.decode('chan|s1|'), isNull);
   });
+
+  // The app and a push wake post a conversation's notification under the
+  // same id, and the wake keeps its marks under the same scope — so a phone
+  // shows one notification per conversation, whoever posted it.
+  test('a conversation names itself as a wake does', () {
+    expect(
+      const ConversationNotificationPayload.channel('s1', 'c1').scope,
+      'channel:s1:c1',
+    );
+    expect(
+      const ConversationNotificationPayload.serverDm('s1', 'p1').scope,
+      'dm:s1:p1',
+    );
+    expect(
+      const ConversationNotificationPayload.centralDm('p2').scope,
+      'central:p2',
+    );
+    expect(
+      const ConversationNotificationPayload.channel('s1', 'c1').notificationId,
+      stableNotificationId('channel:s1:c1'),
+    );
+    expect(
+      const ConversationNotificationPayload.channel('s1', 'x').notificationId,
+      isNot(
+        const ConversationNotificationPayload.serverDm(
+          's1',
+          'x',
+        ).notificationId,
+      ),
+    );
+  });
 }

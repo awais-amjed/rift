@@ -39,7 +39,10 @@ mixin _ChatNotifyMixin on Cubit<ChannelChatState> {
     final server = _server;
     final channelName = _openChannelName(server);
 
-    for (final message in incoming) {
+    // The newest one worth saying, and only that: the channel has one
+    // notification, which each post replaces. Posted one by one, a reconnect
+    // that caught up on a page of messages chimed once for each of them.
+    for (final message in incoming.reversed) {
       // The wording is [ChatNotice]'s rather than this file's, because the
       // push isolate says the same sentence about the same message and the two
       // must not drift apart. It also answers the question the level turns on,
@@ -57,13 +60,12 @@ mixin _ChatNotifyMixin on Cubit<ChannelChatState> {
       NotificationService.instance.showMessage(
         title: notice.title,
         body: notice.body,
-        payload: server == null
+        target: server == null
             ? null
-            : ConversationNotificationPayload.channel(
-                server.id,
-                channelId,
-              ).encode(),
+            : ConversationNotificationPayload.channel(server.id, channelId),
+        messageId: int.tryParse(message.id),
       );
+      return;
     }
   }
 

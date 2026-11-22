@@ -11,6 +11,7 @@ import '../helper_methods.dart';
 import 'browser_apis.dart';
 import 'notification_ids.dart';
 import 'push_wake/call_notification_actions.dart';
+import 'push_wake/wake_marks.dart';
 import 'sound_service.dart';
 import 'storage_namespace.dart';
 import 'toast_activator.dart';
@@ -249,7 +250,11 @@ class NotificationService with _CallNotificationsMixin {
   void _onResponse(NotificationResponse response) {
     final press = CallNotificationPress.of(response);
     if (press != null) {
-      _callPresses.add(press);
+      if (_callPresses.hasListener) {
+        _callPresses.add(press);
+      } else {
+        _unclaimedCallPress = press;
+      }
       return;
     }
     final target = ConversationNotificationPayload.decode(response.payload);
@@ -272,6 +277,16 @@ class NotificationService with _CallNotificationsMixin {
 
   ({ConversationNotificationPayload? target})? _unclaimedPress;
 
+  /// The same for a call's notification: Answer pressed while nothing in the
+  /// app was listening yet — the vault still opening — was dropped.
+  CallNotificationPress? takeUnclaimedCallPress() {
+    final press = _unclaimedCallPress;
+    _unclaimedCallPress = null;
+    return press;
+  }
+
+  CallNotificationPress? _unclaimedCallPress;
+
   // ── Messages ──────────────────────────────────────────────
 
   /// The channel every message notification is posted to.
@@ -291,24 +306,33 @@ class NotificationService with _CallNotificationsMixin {
   /// Show a "new message" notification. Title is typically the sender/context
   /// (e.g. "Alice in #general"), body the message preview.
   ///
-  /// [id] lets a caller decide what this notification *replaces*. Posting
-  /// under the same id twice updates the one already in the shade rather than
-  /// stacking a second — which is what the push background isolate wants, one
-  /// notification per conversation. The default keeps every call distinct,
-  /// which is right for the in-app paths: they fire once per message, in a
-  /// process that is alive to keep counting.
+  /// [target] is the conversation it is about: what a press on it opens, and
+  /// which notification it replaces — one per conversation, the same one
+  /// whether the app or a push wake posts it ([ConversationNotificationPayload
+  /// .notificationId]), so a newer message updates it in place and reading the
+  /// conversation can take it down ([cancelConversation]). [id] is for one with
+  /// no conversation: a call's, or the wake's "You have a new message".
   /// [chime] is false for something that makes its own sound — a call,
-  /// whose ringtone is already playing. [payload] is what a press on it
-  /// opens: a [ConversationNotificationPayload], encoded.
+  /// whose ringtone is already playing.
+  ///
+  /// [messageId] is the newest message it announces. On a phone it is written
+  /// into the push isolate's marks, because the app backgrounded but alive
+  /// still hears Realtime while FCM wakes the isolate for the same message:
+  /// without it the isolate said it again, and every later wake repeated what
+  /// the app had already said.
   @override
   Future<void> showMessage({
     required String title,
     required String body,
     int? id,
     bool chime = true,
-    String? payload,
+    ConversationNotificationPayload? target,
+    int? messageId,
   }) async {
     if (!_ready) return;
+    if (target != null && messageId != null && !kIsWeb && Platform.isAndroid) {
+      await WakeMarks.note(target.scope, messageId);
+    }
     if (kIsWeb) {
       showBrowserNotification(title: title, body: body);
       return;
@@ -332,10 +356,10 @@ class NotificationService with _CallNotificationsMixin {
     }
     try {
       await _plugin.show(
-        id: id ?? _nextId++,
+        id: id ?? target?.notificationId ?? _nextId++,
         title: title,
         body: body,
-        payload: payload,
+        payload: target?.encode(),
         notificationDetails: NotificationDetails(
           linux: const LinuxNotificationDetails(suppressSound: true),
           windows: WindowsNotificationDetails(
@@ -347,6 +371,20 @@ class NotificationService with _CallNotificationsMixin {
       );
     } catch (e) {
       HelperMethods.printDebug('NotificationService: show failed – $e');
+    }
+  }
+
+  /// Take down [target]'s notification: it has been read, here or on
+  /// another device. Best-effort — on Windows the plugin's toasts may not be
+  /// removable at all (see [cancelCall]).
+  Future<void> cancelConversation(
+    ConversationNotificationPayload target,
+  ) async {
+    if (!_ready || kIsWeb) return;
+    try {
+      await _plugin.cancel(id: target.notificationId);
+    } catch (e) {
+      HelperMethods.printDebug('NotificationService: cancel failed – $e');
     }
   }
 

@@ -16,7 +16,8 @@ mixin _CallNotificationsMixin {
     required String body,
     int? id,
     bool chime = true,
-    String? payload,
+    ConversationNotificationPayload? target,
+    int? messageId,
   });
 
   static const _answerAction = 'answer';
@@ -25,22 +26,47 @@ mixin _CallNotificationsMixin {
   /// The press that launched the app from nothing, if it was on a call's
   /// notification — answered once, because a launch happens once.
   Future<CallNotificationPress?> takeLaunchPress() async {
-    if (_launchTaken || kIsWeb || !Platform.isAndroid) return null;
-    _launchTaken = true;
+    if (_callLaunchTaken) return null;
+    _callLaunchTaken = true;
+    final response = await _launchResponse();
+    return response == null ? null : CallNotificationPress.of(response);
+  }
+
+  /// The press that launched the app from nothing, if it was on a message's
+  /// notification, taken once. Only calls were asked about, so on a phone a
+  /// message tapped after Android had ended the process opened the app and
+  /// nothing in it.
+  Future<({ConversationNotificationPayload? target})?>
+  takeLaunchMessagePress() async {
+    if (_messageLaunchTaken) return null;
+    _messageLaunchTaken = true;
+    final response = await _launchResponse();
+    if (response == null || CallNotificationPress.of(response) != null) {
+      return null;
+    }
+    return (target: ConversationNotificationPayload.decode(response.payload));
+  }
+
+  bool _callLaunchTaken = false;
+  bool _messageLaunchTaken = false;
+
+  /// Asked once and shared: the call and message routers each take their
+  /// own kind of press from it.
+  Future<NotificationResponse?> _launchResponse() =>
+      _launch ??= _readLaunchResponse();
+  Future<NotificationResponse?>? _launch;
+
+  Future<NotificationResponse?> _readLaunchResponse() async {
+    if (kIsWeb || !Platform.isAndroid) return null;
     try {
       final details = await _plugin.getNotificationAppLaunchDetails();
-      final response = details?.notificationResponse;
-      if (!(details?.didNotificationLaunchApp ?? false) || response == null) {
-        return null;
-      }
-      return CallNotificationPress.of(response);
+      if (!(details?.didNotificationLaunchApp ?? false)) return null;
+      return details?.notificationResponse;
     } catch (e) {
       HelperMethods.printDebug('NotificationService: launch details – $e');
       return null;
     }
   }
-
-  bool _launchTaken = false;
 
   /// Calls get a channel of their own, at the top of the scale: a person
   /// waiting on the line is not a message that can sit in the shade, and a

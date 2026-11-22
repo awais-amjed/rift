@@ -2,6 +2,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/repositories/secure_storage_repository.dart';
 import '../../helper_methods.dart';
+import '../notification_ids.dart';
 import '../notification_service.dart';
 import '../storage_namespace.dart';
 import 'wake_calls.dart';
@@ -100,7 +101,13 @@ class PushWakeService {
       );
       final serverHarvests = <WakeHarvest>[
         for (final (i, server) in index.servers.indexed)
-          await reader.read(server, seed, marks, token: callReads[i].token),
+          await reader.read(
+            server,
+            seed,
+            marks,
+            token: callReads[i].token,
+            unread: callReads[i].unread,
+          ),
       ];
 
       final items = [
@@ -119,7 +126,7 @@ class PushWakeService {
         await NotificationService.instance.showMessage(
           title: item.notice.title,
           body: item.notice.body,
-          id: item.notificationId,
+          target: item.target,
         );
         marks.mark(item.scope, item.messageId);
       }
@@ -150,8 +157,12 @@ class PushWakeService {
         ),
       };
 
+  /// One notification, however many wakes owe it, under an id of its own:
+  /// counted from zero in each fresh isolate, it replaced whatever the app
+  /// had posted under that number.
   static Future<void> _fallback() => NotificationService.instance.showMessage(
     title: fallbackTitle,
     body: fallbackBody,
+    id: stableNotificationId('wake-fallback'),
   );
 }

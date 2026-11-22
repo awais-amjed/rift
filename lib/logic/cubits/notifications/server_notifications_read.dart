@@ -38,21 +38,36 @@ mixin _ReadMarkingMixin on Cubit<NotificationsState> {
   /// Mark a channel read and clear its badge.
   void markChannelRead(String serverId, String channelId) {
     emit(state.clearedChannel(serverId, channelId));
+    _takeDown(ConversationNotificationPayload.channel(serverId, channelId));
     _markRead(serverId, scope: 'channel', scopeId: channelId);
   }
 
   /// The DM equivalent: everything from one peer.
   void markDmRead(String serverId, String peerId) {
     emit(state.clearedDm(serverId, peerId));
+    _takeDown(ConversationNotificationPayload.serverDm(serverId, peerId));
     _markRead(serverId, scope: 'dm', scopeId: peerId);
   }
 
   /// Mark a whole server read, channels and conversations alike.
   void markServerRead(String serverId) {
+    for (final channelId
+        in (state.unreadByServer[serverId] ?? const <String, int>{}).keys) {
+      _takeDown(ConversationNotificationPayload.channel(serverId, channelId));
+    }
+    for (final peerId
+        in (state.dmUnreadByServer[serverId] ?? const <String, int>{}).keys) {
+      _takeDown(ConversationNotificationPayload.serverDm(serverId, peerId));
+    }
     emit(state.clearedServer(serverId));
     if (!_subs.containsKey(serverId)) return;
     unawaited(UnreadApi(_session.on(serverId)).markAllRead());
   }
+
+  /// Read means its notification has said all it had to: one left in the
+  /// shade or the Action Center went on announcing what had been read.
+  void _takeDown(ConversationNotificationPayload target) =>
+      unawaited(NotificationService.instance.cancelConversation(target));
 
   /// Moves one cursor to whatever is newest right now (`p_last_read_id: 0`).
   void _markRead(
@@ -81,6 +96,14 @@ mixin _ReadMarkingMixin on Cubit<NotificationsState> {
     if (isClosed) return;
     final scope = payload['scope'];
     final scopeId = payload['scope_id'];
+    // Read over there: whatever this device said about it is old news, even
+    // where the cursor stopped short of the newest message.
+    switch ((scope, scopeId)) {
+      case ('channel', final String id):
+        _takeDown(ConversationNotificationPayload.channel(serverId, id));
+      case ('dm', final String id):
+        _takeDown(ConversationNotificationPayload.serverDm(serverId, id));
+    }
     final stillUnread = switch ((scope, scopeId)) {
       ('channel', final String id) => state.unreadForChannel(serverId, id) > 0,
       ('dm', final String id) => state.unreadForDm(serverId, id) > 0,

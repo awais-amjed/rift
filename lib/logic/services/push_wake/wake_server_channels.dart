@@ -79,7 +79,11 @@ mixin _WakeChannelsMixin on _WakeChannelKeysMixin {
     required int unread,
     required NotificationLevel level,
   }) async {
-    final scope = 'channel:${server.id}:$channelId';
+    final target = ConversationNotificationPayload.channel(
+      server.id,
+      channelId,
+    );
+    final scope = target.scope;
     final response = await _repo.listMessages(
       server.supabaseUrl,
       anonKey: server.anonKey,
@@ -92,8 +96,10 @@ mixin _WakeChannelsMixin on _WakeChannelKeysMixin {
     final keys = <int, Uint8List>{};
 
     // Newest first. A row already announced ends the scan rather than skipping
-    // it: everything behind it was announced too.
-    for (final row in rows) {
+    // it: everything behind it was announced too. So does the end of what is
+    // unread: a mention further back has been read, here or elsewhere, and
+    // announcing it on the way past a later message said it again.
+    for (final row in rows.take(unread)) {
       final id = row['id'] as int?;
       if (id == null || !marks.isFresh(scope, id)) break;
 
@@ -109,7 +115,7 @@ mixin _WakeChannelsMixin on _WakeChannelKeysMixin {
         final item = await _plainItem(
           row,
           server,
-          scope: scope,
+          target: target,
           channelId: channelId,
           messageId: id,
           unread: unread,
@@ -158,7 +164,7 @@ mixin _WakeChannelsMixin on _WakeChannelKeysMixin {
         unread: unread,
       );
       if (!level.announces(mentioned: notice.mentioned)) continue;
-      return WakeItem(scope: scope, messageId: id, notice: notice);
+      return WakeItem(target: target, messageId: id, notice: notice);
     }
     return null;
   }
@@ -182,7 +188,7 @@ mixin _WakeChannelsMixin on _WakeChannelKeysMixin {
   Future<WakeItem?> _plainItem(
     Map<String, dynamic> row,
     WakeServer server, {
-    required String scope,
+    required ConversationNotificationPayload target,
     required String channelId,
     required int messageId,
     required int unread,
@@ -216,6 +222,6 @@ mixin _WakeChannelsMixin on _WakeChannelKeysMixin {
       unread: unread,
     );
     if (!level.announces(mentioned: notice.mentioned)) return null;
-    return WakeItem(scope: scope, messageId: messageId, notice: notice);
+    return WakeItem(target: target, messageId: messageId, notice: notice);
   }
 }

@@ -88,6 +88,14 @@ mixin _CentralDmUnreadMixin on Cubit<CentralDmState> {
   // ignore: unused_element
   void _onReadElsewhere(String? peerId) {
     if (isClosed) return;
+    // Read on another device: what this one said about it is old news.
+    if (peerId != null) {
+      unawaited(
+        NotificationService.instance.cancelConversation(
+          ConversationNotificationPayload.centralDm(peerId),
+        ),
+      );
+    }
     final stillUnread = peerId == null
         ? state.unreadByPeer.isNotEmpty
         : state.unreadByPeer.containsKey(peerId);
@@ -185,6 +193,11 @@ mixin _CentralDmUnreadMixin on Cubit<CentralDmState> {
     final peerId = state.openPeerId;
     if (peerId == null || !_onScreen) return;
     if (!_pushCursor(peerId)) return;
+    unawaited(
+      NotificationService.instance.cancelConversation(
+        ConversationNotificationPayload.centralDm(peerId),
+      ),
+    );
     if (!state.unreadByPeer.containsKey(peerId)) return;
     emit(
       state.copyWith(unreadByPeer: Map.of(state.unreadByPeer)..remove(peerId)),

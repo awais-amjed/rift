@@ -170,6 +170,13 @@ class PushApi {
       unawaited(_central.revokePushRelay(relayId));
       return configured;
     }
+    unawaited(
+      _central.revokeOtherPushRelays(
+        supabaseUrl: server.supabaseUrl,
+        serverId: server.id,
+        keep: relayId,
+      ),
+    );
 
     unawaited(registerDevice());
     return configured;

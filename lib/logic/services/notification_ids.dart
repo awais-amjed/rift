@@ -76,6 +76,21 @@ class ConversationNotificationPayload {
 
   String encode() => '$_kind|$serverId|$targetId';
 
+  /// The conversation's name in the push isolate's books ([WakeMarks]), the
+  /// same string a wake builds for it: `channel:<server>:<channel>`,
+  /// `dm:<server>:<peer>` or `central:<peer>`.
+  String get scope => switch (_kind) {
+    _channel => 'channel:$serverId:$targetId',
+    _serverDm => 'dm:$serverId:$targetId',
+    _ => 'central:$targetId',
+  };
+
+  /// The conversation's one notification, whoever posts it — the running
+  /// app or a push wake. Counted from zero per process, a phone's app and its
+  /// push isolate each posted the same message under ids of their own, and a
+  /// restart replaced whatever unrelated notification held id 0 before.
+  int get notificationId => stableNotificationId(scope);
+
   /// Null for anything that is not a message notification's payload.
   static ConversationNotificationPayload? decode(String? raw) {
     final parts = raw?.split('|');

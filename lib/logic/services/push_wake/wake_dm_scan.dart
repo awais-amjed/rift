@@ -21,9 +21,10 @@ class WakeDmScan {
 
   /// One item per unread conversation, newest message quoted.
   ///
-  /// [scopePrefix] separates the two tiers and the several servers within one:
-  /// a peer id is only unique next to the place it came from, and the scope is
-  /// what decides which notification this replaces.
+  /// [targetFor] names a peer's conversation, which separates the two tiers
+  /// and the several servers within one: a peer id is only unique next to the
+  /// place it came from, and the conversation is what decides which
+  /// notification this replaces.
   ///
   /// [levels] mutes conversations, and [serverLevel] is what one falls back to
   /// when it has no level of its own — muting a server quiets its DMs too. A
@@ -37,7 +38,7 @@ class WakeDmScan {
     required Map<String, int> unread,
     required String myUserId,
     required SimpleKeyPair myChatKeyPair,
-    required String scopePrefix,
+    required ConversationNotificationPayload Function(String peerId) targetFor,
     required WakeMarks marks,
     required int limit,
     Map<String, NotificationLevel> levels = const {},
@@ -67,7 +68,8 @@ class WakeDmScan {
       );
       if (level.isMuted) continue;
 
-      final scope = '$scopePrefix:$peerId';
+      final target = targetFor(peerId);
+      final scope = target.scope;
       final id = row['id'] as int?;
       if (id == null || !marks.isFresh(scope, id)) continue;
       // Our own message can be the newest in a conversation that still has
@@ -87,7 +89,7 @@ class WakeDmScan {
 
       items.add(
         WakeItem(
-          scope: scope,
+          target: target,
           messageId: id,
           notice: ChatNotice.direct(
             author: convo['peer_name'] as String? ?? 'Someone',

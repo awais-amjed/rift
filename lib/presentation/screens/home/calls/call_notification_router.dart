@@ -30,6 +30,8 @@ class _CallNotificationRouterState extends State<CallNotificationRouter> {
   void initState() {
     super.initState();
     _presses = NotificationService.instance.callPresses.listen(_handle);
+    final early = NotificationService.instance.takeUnclaimedCallPress();
+    if (early != null) _handle(early);
     unawaited(
       NotificationService.instance.takeLaunchPress().then((press) {
         if (press != null && mounted) _handle(press);
