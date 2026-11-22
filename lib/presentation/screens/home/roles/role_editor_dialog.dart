@@ -152,10 +152,11 @@ class _RoleEditorDialogState extends State<RoleEditorDialog> {
           : widget.readOnly
           ? widget.role!.name
           : 'Edit role',
+      // One line: the modal's subtitle does not wrap.
       subtitle: widget.readOnly
-          ? 'You can see what this role does, but not change it: it is at or '
-                'above your own role, or changing roles is up to an '
-                'administrator.'
+          ? _viewerPermissions.has(ServerPermission.administrator)
+                ? 'At or above your own role, so you cannot change it'
+                : 'Changing roles is up to an administrator'
           : _isEveryone
           ? 'What everybody can do, before any role is handed out'
           : null,
