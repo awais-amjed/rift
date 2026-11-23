@@ -73,6 +73,10 @@ class ServerEvent {
   static const String me = 'me';
   static const String dm = 'dm';
   static const String dmChanged = 'dm_changed';
+
+  /// One of our own devices sent a DM (`{id, recipient_id}`, console 1.9.0),
+  /// so this one lists it too. Not [dm], which is mail from `sender_id`.
+  static const String dmSent = 'dm_sent';
   static const String dmReaction = 'dm_reaction';
   static const String dmPin = 'dm_pin';
   static const String prefs = 'prefs';

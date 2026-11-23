@@ -54,6 +54,7 @@ mixin _DmRealtimeMixin
             onStatus: _onInboxStatus,
           )
           ?..onBroadcast(ServerEvent.dm, (_) => _onDoorbell())
+          ..onBroadcast(ServerEvent.dmSent, _onSentDoorbell)
           ..onBroadcast(ServerEvent.dmChanged, _onChangeDoorbell)
           ..onBroadcast(ServerEvent.dmReaction, _onReactionDoorbell)
           ..onBroadcast(ServerEvent.dmPin, _onPinDoorbell)
@@ -167,6 +168,17 @@ mixin _DmRealtimeMixin
     } else {
       unawaited(refreshReactions());
     }
+  }
+
+  /// We sent a DM, on this device or another: the list shows it, and the
+  /// open conversation with its recipient catches up. On the device that
+  /// sent it the catch-up finds the row already held, as a channel's own
+  /// echo does.
+  void _onSentDoorbell(Map<String, dynamic> payload) {
+    if (isClosed) return;
+    unawaited(refreshConversations());
+    final to = BroadcastPayload.stringOf(payload, 'recipient_id');
+    if (to != null && to == state.openPeerId) _catchUpOpen();
   }
 
   void _onDoorbell() {
