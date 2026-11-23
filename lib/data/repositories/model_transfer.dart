@@ -77,7 +77,14 @@ Future<int> _receive(
 ) async {
   final request = http.Request('GET', url);
   if (have > 0) request.headers['range'] = 'bytes=$have-';
-  final response = await client.send(request).timeout(stallAfter);
+  final http.StreamedResponse response;
+  try {
+    response = await client.send(request).timeout(stallAfter);
+  } on TimeoutException {
+    throw const ModelTransferFailed('no answer');
+  } on http.ClientException catch (e) {
+    throw ModelTransferFailed('could not connect: ${e.message}');
+  }
 
   switch (response.statusCode) {
     case 206 when _startOf(response) == have:

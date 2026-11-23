@@ -85,6 +85,24 @@ class NoiseFilterWorkLine extends StatelessWidget {
           ),
         ),
       ),
+      NoiseFilterWork.modelCannotRun => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            size: K.iconTiny,
+            color: theme.statusInk(CustomColors.warning),
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              "${mode.label} can't run on this computer"
+              '${inEffect == mode ? '' : ' · ${inEffect.label} instead'}',
+              style: style,
+            ),
+          ),
+        ],
+      ),
       _ => Row(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -17,4 +17,8 @@ enum NoiseFilterWork {
 
   /// The chosen model loading from files already here.
   loadingModel,
+
+  /// DPDFNet's files are here and it still would not load: this computer
+  /// cannot run it. RNNoise stands in, or Standard if that will not either.
+  modelCannotRun,
 }

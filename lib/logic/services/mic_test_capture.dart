@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:livekit_client/livekit_client.dart';
 
 import '../../src/rust/api/mic_test.dart' as rust;
+import '../helper_methods.dart';
 import 'host_platform.dart';
 import 'level_throttle.dart';
 import 'mic_playback.dart';
@@ -40,16 +41,18 @@ class MicTestCapture {
   /// itself, by the browser on the web, and nowhere else.
   ///
   /// Throws if the device cannot be opened, having released anything it
-  /// managed to acquire first.
+  /// managed to acquire first. [onLost] is called if it stops later — the
+  /// device unplugged, say — with the capture already released.
   Future<void> start({
     required AudioCaptureOptions options,
     rust.MicTestPlayback? playback,
     required void Function(double level) onLevel,
+    void Function()? onLost,
   }) async {
     if (isRunning) return;
     _throttle.reset();
     if (HostPlatform.micTestReadsDevice) {
-      return _startReadingDevice(options.deviceId, playback, onLevel);
+      return _startReadingDevice(options.deviceId, playback, onLevel, onLost);
     }
 
     LocalAudioTrack? track;
@@ -96,8 +99,18 @@ class MicTestCapture {
     String? deviceId,
     rust.MicTestPlayback? playback,
     void Function(double level) onLevel,
+    void Function()? onLost,
   ) async {
     final opened = Completer<void>();
+    // An error or an end once it is running: the device went. Not after
+    // [stop], which cancels this before the reading ends. Ignored, the meter
+    // froze at its last level with the test still on, and a call stayed
+    // muted and deafened until Stop.
+    void lost() {
+      unawaited(stop());
+      onLost?.call();
+    }
+
     _samples = rust
         .micTestSamples(deviceId: deviceId, playback: playback)
         .listen(
@@ -115,7 +128,12 @@ class MicTestCapture {
             if (level != null) onLevel(level);
           },
           onError: (Object e) {
-            if (!opened.isCompleted) opened.completeError(e);
+            if (!opened.isCompleted) return opened.completeError(e);
+            HelperMethods.printDebug('[MicTest] the microphone stopped: $e');
+            lost();
+          },
+          onDone: () {
+            if (opened.isCompleted) lost();
           },
         );
     try {

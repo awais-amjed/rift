@@ -12,6 +12,8 @@ constexpr double kPi = 3.14159265358979323846;
 // Taps per phase. 32 keeps the band edge clean for speech; at most 48 * 32
 // multiply-adds per 10 ms block for each direction.
 constexpr int kTapsPerPhase = 32;
+// 20 ms at 48 kHz, past the longest frame libwebrtc hands over (10 ms).
+constexpr int kMaxFrame = 960;
 
 }  // namespace
 
@@ -21,6 +23,9 @@ RateConverter::RateConverter(int up, int down)
       taps_per_phase_(kTapsPerPhase),
       taps_(static_cast<size_t>(up) * kTapsPerPhase),
       history_(kTapsPerPhase - 1, 0.0f) {
+  // Room for the longest frame up front: growing it in Process allocated on
+  // the capture thread, on the first frame.
+  work_.reserve(kTapsPerPhase - 1 + kMaxFrame);
   // One low-pass at the up-sampled rate, cut a little under the lower of the
   // two Nyquist rates, with a gain of `up` to make up for the zeros put
   // between samples.

@@ -456,6 +456,12 @@ class AudioCaptureOptions extends LocalTrackOptions implements AudioProcessingOp
         } else {
           constraints['deviceId'] = {'ideal': deviceId};
         }
+        // RIFT PATCH: the processing goes with the device. The optional
+        // list above is left out once a device is named, and the browser
+        // then ran its own defaults whatever the app asked for.
+        constraints['echoCancellation'] = echoCancellation;
+        constraints['noiseSuppression'] = noiseSuppression;
+        constraints['autoGainControl'] = autoGainControl;
       } else {
         constraints['optional'].cast<Map<String, dynamic>>().add(<String, dynamic>{'sourceId': deviceId});
       }

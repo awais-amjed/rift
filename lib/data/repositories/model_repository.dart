@@ -123,15 +123,38 @@ class ModelRepository {
 
   /// [file] if it is already on this device, without fetching it. Marks it
   /// used, which keeps another version's [sweep] off it.
+  ///
+  /// One the wrong length is deleted and counts as not here, so it is
+  /// fetched again: the hash was checked before it took its name, but a
+  /// crash soon after can leave it empty or cut short. The whole hash is
+  /// not read again on every start, for files of up to 24 MB.
   Future<File?> present(ModelFile file) async {
     final target = File('${(await _dir()).path}/${file.localName}');
     if (!await target.exists()) return null;
+    if (await target.length() != file.size) {
+      HelperMethods.printDebug(
+        'ModelRepository: ${file.id} is the wrong length, fetching it again',
+      );
+      await discard(file);
+      return null;
+    }
     try {
       await target.setLastModified(_clock());
     } on FileSystemException {
       // Only the sweep reads it, and a model kept a little long is harmless.
     }
     return target;
+  }
+
+  /// Deletes [file] from this device, for one its reader refused: the next
+  /// [fetch] downloads it again instead of handing back the same bytes for
+  /// good.
+  Future<void> discard(ModelFile file) async {
+    try {
+      await File('${(await _dir()).path}/${file.localName}').delete();
+    } on FileSystemException {
+      // Gone already.
+    }
   }
 
   /// [file], downloaded first if it is not here. Throws [ModelUnavailable]
@@ -171,10 +194,7 @@ class ModelRepository {
   }
 
   Future<File> _download(ModelFile file) async {
-    final dir = await _dir();
-    final target = File('${dir.path}/${file.localName}');
-    final part = File('${target.path}.part');
-    final lock = await File('${target.path}.lock').open(mode: FileMode.append);
+    RandomAccessFile? lock;
     var received = 0;
     void report(int bytes, ModelStatus status) {
       received = bytes;
@@ -184,9 +204,15 @@ class ModelRepository {
     }
 
     try {
+      // Inside, so a folder that cannot be written is a failure like any
+      // other: reported, and rested after.
+      final dir = await _dir();
+      final target = File('${dir.path}/${file.localName}');
+      final part = File('${target.path}.part');
+      lock = await File('${target.path}.lock').open(mode: FileMode.append);
       await lock.lock(FileLock.blockingExclusive);
       // Brought by another Rift while this one waited for the lock.
-      if (await target.exists()) return target;
+      if (await present(file) != null) return target;
       for (var attempt = 0; ; attempt++) {
         try {
           await transferModel(
@@ -212,6 +238,14 @@ class ModelRepository {
           await Future<void>.delayed(retryDelays[attempt]);
         }
       }
+      // On the disk before it takes its name, or a crash just after can
+      // leave a file of the right name and nothing in it.
+      final written = await part.open(mode: FileMode.append);
+      try {
+        await written.flush();
+      } finally {
+        await written.close();
+      }
       await part.rename(target.path);
       _failed.remove(file.localName);
       report(file.size, ModelStatus.success);
@@ -224,7 +258,7 @@ class ModelRepository {
       HelperMethods.printDebug('ModelRepository: $failure');
       throw failure;
     } finally {
-      await lock.close();
+      await lock?.close();
     }
   }
 

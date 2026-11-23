@@ -1153,7 +1153,8 @@ gets by rebuilding its microphone track (`NoiseFilter.inEffect`,
 weights are on the device already; RNNoise is never fetched just for that.
 Once the model is on, the call rebuilds the track again without the built-in
 suppressor, by itself. Switching between models rebuilds nothing: they run in
-the runner, under every track at once.
+the runner, under every track at once. A DPDFNet that cannot load says so in
+settings, with what stands in (RNNoise, or Standard if that fails too).
 While a model downloads, a chip beside the window controls counts it up
 (`ModelDownloadChip`, from `ModelsCubit`), and one that failed says so there
 and tries again when pressed; the noise setting says the same of its own
@@ -1166,7 +1167,9 @@ chose or to central: a plain `GET` to the GitHub release `models` (none once
 the files are here), carrying nothing about the person or the device.
 GitHub, or anyone in the account, can serve any bytes there, so it is not
 trusted: the app pins each file's SHA-256, and a file is renamed into place
-only after it matches. A broken download keeps what arrived and carries on
+only after it matches, written to the disk first. A file found the wrong
+length at a later start, or one the runner refuses, is deleted and fetched
+again. A broken download keeps what arrived and carries on
 from there with a `Range` request; one that fails is asked for again when the
 model is next needed, at most once a minute. The release only gains files
 (`scripts/upload_models.sh` adds them and prints the pinned entry): a new

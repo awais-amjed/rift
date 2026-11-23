@@ -745,12 +745,13 @@ class LiveKitCubit extends Cubit<LiveKitState>
   /// through `Hardware.instance.selectAudioInput`. On the desktop the plugin's
   /// `getUserMedia` resets WebRTC's device module to the *first* listed input
   /// whenever a track is made without one, so a track built without the id
-  /// quietly moved the call to whatever input enumerated first.
+  /// quietly moved the call to whatever input enumerated first. On the web
+  /// naming it is the only way to choose it: selecting does nothing there.
   @override
   AudioCaptureOptions _buildAudioCaptureOptions() {
     final settings = _appCubit.state;
     return AudioCaptureOptions(
-      deviceId: HostPlatform.isDesktop ? _captureDeviceId : null,
+      deviceId: HostPlatform.isMobile ? null : _captureDeviceId,
       noiseSuppression: NoiseFilter.usesBuiltIn(settings.noiseSuppression),
       echoCancellation: settings.echoCancellation,
       autoGainControl: settings.autoGainControl,

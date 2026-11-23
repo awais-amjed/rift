@@ -137,6 +137,35 @@ void main() {
     expect(got.readAsBytesSync(), body);
   });
 
+  test('a request nobody answers is tried again', () async {
+    var first = true;
+    final got = await repo((request) async {
+      if (!first) return serve(request);
+      first = false;
+      throw http.ClientException('connection refused');
+    }).fetch(file);
+    expect(requests, hasLength(2));
+    expect(got.readAsBytesSync(), body);
+  });
+
+  test('a file cut short on disk is fetched again', () async {
+    // A crash soon after the rename, the bytes not yet on the disk.
+    target().writeAsBytesSync(const []);
+    final models = repo(serve);
+    expect(await models.present(file), isNull);
+    expect(target().existsSync(), isFalse);
+    final got = await models.fetch(file);
+    expect(got.readAsBytesSync(), body);
+  });
+
+  test('a file its reader refused is fetched again', () async {
+    final models = repo(serve);
+    await models.fetch(file);
+    await models.discard(file);
+    await models.fetch(file);
+    expect(requests, hasLength(2));
+  });
+
   test('refuses bytes that are not the pinned file', () async {
     final wrong = List<int>.of(body)..[100] ^= 1;
     final models = repo(

@@ -84,4 +84,19 @@ void main() {
     expect(find.text("DPDFNet didn't download · RNNoise for now"), findsOne);
     expect(find.text('Try again'), findsOneWidget);
   });
+
+  testWidgets('says when DPDFNet cannot run here, and what stands in', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      NoiseFilterWork.modelCannotRun,
+      inEffect: NoiseSuppression.rnnoise,
+    );
+    expect(
+      find.text("DPDFNet can't run on this computer · RNNoise instead"),
+      findsOne,
+    );
+    expect(find.text('Try again'), findsNothing);
+  });
 }

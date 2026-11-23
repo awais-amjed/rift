@@ -7,6 +7,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/services/audio_devices.dart';
+import '../../../../../logic/services/call_volume.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../../logic/services/mic_test_capture.dart';
 import '../../../../../logic/services/noise_filter.dart';
@@ -146,13 +147,18 @@ class _MicTestSectionState extends State<MicTestSection> {
         ),
         // On the call's output and at its volume, short of boosting it: past
         // full scale is clipping, and this is your own voice in your ears.
+        // At what the call plays at, not what the slider reads, which below
+        // 100% is louder: at 50%, 12 dB above a voice in the call.
         playback: _hearsYourself
             ? MicTestPlayback(
                 deviceId: settings.callOutputId,
-                volume: settings.outputVolume.clamp(0, 1).toDouble(),
+                volume: CallVolume.outputGain(
+                  settings.outputVolume,
+                ).clamp(0, 1).toDouble(),
               )
             : null,
         onLevel: _onLevel,
+        onLost: _onLost,
       );
       return true;
     } catch (_) {
@@ -174,6 +180,16 @@ class _MicTestSectionState extends State<MicTestSection> {
         settings.noiseSuppression,
         autoGain: settings.autoGainControl,
       );
+
+  /// The microphone went while the test ran: the test ends, and says so.
+  Future<void> _onLost() async {
+    await _stop();
+    if (!mounted) return;
+    setState(
+      () => _error =
+          'The microphone stopped. Check it is plugged in and try again.',
+    );
+  }
 
   void _onLevel(double level) {
     if (!mounted) return;

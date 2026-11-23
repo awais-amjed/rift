@@ -91,6 +91,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       final applied = await AudioDevices.applySaved(
         inputId: _appCubit.state.inputDeviceId,
         outputId: _appCubit.state.callOutputId,
+        room: state.room,
       );
       final input = applied.input ?? _unresolvedDefault();
       if (input == _captureDeviceId) return false;
@@ -102,11 +103,32 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     }
   }
 
+  /// Whether the mic track the connect raised was made with other settings
+  /// than are in force now.
+  ///
+  /// Its options were taken when the room was built, and a change while the
+  /// call was connecting — a model's files landing, so the built-in
+  /// suppressor goes off under it, or echo cancellation toggled — asked for
+  /// a rebuild that found no connected room and was dropped. The track kept
+  /// the old ones until the next mute or rejoin.
+  bool _micMadeWithOldOptions() {
+    final track = state.room?.localParticipant
+        ?.getTrackPublicationBySource(TrackSource.microphone)
+        ?.track;
+    if (track is! LocalAudioTrack) return false;
+    final made = track.currentOptions;
+    final now = _buildAudioCaptureOptions();
+    return made.noiseSuppression != now.noiseSuppression ||
+        made.echoCancellation != now.echoCancellation ||
+        made.autoGainControl != now.autoGainControl;
+  }
+
   /// What the mic tracks should name when nothing was applied: nothing at
   /// all if the choice is "System default", so the plugin falls back to its
   /// first entry — WebRTC's default on Linux — rather than every track going
   /// on naming a device picked earlier in the session. Otherwise (a saved
-  /// device that is gone or refused) whatever the tracks already name.
+  /// device refused, or gone with no default to stand in) whatever the
+  /// tracks already name.
   String? _unresolvedDefault() =>
       _appCubit.state.inputDeviceId == null ? null : _captureDeviceId;
 
@@ -435,7 +457,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       // connect above raised is still bound to the device that was current
       // when it was created, so it has to be rebuilt rather than merely
       // resynced.
-      if (await _applySavedAudioDevices()) {
+      if (await _applySavedAudioDevices() || _micMadeWithOldOptions()) {
         await _refreshMicrophoneCapture();
       } else {
         await _syncMicrophoneTransmission();

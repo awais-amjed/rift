@@ -15,45 +15,73 @@ use std::time::{Duration, Instant};
 /// few milliseconds, and each would otherwise send Dart off to read the lists.
 const SETTLE: Duration = Duration::from_millis(250);
 
+/// How long to wait before reaching for the sound server again once it went
+/// away: PipeWire restarting takes about a second.
+const RECONNECT: Duration = Duration::from_secs(2);
+
+/// Watches until Dart stops listening. A sound server that goes away is
+/// reached for again, and its return reported as a change, since its devices
+/// may not be the ones it had. The watch used to end with it, and a headset
+/// plugged in after one PipeWire restart never reached the pickers again.
 pub(crate) fn start(sink: StreamSink<()>) {
     thread::spawn(move || {
-        let Some(mut connection) = Connection::open("rift-device-watch") else {
-            let _ = sink.add_error("could not reach the sound server".to_string());
-            return;
-        };
-        let changed = Arc::new(AtomicBool::new(false));
-        let flag = Arc::clone(&changed);
-        connection
-            .context
-            .set_subscribe_callback(Some(Box::new(move |facility, operation, _| {
-                if is_device_change(facility, operation) {
-                    flag.store(true, Ordering::Relaxed);
-                }
-            })));
-        let _op = connection.context.subscribe(
-            InterestMaskSet::SINK | InterestMaskSet::SOURCE | InterestMaskSet::SERVER,
-            |_| {},
-        );
-
-        let mut pending_since: Option<Instant> = None;
+        let mut reconnecting = false;
         loop {
-            if !connection.turn() {
-                log::warn!("device watch: the sound server went away");
-                let _ = sink.add_error("the sound server went away".to_string());
-                return;
-            }
-            if changed.swap(false, Ordering::Relaxed) {
-                pending_since = Some(Instant::now());
-            }
-            if pending_since.is_some_and(|since| since.elapsed() >= SETTLE) {
-                pending_since = None;
-                // Dart stopped listening: nothing left to watch for.
-                if sink.add(()).is_err() {
+            match Connection::open("rift-device-watch") {
+                Some(connection) => {
+                    if reconnecting && sink.add(()).is_err() {
+                        return;
+                    }
+                    if !watch(connection, &sink) {
+                        return;
+                    }
+                    log::warn!("device watch: the sound server went away");
+                }
+                None if !reconnecting => {
+                    let _ = sink.add_error("could not reach the sound server".to_string());
                     return;
                 }
+                None => {}
             }
+            reconnecting = true;
+            thread::sleep(RECONNECT);
         }
     });
+}
+
+/// Reports changes on [connection] until it ends. False once Dart stopped
+/// listening, true when the server went away.
+fn watch(mut connection: Connection, sink: &StreamSink<()>) -> bool {
+    let changed = Arc::new(AtomicBool::new(false));
+    let flag = Arc::clone(&changed);
+    connection
+        .context
+        .set_subscribe_callback(Some(Box::new(move |facility, operation, _| {
+            if is_device_change(facility, operation) {
+                flag.store(true, Ordering::Relaxed);
+            }
+        })));
+    let _op = connection.context.subscribe(
+        InterestMaskSet::SINK | InterestMaskSet::SOURCE | InterestMaskSet::SERVER,
+        |_| {},
+    );
+
+    let mut pending_since: Option<Instant> = None;
+    loop {
+        if !connection.turn() {
+            return true;
+        }
+        if changed.swap(false, Ordering::Relaxed) {
+            pending_since = Some(Instant::now());
+        }
+        if pending_since.is_some_and(|since| since.elapsed() >= SETTLE) {
+            pending_since = None;
+            // Dart stopped listening: nothing left to watch for.
+            if sink.add(()).is_err() {
+                return false;
+            }
+        }
+    }
 }
 
 /// Whether an event changes what the pickers list or what "System default"

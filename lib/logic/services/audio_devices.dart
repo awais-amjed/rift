@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:livekit_client/livekit_client.dart';
 
@@ -73,14 +75,26 @@ class AudioDevices {
   /// Linux, where its device observer is not implemented, so on Linux a
   /// PulseAudio watcher in the Rust library reports it instead
   /// ([HostPlatform.watchesAudioDevicesItself]). One watcher serves the
-  /// whole process, started on first listen.
+  /// whole process, started on first listen. It reaches for the sound server
+  /// again if that restarts; one that could not be reached at all is tried
+  /// again by the next listen.
   static Stream<void> get changes {
     if (!HostPlatform.watchesAudioDevicesItself) {
       return Hardware.instance.onDeviceChange.stream;
     }
-    return _pulseChanges ??= audioDeviceChanges().handleError((Object e) {
-      HelperMethods.printDebug('[AudioDevices] device watch ended: $e');
-    }).asBroadcastStream();
+    return _pulseChanges ??= audioDeviceChanges()
+        .handleError((Object e) {
+          HelperMethods.printDebug('[AudioDevices] device watch ended: $e');
+        })
+        .transform(
+          StreamTransformer<void, void>.fromHandlers(
+            handleDone: (sink) {
+              _pulseChanges = null;
+              sink.close();
+            },
+          ),
+        )
+        .asBroadcastStream();
   }
 
   static Stream<void>? _pulseChanges;
@@ -177,8 +191,9 @@ class AudioDevices {
   }
 
   /// The device in WebRTC's list that "System default" selects, or null when
-  /// that cannot be known: on the web, whenever WebRTC lists nothing (see
-  /// [load]), or with no default device at all.
+  /// that cannot be known: whenever WebRTC lists nothing (see [load]), or
+  /// with no default device at all. On the web it is the empty id, which the
+  /// browser reads as its default for both the mic and the speakers.
   ///
   /// "System default" needs this because the plugin can only point WebRTC's
   /// device module at a device in its list. Leaving the choice alone does not
@@ -192,7 +207,14 @@ class AudioDevices {
   /// them). On Windows it is the endpoint Windows names as the default now,
   /// matched by id; a later change there is not followed.
   static Future<MediaDevice?> systemDefault({required bool isInput}) async {
-    if (kIsWeb) return null;
+    if (kIsWeb) {
+      return MediaDevice(
+        '',
+        'System default',
+        isInput ? 'audioinput' : 'audiooutput',
+        null,
+      );
+    }
     if (HostPlatform.listsDefaultAudioDevice) {
       final listed = await _listed(isInput ? 'audioinput' : 'audiooutput');
       return listed.cast<MediaDevice?>().firstWhere(
@@ -219,17 +241,41 @@ class AudioDevices {
   /// open the saved id regardless, so with a headset unplugged it failed with
   /// "Could not access the microphone" under a picker naming the default.
   static Future<String?> preferredInputId(String? savedId) async {
-    if (kIsWeb) return savedId;
     if (savedId != null && byId((await choices()).inputs, savedId) != null) {
       return savedId;
     }
-    return defaultInputEndpoint();
+    return kIsWeb ? null : defaultInputEndpoint();
   }
 
-  /// Applies the saved devices — or, where nothing is saved, the system
-  /// default ([systemDefault]) — ignoring ids that no longer enumerate, and
-  /// reports what it moved: the input by id, since every mic track made
-  /// afterwards has to name it.
+  /// Puts [device] in force for the call, through [room] while there is
+  /// one.
+  ///
+  /// On the web the room is the only way there: each voice plays in an
+  /// element of its own, which the room moves to the speakers picked, along
+  /// with the voices arriving after; [Hardware] does nothing there. Elsewhere
+  /// the room goes on to the same device module [Hardware] does. A mic is
+  /// named on every track made afterwards instead ([applySaved]).
+  static Future<void> select(
+    MediaDevice device, {
+    required bool isInput,
+    Room? room,
+  }) async {
+    if (isInput) return Hardware.instance.selectAudioInput(device);
+    if (room != null) return room.setAudioOutputDevice(device);
+    await Hardware.instance.selectAudioOutput(device);
+  }
+
+  /// Applies the saved devices — or, where nothing is saved or the saved one
+  /// is no longer listed, the system default ([systemDefault]) — and reports
+  /// what it moved: the input by id, since every mic track made afterwards
+  /// has to name it.
+  ///
+  /// A saved device that is gone gets the default as the picker shows it
+  /// ("System default"), and as the mic test opens it ([preferredInputId]).
+  /// Doing nothing instead left the device module where it was: on Windows,
+  /// the first call of a run with the saved headset unplugged recorded from
+  /// the first-listed input, not Windows' default, and a later call stayed on
+  /// whatever the module last had.
   ///
   /// **Call this only once a call is up.** Everything here goes through the
   /// same device module [load] describes, so before a room is connected there
@@ -241,8 +287,8 @@ class AudioDevices {
   ///
   /// A saved id outlives the machine it was chosen on — headsets get
   /// unplugged, and Windows is free to renumber what is left — so an id that
-  /// is no longer present is dropped rather than forced onto whatever now sits
-  /// in its place.
+  /// is no longer present is never forced onto whatever now sits in its place.
+  /// It stays saved, and is used again once the device is back.
   ///
   /// A device the device module cannot open is skipped here too, not only when
   /// picked by hand: applying one stops playout for the rest of the session,
@@ -262,21 +308,20 @@ class AudioDevices {
   static Future<({String? input, bool output})> applySaved({
     String? inputId,
     String? outputId,
+    Room? room,
   }) async {
     String? appliedInput;
     var appliedOutput = false;
-    final input = inputId != null
-        ? byId(await inputs(), inputId)
-        : await systemDefault(isInput: true);
+    final input =
+        byId(await inputs(), inputId) ?? await systemDefault(isInput: true);
     if (input != null && await _isUsable(input, isInput: true)) {
-      await Hardware.instance.selectAudioInput(input);
+      await select(input, isInput: true, room: room);
       appliedInput = input.deviceId;
     }
-    final output = outputId != null
-        ? byId(await outputs(), outputId)
-        : await systemDefault(isInput: false);
+    final output =
+        byId(await outputs(), outputId) ?? await systemDefault(isInput: false);
     if (output != null && await _isUsable(output, isInput: false)) {
-      await Hardware.instance.selectAudioOutput(output);
+      await select(output, isInput: false, room: room);
       appliedOutput = true;
     }
     return (input: appliedInput, output: appliedOutput);
@@ -310,7 +355,7 @@ class AudioDevices {
 
   /// Where an output named [deviceId] plays: that device while it is in
   /// [devices], or null — the system default — when it is not, which is
-  /// where joining a call leaves it too ([applySaved] skips a missing one).
+  /// where joining a call puts it too ([applySaved]).
   static String? playableOutput(List<MediaDevice> devices, String? deviceId) =>
       byId(devices, deviceId) == null ? null : deviceId;
 

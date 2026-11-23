@@ -155,11 +155,11 @@ class _AudioDeviceSectionState extends State<AudioDeviceSection> {
     }
 
     try {
-      if (isInput) {
-        await Hardware.instance.selectAudioInput(device);
-      } else {
-        await Hardware.instance.selectAudioOutput(device);
-      }
+      await AudioDevices.select(
+        device,
+        isInput: isInput,
+        room: context.read<LiveKitCubit>().state.room,
+      );
     } catch (e) {
       if (!mounted) return;
       final noun = isInput ? 'microphone' : 'output';

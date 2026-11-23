@@ -93,10 +93,15 @@ abstract final class NoiseFilter {
   /// a tenth of a second with no model on.
   static bool _dpdfnetStarting = false;
 
-  /// What the microphone got before the latest choice, Off or Standard, kept
-  /// while the new one is still finding out whether it has to download:
-  /// setting the call's microphone up for a moment's guess would only set it
-  /// up again.
+  /// Whether DPDFNet's files are here and it still would not load: this
+  /// computer cannot run it, and RNNoise stands in. Tried again the next
+  /// time it is picked.
+  static bool _dpdfnetFailed = false;
+
+  /// What the microphone got before the latest choice, kept while the new
+  /// one is still finding out whether it has to download: setting the call's
+  /// microphone up for a moment's guess would only set it up again. Off when
+  /// that was another model, for the moment the next takes to load.
   static NoiseSuppression _meanwhile = NoiseSuppression.standard;
 
   /// Listening for a model's files to land, after they failed to.
@@ -181,6 +186,9 @@ abstract final class NoiseFilter {
         _on ==
         (wanted == NoiseSuppression.dpdfnet ? _Model.dpdfnet : _Model.rnnoise);
     if (awaited.isNotEmpty && !on) return NoiseFilterWork.modelUnavailable;
+    if (wanted == NoiseSuppression.dpdfnet && _dpdfnetFailed) {
+      return NoiseFilterWork.modelCannotRun;
+    }
     if (_dpdfnetLoading && wanted == NoiseSuppression.dpdfnet) {
       return NoiseFilterWork.loadingModel;
     }
@@ -204,6 +212,8 @@ abstract final class NoiseFilter {
       return NoiseSuppression.standard;
     }
     if (dpdfnet && _dpdfnetStarting) return NoiseSuppression.off;
+    // DPDFNet could not run and RNNoise, standing in, is not on either.
+    if (dpdfnet && _dpdfnetFailed) return NoiseSuppression.standard;
     return _meanwhile;
   }
 
@@ -284,8 +294,11 @@ abstract final class NoiseFilter {
   /// waits for it ([ready]).
   static Future<void> use(NoiseSuppression mode) async {
     final before = _wanted == null ? null : inEffect(_wanted!);
-    if (before == NoiseSuppression.off || before == NoiseSuppression.standard) {
-      _meanwhile = before!;
+    // From one model to another, nothing for the moment the next takes to
+    // load from the device. Standard there set the call's microphone up
+    // twice, for it and then for the model, within milliseconds.
+    if (before != null) {
+      _meanwhile = _isModel(before) ? NoiseSuppression.off : before;
     }
     _wanted = mode;
     _tell();
@@ -309,6 +322,7 @@ abstract final class NoiseFilter {
     var downloaded = true;
     if (!_dpdfnetHanded) {
       _dpdfnetLoading = true;
+      _dpdfnetFailed = false;
       _tell();
       try {
         // A download can take a while, a call's whole start; the load
@@ -337,6 +351,7 @@ abstract final class NoiseFilter {
         _useOnceFetched();
       } catch (e) {
         HelperMethods.printDebug('DPDFNet unavailable: $e');
+        _dpdfnetFailed = true;
       } finally {
         _dpdfnetLoading = false;
         _dpdfnetStarting = false;
@@ -405,7 +420,9 @@ abstract final class NoiseFilter {
     try {
       final file = await ModelRepository.instance.fetch(ModelCatalog.rnnoise);
       if (!native.setRnnoise(await file.readAsBytes())) {
+        // Fetched again on the next ask, rather than refused for good.
         HelperMethods.printDebug('RNNoise: the runner refused its weights');
+        await ModelRepository.instance.discard(ModelCatalog.rnnoise);
         return false;
       }
       HelperMethods.printDebug('RNNoise loaded');

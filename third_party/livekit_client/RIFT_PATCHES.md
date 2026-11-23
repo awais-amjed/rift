@@ -251,6 +251,17 @@ uncorrelated.
    member's microphone and the member's app logged the uncaught error from
    `removePublishedTrack`. The call went on.
 
+15. **On the web, a mic named by id keeps its processing settings**
+   (`AudioCaptureOptions.toMediaConstraintsMap` in
+   `lib/src/track/options.dart`). The browser cannot take optional and
+   mandatory constraints together, so once a `deviceId` was set the list
+   carrying echo cancellation, noise suppression and auto gain was left out
+   whole, and the browser ran its own defaults. They now go in beside the
+   device as plain constraints.
+
+   Found Nov 23 2026 by review: the web app had never named the mic for a
+   call, so nothing hit it until the pickers were made to reach the call.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with
@@ -260,6 +271,6 @@ unsubscribe without holding the track, patch 4 when a release can go back
 to letting visibility decide, patch 5 when a release keeps a disable
 through the server's bind, patch 6 when a release's web worker leaves no
 VP9 bytes in the clear, patch 7 when it passes H264 through the RBSP functions, patch 8 when a release subscribes
-whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival, patch 11 when Chrome stops playing a track that is off or a release handles it, patch 12 when a release stops a section as it unpublishes, patch 13 when a release goes on joining past a track it could not publish, patch 14 when a release stops capture groups without iterating the live map. With all fourteen gone, bump, delete this
+whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival, patch 11 when Chrome stops playing a track that is off or a release handles it, patch 12 when a release stops a section as it unpublishes, patch 13 when a release goes on joining past a track it could not publish, patch 14 when a release stops capture groups without iterating the live map, patch 15 when a release keeps the processing beside a named web device. With all fifteen gone, bump, delete this
 folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.

@@ -120,7 +120,13 @@ impl Net {
     fn load(size: Size) -> Result<Net, String> {
         match ceva::Net::load(size) {
             Ok(net) => Ok(Net::Ceva(net)),
-            Err(_) => onnx::Net::load(size).map(Net::Onnx),
+            Err(ceva) => {
+                // Said, or the only reason left in the log was ONNX's own.
+                log::info!("DPDFNet: not on Ceva's runtime ({ceva}), trying ONNX Runtime");
+                onnx::Net::load(size)
+                    .map(Net::Onnx)
+                    .map_err(|onnx| format!("{onnx} (Ceva's runtime: {ceva})"))
+            }
         }
     }
 
@@ -391,8 +397,15 @@ impl CallModel {
     }
 }
 
-/// Loads the built-in model once; later calls return straight away.
+/// Held for a whole [load], so two asks at once build one model. Not
+/// [MODEL] itself, which the capture thread takes every 10 ms.
+static LOADING: Mutex<()> = Mutex::new(());
+
+/// Loads the built-in model once; later calls return straight away. Two
+/// at once used to both build one, the second swapped in under the capture
+/// thread: a frame unfiltered, and the work done twice.
 pub(crate) fn load() -> Result<(), String> {
+    let _loading = LOADING.lock().map_err(|e| e.to_string())?;
     if MODEL.lock().map_err(|e| e.to_string())?.is_some() {
         return Ok(());
     }

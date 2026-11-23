@@ -10,7 +10,8 @@ use std::sync::mpsc::Receiver;
 use std::thread;
 use std::time::Duration;
 use wasapi::{
-    AudioClient, AudioRenderClient, DeviceEnumerator, Direction, SampleType, StreamMode, WaveFormat,
+    AudioClient, AudioRenderClient, DeviceEnumerator, Direction, SampleType, StreamMode,
+    WasapiError, WaveFormat,
 };
 
 const POLL: Duration = Duration::from_millis(10);
@@ -69,6 +70,7 @@ pub(super) fn run(
 
     let mut buffer = vec![0u8; READ_BUFFER_BYTES];
     let mut cleaner = Cleaner::new();
+    let mut failed = None;
     'test: loop {
         if stopped(stop) {
             break;
@@ -77,7 +79,19 @@ pub(super) fn run(
         // none is left. Reading one a pass fell behind the device until its
         // buffer overflowed: a second late, then in pieces. The meter hid
         // that; playback does not.
-        while let Ok((frames, _)) = capture.read_from_device(&mut buffer) {
+        loop {
+            let frames = match capture.read_from_device(&mut buffer) {
+                Ok((frames, _)) => frames,
+                // A packet longer than the buffer, left behind: the next.
+                Err(WasapiError::DataLengthTooShort { .. }) => break,
+                // The device gone — unplugged, or taken for exclusive use.
+                // Said, so the test ends rather than standing frozen at its
+                // last level, which had a call muted and deafened till Stop.
+                Err(e) => {
+                    failed = Some(format!("the microphone stopped: {e:?}"));
+                    break 'test;
+                }
+            };
             if frames == 0 {
                 break;
             }
@@ -109,7 +123,7 @@ pub(super) fn run(
     if let Some(((out_client, _), _)) = &output {
         let _ = out_client.stop_stream();
     }
-    Ok(())
+    failed.map_or(Ok(()), Err)
 }
 
 /// A render stream for the voice on the chosen output, started. An output
