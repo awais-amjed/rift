@@ -89,6 +89,7 @@ class GlobalShortcutsPortal {
   _Session? _current;
   int _epoch = 0;
   bool _registered = false;
+  StreamSubscription<DBusNameOwnerChangedEvent>? _portalRestarts;
 
   /// Opens a session and binds [shortcuts] in it.
   ///
@@ -105,16 +106,22 @@ class GlobalShortcutsPortal {
   /// older one closes only its *own* session and returns null. Letting it
   /// tidy up through [close] instead is how a declined first dialog used to
   /// take the second, accepted binding down with it.
+  ///
+  /// [onLost] is called if the session bound here goes without Rift closing
+  /// it: the desktop closed it, or the portal restarted. The keys stop coming
+  /// then, and nothing else would say so.
   Future<({Map<String, String>? triggers, bool declined})> bind({
     required String appId,
     required List<PortalShortcut> shortcuts,
     required void Function(String id, int timestamp) onPress,
     required void Function(String id, int timestamp) onRelease,
     required void Function(Map<String, String> triggers) onTriggersChanged,
+    required void Function() onLost,
   }) async {
     final epoch = ++_epoch;
-    await close();
+    await _closeCurrent();
     try {
+      _watchPortalRestarts();
       await _register(appId);
       for (var attempt = 1; ; attempt++) {
         final outcome = await _bindOnce(
@@ -123,6 +130,7 @@ class GlobalShortcutsPortal {
           onPress: onPress,
           onRelease: onRelease,
           onTriggersChanged: onTriggersChanged,
+          onLost: onLost,
         );
         if (!outcome.retry || attempt == _attempts || epoch != _epoch) {
           return (triggers: outcome.triggers, declined: outcome.declined);
@@ -144,6 +152,7 @@ class GlobalShortcutsPortal {
     required void Function(String id, int timestamp) onPress,
     required void Function(String id, int timestamp) onRelease,
     required void Function(Map<String, String> triggers) onTriggersChanged,
+    required void Function() onLost,
   }) async {
     const giveUp = (triggers: null, retry: false, declined: false);
     final ids = {for (final shortcut in shortcuts) shortcut.id};
@@ -160,7 +169,7 @@ class GlobalShortcutsPortal {
       );
       final handle = created.results?['session_handle']?.asString();
       if (handle == null) return giveUp;
-      mine = _Session(DBusObjectPath(handle));
+      mine = _Session(DBusObjectPath(handle), onLost);
       if (epoch != _epoch) {
         await _end(mine);
         return giveUp;
@@ -169,7 +178,8 @@ class GlobalShortcutsPortal {
       mine.signals
         ..add(_listen('Activated', mine.path, ids, onPress))
         ..add(_listen('Deactivated', mine.path, ids, onRelease))
-        ..add(_listenForChanges(mine.path, onTriggersChanged));
+        ..add(_listenForChanges(mine.path, onTriggersChanged))
+        ..add(_listenForClosed(mine));
 
       final asked = Stopwatch()..start();
       final bound = await _requests.call(
@@ -212,8 +222,15 @@ class GlobalShortcutsPortal {
     }
   }
 
-  /// Ends the session, which hands the key back to every other app.
+  /// Ends the session, which hands the key back to every other app. A bind
+  /// still under way is called off too: one waiting out a retry opened a
+  /// session after this, and kept the keys grabbed while Settings had none.
   Future<void> close() async {
+    _epoch++;
+    await _closeCurrent();
+  }
+
+  Future<void> _closeCurrent() async {
     final current = _current;
     if (current != null) await _end(current);
   }
@@ -235,9 +252,28 @@ class GlobalShortcutsPortal {
   }
 
   Future<void> dispose() async {
-    _epoch++;
     await close();
+    await _portalRestarts?.cancel();
     await _client.close();
+  }
+
+  /// The session the desktop took away, as [onLost] says.
+  Future<void> _lost(_Session session, String why) async {
+    if (session.ended || !identical(_current, session)) return;
+    HelperMethods.printDebug('GlobalShortcutsPortal: session lost – $why');
+    await _end(session);
+    session.onLost();
+  }
+
+  /// A portal that restarts has forgotten every session and who Rift is,
+  /// and says nothing on the sessions themselves.
+  void _watchPortalRestarts() {
+    _portalRestarts ??= _client.nameOwnerChanged.listen((event) {
+      if (event.name != PortalRequests.service) return;
+      _registered = false;
+      final current = _current;
+      if (current != null) unawaited(_lost(current, 'the portal restarted'));
+    });
   }
 
   // ── Plumbing ──────────────────────────────────────────────────────────
@@ -269,6 +305,17 @@ class GlobalShortcutsPortal {
       if (!ids.contains(id)) return;
       handler(id, signal.values[2].asUint64());
     });
+  }
+
+  /// The desktop ending the session itself.
+  StreamSubscription<DBusSignal> _listenForClosed(_Session session) {
+    return DBusSignalStream(
+      _client,
+      sender: PortalRequests.service,
+      interface: 'org.freedesktop.portal.Session',
+      name: 'Closed',
+      path: session.path,
+    ).listen((_) => unawaited(_lost(session, 'closed by the desktop')));
   }
 
   /// The user changing the key in the desktop's settings arrives here, so
@@ -313,8 +360,9 @@ class GlobalShortcutsPortal {
 /// One portal session and the signal subscriptions that belong to it.
 class _Session {
   final DBusObjectPath path;
+  final void Function() onLost;
   final List<StreamSubscription<DBusSignal>> signals = [];
   bool ended = false;
 
-  _Session(this.path);
+  _Session(this.path, this.onLost);
 }

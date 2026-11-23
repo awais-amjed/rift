@@ -5,7 +5,9 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/ptt/mouse_button_bind.dart';
+import '../../../../../logic/ptt/win32_key_codes.dart';
 import '../../../../../logic/services/host_platform.dart';
+import '../../../../../logic/shortcuts/call_shortcut_listener.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/button_footer.dart';
 import '../../../../theme/app_text.dart';
@@ -68,6 +70,7 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
     if (_isCapturing) {
       GestureBinding.instance.pointerRouter.removeGlobalRoute(_onPointer);
     }
+    CallShortcutListener.endCapture(this);
     _captureFocusNode.dispose();
     super.dispose();
   }
@@ -77,8 +80,11 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
     final router = GestureBinding.instance.pointerRouter;
     if (enabled) {
       router.addGlobalRoute(_onPointer);
+      // The key picked may be a call shortcut's too, which must not run.
+      CallShortcutListener.startCapture(this);
     } else {
       router.removeGlobalRoute(_onPointer);
+      CallShortcutListener.endCapture(this);
     }
     setState(() {
       _isCapturing = enabled;
@@ -131,8 +137,21 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
 
   /// The key the desktop reports while it owns push-to-talk, without its
   /// "Press " prefix so it reads like any other keybind.
-  String? get _desktopKey =>
-      widget.appState.desktopPushToTalkKey?.replaceFirst(RegExp('^Press '), '');
+  String? get _desktopKey => widget.appState.desktopPushToTalkKey?.replaceFirst(
+    RegExp('^Press ', caseSensitive: false),
+    '',
+  );
+
+  /// A key the Windows hook cannot name (an ü, AZERTY's top row) is heard
+  /// only in the window.
+  bool get _onlyInWindowOnWindows {
+    final keyId = widget.appState.pushToTalkKeyId;
+    return HostPlatform.hearsShortcutsAnywhere &&
+        !HostPlatform.pushToTalkAsksDesktop &&
+        widget.appState.pushToTalkEnabled &&
+        keyId != null &&
+        win32VkForLogicalKey(keyId) == null;
+  }
 
   bool get _boundToMouse {
     final keyId = widget.appState.pushToTalkKeyId;
@@ -186,6 +205,12 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
             Focus(
               focusNode: _captureFocusNode,
               onKeyEvent: _onKeyEvent,
+              // A click elsewhere ends it, as a call shortcut's does: left
+              // listening, it showed "Press any key" to keys it no longer
+              // heard, and took the next right-click anywhere as the key.
+              onFocusChange: (focused) {
+                if (!focused && !_mouseOnly) _toggleCapture(false);
+              },
               child: ButtonFooter(
                 alignment: MainAxisAlignment.start,
                 buttons: [
@@ -212,11 +237,23 @@ class _PushToTalkSectionState extends State<PushToTalkSection> {
               _boundToMouse
                   ? 'A mouse button works only while the pointer is over '
                         'Rift. A key works in other apps too.'
+                  : appState.pushToTalkKeyId != null
+                  // No desktop key: no portal, or it was declined or failed.
+                  ? 'This key works only while Rift is in front. Set it '
+                        'again to be asked again.'
                   : 'After you set a key, your computer asks once whether '
                         'Rift may use it while you are in other apps.',
               style: AppText.secondary.copyWith(color: themeState.textTertiary),
             ),
           ],
+        ],
+        if (_onlyInWindowOnWindows) ...[
+          const SizedBox(height: 8),
+          Text(
+            'This key works only while Rift is in front. Pick another to '
+            'use it in other apps.',
+            style: AppText.secondary.copyWith(color: themeState.textTertiary),
+          ),
         ],
         if (_isCapturing) ...[
           const SizedBox(height: 8),

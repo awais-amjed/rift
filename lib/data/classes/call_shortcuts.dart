@@ -42,6 +42,22 @@ class CallShortcuts extends Equatable {
     );
   }
 
+  /// These less any shortcut on [keyId], whatever its modifiers: push-to-talk
+  /// takes its key alone, and a mute on the same key flipped with every hold.
+  CallShortcuts withoutKey(int keyId) {
+    KeyShortcut? keep(CallShortcut action) {
+      final keys = this[action];
+      return keys?.keyId == keyId ? null : keys;
+    }
+
+    return CallShortcuts(
+      mute: keep(CallShortcut.mute),
+      deafen: keep(CallShortcut.deafen),
+      leave: keep(CallShortcut.leave),
+      clip: keep(CallShortcut.clip),
+    );
+  }
+
   /// The action [key], pressed with what [keys] holds, is bound to.
   CallShortcut? actionFor(LogicalKeyboardKey key, HardwareKeyboard keys) =>
       actionForKey(key.keyId, KeyShortcut.heldBy(keys));

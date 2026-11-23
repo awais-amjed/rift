@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
@@ -7,8 +10,10 @@ import '../../../../../data/classes/key_shortcut.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
 import '../../../../../logic/ptt/desktop_shortcut_settings.dart';
 import '../../../../../logic/ptt/xdg_trigger.dart';
+import '../../../../../logic/services/host_platform.dart';
 import '../../../../../logic/shortcuts/call_shortcut_actions.dart';
 import '../../../../../logic/shortcuts/call_shortcut_listener.dart';
+import '../../../../../logic/shortcuts/hook_key_state.dart';
 import '../../../../common/app_button.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
@@ -42,22 +47,26 @@ class _CallShortcutRowState extends State<CallShortcutRow> {
   final FocusNode _focus = FocusNode();
   bool _capturing = false;
 
-  /// The last press could not be a shortcut: a key that types.
-  bool _refused = false;
+  /// Why the last press could not be a shortcut, if it could not.
+  String? _refusal;
 
   @override
   void dispose() {
-    if (_capturing) CallShortcutListener.capturing = false;
+    CallShortcutListener.endCapture(this);
     _focus.dispose();
     super.dispose();
   }
 
   void _setCapturing(bool on) {
     if (!mounted || on == _capturing) return;
-    CallShortcutListener.capturing = on;
+    if (on) {
+      CallShortcutListener.startCapture(this);
+    } else {
+      CallShortcutListener.endCapture(this);
+    }
     setState(() {
       _capturing = on;
-      _refused = false;
+      _refusal = null;
     });
     if (on) {
       _focus.requestFocus();
@@ -82,7 +91,15 @@ class _CallShortcutRowState extends State<CallShortcutRow> {
       return KeyEventResult.handled;
     }
     if (!keys.isUsable) {
-      setState(() => _refused = true);
+      setState(
+        () => _refusal =
+            'That key is for typing. Add Ctrl or Alt, or pick a key like F9.',
+      );
+      return KeyEventResult.handled;
+    }
+    final app = context.read<AppCubit>().state;
+    if (app.pushToTalkEnabled && app.pushToTalkKeyId == keys.keyId) {
+      setState(() => _refusal = 'Push-to-talk uses that key. Pick another.');
       return KeyEventResult.handled;
     }
     context.read<AppCubit>().setCallShortcut(widget.action, keys);
@@ -91,6 +108,16 @@ class _CallShortcutRowState extends State<CallShortcutRow> {
   }
 
   String get _title => callShortcutTitle(widget.action);
+
+  /// Whether [keys] work with Rift in the background, as the section says
+  /// they do: on Windows a key the hook can name, on Linux one the desktop
+  /// holds (none where there is no portal, or it said no).
+  bool _heardAnywhere(KeyShortcut keys) {
+    if (kIsWeb || !HostPlatform.hearsShortcutsAnywhere) return true;
+    if (Platform.isWindows) return HookKeyState.hears(keys);
+    if (Platform.isLinux) return _desktopHolds;
+    return true;
+  }
 
   bool get _desktopHolds => widget.desktopKey != null;
 
@@ -131,9 +158,7 @@ class _CallShortcutRowState extends State<CallShortcutRow> {
                 const SizedBox(height: 3),
                 if (_capturing)
                   Text(
-                    _refused
-                        ? 'That key is for typing. Add Ctrl or Alt, or pick a key like F9.'
-                        : 'Press the keys together, like Ctrl+Shift+M.',
+                    _refusal ?? 'Press the keys together, like Ctrl+Shift+M.',
                     style: hint,
                   )
                 else if (keys != null) ...[
@@ -141,6 +166,8 @@ class _CallShortcutRowState extends State<CallShortcutRow> {
                     _shownKeys(keys),
                     style: AppText.kbd.copyWith(color: theme.textSecondary),
                   ),
+                  if (!_heardAnywhere(keys))
+                    Text('Only while Rift is in front.', style: hint),
                   if (_desktopHolds && !DesktopShortcutSettings.canOpen)
                     Text(
                       "To change it, open your computer's settings and look "

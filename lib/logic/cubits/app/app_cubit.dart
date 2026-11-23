@@ -24,6 +24,7 @@ import '../../../data/enums/sensitive_content_mode.dart';
 import '../../../data/enums/stream_pip_corner.dart';
 import '../../../data/participant_identity.dart';
 import '../../helper_methods.dart';
+import '../../ptt/global_shortcuts_portal.dart';
 import '../../services/call_volume.dart';
 import '../../services/hydrated_keys.dart';
 import '../../services/login_launch/login_launch.dart';
@@ -105,8 +106,18 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(videoEnabled: enabled));
   }
 
+  /// Push-to-talk's key is its own while it is on: a call shortcut on it
+  /// gives it up ([CallShortcuts.withoutKey]).
   void setPushToTalkEnabled(bool enabled) {
-    emit(state.copyWith(pushToTalkEnabled: enabled));
+    final keyId = state.pushToTalkKeyId;
+    emit(
+      state.copyWith(
+        pushToTalkEnabled: enabled,
+        callShortcuts: enabled && keyId != null
+            ? state.callShortcuts.withoutKey(keyId)
+            : null,
+      ),
+    );
   }
 
   // ── Clipping ───────────────────────────────────────────────
@@ -130,13 +141,37 @@ class AppCubit extends HydratedCubit<AppState> {
     emit(state.copyWith(clipIncludeMic: include));
   }
 
+  /// See [setPushToTalkEnabled]: the newest pick wins, as between call
+  /// shortcuts.
+  ///
+  /// A key the person said no to in the desktop's dialog is asked about
+  /// again once they pick it again, as Settings says it will be.
   void setPushToTalkKeybind({required int keyId, required String label}) {
-    emit(state.copyWith(pushToTalkKeyId: keyId, pushToTalkKeyLabel: label));
+    emit(
+      state.copyWith(
+        pushToTalkKeyId: keyId,
+        pushToTalkKeyLabel: label,
+        desktopShortcutsRefused: _withoutPushToTalkRefusal(),
+        callShortcuts: state.pushToTalkEnabled
+            ? state.callShortcuts.withoutKey(keyId)
+            : null,
+      ),
+    );
   }
 
   void clearPushToTalkKeybind() {
-    emit(state.copyWith(clearPushToTalkKeybind: true));
+    emit(
+      state.copyWith(
+        clearPushToTalkKeybind: true,
+        desktopShortcutsRefused: _withoutPushToTalkRefusal(),
+      ),
+    );
   }
+
+  List<String> _withoutPushToTalkRefusal() => [
+    for (final key in state.desktopShortcutsRefused)
+      if (!key.startsWith('${GlobalShortcutsPortal.pushToTalkId}=')) key,
+  ];
 
   /// Binds [action] to [keys], or unbinds it with null.
   void setCallShortcut(CallShortcut action, KeyShortcut? keys) {

@@ -51,6 +51,7 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
     WidgetsBinding.instance.addObserver(this);
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     GestureBinding.instance.pointerRouter.addGlobalRoute(_handlePointer);
+    _buttonKeyId = context.read<AppCubit>().state.pushToTalkKeyId;
 
     if (!kIsWeb && Platform.isWindows) {
       _bgSub = WindowsKeyHook.keys.listen(_handleBgKeyEvent);
@@ -82,13 +83,20 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
     // So does the Windows hook. There a mouse button pressed over another
     // window takes the focus from Rift, and this let go of the key the moment
     // it went down: both tones at once, and the mic shut while still held.
-    if (_bgSub != null) return;
+    // Not a key the hook cannot name (an ü, AZERTY's top row): that one is
+    // heard only in the window, so its release outside it is never heard.
+    if (_bgSub != null && _hookHearsPushToTalk) return;
     if (state != AppLifecycleState.resumed) {
       context.read<LiveKitCubit>().setPushToTalkPressed(
         false,
         via: 'window ${state.name}',
       );
     }
+  }
+
+  bool get _hookHearsPushToTalk {
+    final keyId = context.read<AppCubit>().state.pushToTalkKeyId;
+    return keyId != null && win32VkForLogicalKey(keyId) != null;
   }
 
   // ── In-focus handler (Flutter HardwareKeyboard) ──────────────────────────
@@ -104,15 +112,23 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
     if (event.logicalKey.keyId != keyId) return false;
 
     if (event is KeyUpEvent) {
+      _keyDownSeen = false;
       context.read<LiveKitCubit>().setPushToTalkPressed(false, via: 'window');
       return false;
     }
 
-    if (event is KeyDownEvent || event is KeyRepeatEvent) {
+    if (event is KeyDownEvent) _keyDownSeen = true;
+    // A repeat counts only for a press heard here. The key just picked in
+    // Settings went down before it was the key, so its repeats would have
+    // put the person on the mic for as long as they held it.
+    if (event is KeyDownEvent || (event is KeyRepeatEvent && _keyDownSeen)) {
       context.read<LiveKitCubit>().setPushToTalkPressed(true, via: 'window');
     }
     return false;
   }
+
+  /// Whether the push-to-talk key's press was heard by [_handleKeyEvent].
+  bool _keyDownSeen = false;
 
   // ── In-window mouse button ───────────────────────────────────────────────
 
@@ -120,15 +136,28 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
   /// change reaches the cubit — every pointer move passes through here.
   bool _buttonHeld = false;
 
+  /// The keybind [_buttonHeld] is about.
+  int? _buttonKeyId;
+
   void _handlePointer(PointerEvent event) {
     if (kIsWeb || !(Platform.isWindows || Platform.isLinux)) return;
     if (event.kind != PointerDeviceKind.mouse) return;
+    // Only these say which buttons are down. A scroll, a hover or the pointer
+    // arriving carries none, and read as a release a turn of the wheel while
+    // talking shut the mic with the button still held.
+    if (event is! PointerDownEvent &&
+        event is! PointerMoveEvent &&
+        event is! PointerUpEvent &&
+        event is! PointerCancelEvent) {
+      return;
+    }
 
     final appState = context.read<AppCubit>().state;
     final keyId = appState.pushToTalkKeyId;
     final button = keyId == null ? null : MouseButtonBind.buttonOf(keyId);
     if (!appState.pushToTalkEnabled || button == null) {
       _buttonHeld = false;
+      _buttonKeyId = keyId;
       return;
     }
 
@@ -136,6 +165,13 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
         event is! PointerUpEvent &&
         event is! PointerCancelEvent &&
         event.buttons & button != 0;
+    // A button just picked in Settings is already down: taken as it is, so
+    // the first move after does not open the mic until it is let go.
+    if (keyId != _buttonKeyId) {
+      _buttonKeyId = keyId;
+      _buttonHeld = held;
+      return;
+    }
     if (held == _buttonHeld) return;
     _buttonHeld = held;
     context.read<LiveKitCubit>().setPushToTalkPressed(held, via: 'window');

@@ -4,9 +4,9 @@
 // Module-level statics used by the static hook callback
 // ----------------------------------------------------------------------------
 
-// Window that receives kWmPttKeyEvent messages. Written once in Start() on the
-// main thread before the hook thread reads it, so no synchronization needed.
-static HWND g_target_hwnd = nullptr;
+// Window that receives kWmPttKeyEvent messages. Written on the main thread by
+// Start() and Stop() while the hook thread reads it.
+static std::atomic<HWND> g_target_hwnd{nullptr};
 
 // The installed hook handles.  Owned by the hook thread.
 static HHOOK g_hook = nullptr;
@@ -37,9 +37,13 @@ static HHOOK g_mouse_hook = nullptr;
 // Mouse buttons do not repeat, so that cannot save them. A tester's Mouse 5,
 // which an AutoHotkey script also used, played both tones on every press and
 // went quiet a tenth of a second in (Oct 19; reproduced in the Windows VM
-// with a hook eating Mouse 5). So Windows saying "up" is believed only once
-// it has said "down" during this press. A key or button something else eats
-// is never down to Windows at all, and its release comes from the hook.
+// with a hook eating Mouse 5). So for a button, Windows saying "up" is
+// believed only once it has said "down" during this press. A button something
+// else eats is never down to Windows at all, and its release comes from the
+// hook. Keys are left to the repeat rule: held to Windows for less than the
+// first check, as Win in a quick Win+L is before the lock hides every key-up,
+// a key was otherwise kept down until it was pressed again, and no shortcut
+// without it matched meanwhile.
 
 // When each key the hook reported down went down, 0 for keys that are up.
 // Hook thread only: the procedures and the timer both run on it.
@@ -58,9 +62,11 @@ static UINT_PTR g_held_check_timer = 0;
 static constexpr UINT kHeldCheckMs = 100;
 
 static void PostKey(UINT vk, bool is_down, bool by_check = false) {
+  const HWND target = g_target_hwnd.load();
+  if (target == nullptr) return;
   // WPARAM carries the virtual-key code, LPARAM carries the direction, and
   // for a release whether the check below made it, which Rift's log names.
-  PostMessage(g_target_hwnd, kWmPttKeyEvent, static_cast<WPARAM>(vk),
+  PostMessage(target, kWmPttKeyEvent, static_cast<WPARAM>(vk),
               static_cast<LPARAM>(is_down ? 1 : by_check ? 2 : 0));
 }
 
@@ -74,6 +80,10 @@ static ULONGLONG RepeatDueWithin(UINT vk) {
   const ULONGLONG gap = g_repeat_gap[vk];
   if (gap == 0) return first;
   return gap * 3 + 50 < first ? gap * 3 + 50 : first;
+}
+
+static bool IsMouseButton(UINT vk) {
+  return vk == VK_MBUTTON || vk == VK_XBUTTON1 || vk == VK_XBUTTON2;
 }
 
 static bool StillRepeating(UINT vk, ULONGLONG now) {
@@ -96,7 +106,8 @@ static VOID CALLBACK CheckHeldKeys(HWND, UINT, UINT_PTR, DWORD) {
       any_held = true;
       continue;
     }
-    if (!g_windows_saw_down[vk] || StillRepeating(vk, now)) {
+    if ((IsMouseButton(vk) && !g_windows_saw_down[vk]) ||
+        StillRepeating(vk, now)) {
       any_held = true;
       continue;
     }
@@ -104,7 +115,7 @@ static VOID CALLBACK CheckHeldKeys(HWND, UINT, UINT_PTR, DWORD) {
     g_last_down[vk] = 0;
     g_repeat_gap[vk] = 0;
     g_windows_saw_down[vk] = false;
-    if (g_target_hwnd != nullptr) PostKey(vk, false, true);
+    PostKey(vk, false, true);
   }
   if (!any_held && g_held_check_timer != 0) {
     KillTimer(nullptr, g_held_check_timer);
@@ -207,6 +218,11 @@ void GlobalKeyHook::Start(HWND hwnd) {
 
   hook_thread_ = std::thread([this, ready_event]() {
     hook_thread_id_ = GetCurrentThreadId();
+    // The thread's message queue, before Start() returns: a Stop() straight
+    // after posts WM_QUIT, which a thread with no queue yet loses, and the
+    // join then waits for ever.
+    MSG queue;
+    PeekMessage(&queue, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
     SetEvent(ready_event);
 
     g_hook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc,

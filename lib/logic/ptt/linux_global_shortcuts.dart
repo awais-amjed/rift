@@ -53,7 +53,16 @@ class LinuxGlobalShortcuts {
         },
       ),
   };
-  StreamSubscription<AppState>? _settings;
+  StreamSubscription<List<PortalShortcut>>? _settings;
+
+  /// A session the desktop took away is bound again after [_rebindAfter],
+  /// but not past [_maxLosses] in [_lossSpan]: a desktop that keeps closing
+  /// it would otherwise be asked forever.
+  Timer? _rebind;
+  final List<DateTime> _losses = [];
+  static const Duration _rebindAfter = Duration(seconds: 2);
+  static const Duration _lossSpan = Duration(minutes: 1);
+  static const int _maxLosses = 3;
 
   /// Bumped on every change, so a bind that finishes after the settings moved
   /// on (the user took a while in the desktop's dialog) is thrown away.
@@ -87,12 +96,18 @@ class LinuxGlobalShortcuts {
     // The latest state, not the one each change carries: storing what the
     // desktop reports is several changes in a row, and the ones in between
     // would look like new keys to bind.
-    _settings = _app.stream.listen((_) => _apply());
+    // Only a change to the list itself: the settings change several times a
+    // second in a call, with who is speaking.
+    _settings = _app.stream
+        .map((_) => notRefused(_wantedFor(_app.state), _refused))
+        .distinct(listEquals)
+        .listen((_) => _apply());
     _apply();
   }
 
   Future<void> dispose() async {
     _generation++;
+    _rebind?.cancel();
     await _settings?.cancel();
     _pushToTalk.dispose();
     for (final debounce in _calls.values) {
@@ -134,6 +149,9 @@ class LinuxGlobalShortcuts {
 
     _app.setDesktopPushToTalkPending(shown.pending);
     await LinuxDesktopEntry.ensure();
+    // Settings moved on meanwhile, perhaps to nothing at all, and a bind
+    // from here would open a session nobody closes.
+    if (generation != _generation) return;
     final bound = await _bind(wanted, generation);
     if (generation != _generation) return;
     var triggers = bound.triggers;
@@ -189,7 +207,37 @@ class LinuxGlobalShortcuts {
     onTriggersChanged: (triggers) {
       if (generation == _generation) _adopt(triggers);
     },
+    onLost: () {
+      if (generation == _generation) _afterLoss();
+    },
   );
+
+  /// The keys stopped coming without Rift closing the session. Until it is
+  /// bound again the window hears them, as during a bind.
+  void _afterLoss() {
+    _setPushToTalkKey(null);
+    _app.setDesktopCallShortcuts(const {});
+    _pushToTalk.reset();
+    for (final debounce in _calls.values) {
+      debounce.reset();
+    }
+    final now = DateTime.now();
+    _losses
+      ..removeWhere((at) => now.difference(at) > _lossSpan)
+      ..add(now);
+    if (_losses.length > _maxLosses) {
+      HelperMethods.printDebug(
+        'LinuxGlobalShortcuts: the desktop keeps ending the session, '
+        'in-window only until the shortcuts change',
+      );
+      return;
+    }
+    _rebind?.cancel();
+    _rebind = Timer(_rebindAfter, () {
+      _applied = null;
+      unawaited(_apply());
+    });
+  }
 
   ReleaseDebounce? _debounceFor(String id) {
     if (id == GlobalShortcutsPortal.pushToTalkId) return _pushToTalk;
@@ -206,7 +254,11 @@ class LinuxGlobalShortcuts {
     final pushToTalkKey = pushToTalk == null
         ? null
         : keybindForTriggerDescription(pushToTalk);
-    final calls = adoptDesktopKeys(state.callShortcuts, triggers);
+    var calls = adoptDesktopKeys(state.callShortcuts, triggers);
+    // As in Settings, push-to-talk's key is its own.
+    if (pushToTalkKey != null && state.pushToTalkEnabled) {
+      calls = calls.withoutKey(pushToTalkKey.keyId);
+    }
     _applied = notRefused(
       desktopShortcutsFor(
         pushToTalk: state.pushToTalkEnabled,
@@ -230,7 +282,14 @@ class LinuxGlobalShortcuts {
   /// What the desktop says the push-to-talk key is, shown in Settings.
   void _setPushToTalkKey(String? trigger) {
     final known = (trigger?.isNotEmpty ?? false) ? trigger : null;
+    final wasBound = _pushToTalkBound;
     _pushToTalkBound = known != null;
+    // From here the window stands down, and the release of a key it heard
+    // go down during the bind would never reach it: the mic stayed open,
+    // into the next call too, until the key was pressed again.
+    if (_pushToTalkBound && !wasBound) {
+      _liveKit.setPushToTalkPressed(false, via: 'desktop took the key');
+    }
     if (_app.state.desktopPushToTalkKey != known) {
       _app.setDesktopPushToTalkKey(known);
     }

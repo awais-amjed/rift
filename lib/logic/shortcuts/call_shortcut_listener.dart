@@ -31,9 +31,20 @@ class CallShortcutListener extends StatefulWidget {
 
   const CallShortcutListener({super.key, required this.child});
 
-  /// Set while Settings is listening for a new shortcut, so the press that
-  /// picks one does not also mute.
-  static bool capturing = false;
+  /// Set while Settings is listening for a new shortcut or push-to-talk
+  /// key, so the press that picks one does not also mute.
+  static bool get capturing => _capturer != null;
+
+  /// Which capture holds [capturing]. Moving straight from one row's capture
+  /// to another's, the first one's end came after the second's start and
+  /// cleared it: the next press both moved a shortcut and ran it.
+  static Object? _capturer;
+
+  static void startCapture(Object owner) => _capturer = owner;
+
+  static void endCapture(Object owner) {
+    if (identical(_capturer, owner)) _capturer = null;
+  }
 
   @override
   State<CallShortcutListener> createState() => _CallShortcutListenerState();

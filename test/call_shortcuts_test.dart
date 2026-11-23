@@ -271,6 +271,36 @@ void main() {
       expect(app.state.callShortcuts.deafen, ctrlShiftM);
     });
 
+    testWidgets('moving straight to another row keeps listening', (
+      tester,
+    ) async {
+      final app = await pump(tester);
+      await tester.tap(find.text('Set keys').first);
+      await tester.pump();
+      // The first row now offers Cancel, so this is the second row's.
+      await tester.tap(find.text('Set keys').first);
+      await tester.pump();
+      expect(CallShortcutListener.capturing, isTrue);
+
+      await pressCtrlShiftM(tester);
+      expect(app.state.callShortcuts.deafen, ctrlShiftM);
+      expect(CallShortcutListener.capturing, isFalse);
+    });
+
+    testWidgets('a key push-to-talk holds is refused', (tester) async {
+      final app = await pump(tester);
+      app
+        ..setPushToTalkEnabled(true)
+        ..setPushToTalkKeybind(keyId: LogicalKeyboardKey.f9.keyId, label: 'F9');
+      await tester.tap(find.text('Set keys').first);
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.f9);
+      await tester.pump();
+      expect(app.state.callShortcuts.mute, isNull);
+      expect(find.text('Push-to-talk uses that key. Pick another.'), findsOne);
+    });
+
     testWidgets('Esc cancels', (tester) async {
       final app = await pump(tester);
       await tester.tap(find.text('Set keys').first);
@@ -369,5 +399,46 @@ void main() {
         }
       },
     );
+  });
+
+  group('push-to-talk and the call shortcuts', () {
+    setUp(() => HydratedBloc.storage = MemoryStorage());
+    final f9 = KeyShortcut(keyId: LogicalKeyboardKey.f9.keyId);
+
+    test('push-to-talk takes its key from a call shortcut', () {
+      final app = AppCubit()
+        ..setCallShortcut(CallShortcut.mute, f9)
+        ..setCallShortcut(
+          CallShortcut.deafen,
+          KeyShortcut(keyId: LogicalKeyboardKey.f9.keyId, ctrl: true),
+        )
+        ..setCallShortcut(CallShortcut.leave, ctrlShiftL)
+        ..setPushToTalkKeybind(keyId: f9.keyId, label: 'F9');
+      // Off, push-to-talk holds nothing.
+      expect(app.state.callShortcuts.mute, f9);
+
+      app.setPushToTalkEnabled(true);
+      expect(app.state.callShortcuts.mute, isNull);
+      expect(app.state.callShortcuts.deafen, isNull);
+      expect(app.state.callShortcuts.leave, ctrlShiftL);
+
+      app.setCallShortcut(CallShortcut.mute, f9);
+      app.setPushToTalkKeybind(keyId: f9.keyId, label: 'F9');
+      expect(app.state.callShortcuts.mute, isNull);
+    });
+
+    test('a declined push-to-talk key is asked about again once re-picked', () {
+      final app = AppCubit()
+        ..setDesktopShortcutAnswers(
+          refused: const ['push-to-talk=F9', 'call-mute=<Control>m'],
+        );
+      app.clearPushToTalkKeybind();
+      expect(app.state.desktopShortcutsRefused, ['call-mute=<Control>m']);
+
+      app
+        ..setDesktopShortcutAnswers(refused: const ['push-to-talk=F9'])
+        ..setPushToTalkKeybind(keyId: f9.keyId, label: 'F9');
+      expect(app.state.desktopShortcutsRefused, isEmpty);
+    });
   });
 }

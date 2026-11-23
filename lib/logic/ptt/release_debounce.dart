@@ -24,6 +24,11 @@ import 'dart:async';
 /// it — for over three minutes in one test, across several more holds. So an
 /// edge stamped before the latest edge of the other kind is stale and is
 /// dropped.
+///
+/// A desktop that stamps nothing (0) has its edges numbered in the order they
+/// arrive: compared as they came, every press after the first release looked
+/// stale and push-to-talk worked once per bind. A stamp far
+/// behind the last one is a clock that wrapped, not a backlog, and starts over.
 class ReleaseDebounce {
   /// How long a same-instant release waits for the next repeat. Comfortably
   /// over GNOME's default 30ms repeat interval, and short enough to vanish
@@ -33,6 +38,14 @@ class ReleaseDebounce {
   /// A repeat's press and release have been seen 0 and 1ms apart; a finger
   /// is never that quick.
   static const int _sameInstant = 1;
+
+  /// How far back a stale edge can be. A backlog is a few seconds at most;
+  /// anything older is a desktop clock that started again.
+  static const int _staleAtMost = 60000;
+
+  /// The last number given to an unstamped edge. Two apart, so a press and
+  /// the release after it are never taken for a repeat's same-instant pair.
+  int _arrival = 0;
 
   final Duration window;
   final void Function(bool pressed) onChanged;
@@ -48,10 +61,11 @@ class ReleaseDebounce {
 
   /// A press, stamped in the desktop's milliseconds.
   void press(int timestamp) {
+    timestamp = _stamp(timestamp);
     // At the same instant counts as stale: a repeat's press and release share
     // a millisecond, and its release has already been seen.
     final releasedAt = _lastReleaseAt;
-    if (releasedAt != null && timestamp <= releasedAt) return;
+    if (releasedAt != null && _isStale(timestamp, releasedAt)) return;
     _lastPressAt = timestamp;
     _pending?.cancel();
     _pending = null;
@@ -62,8 +76,13 @@ class ReleaseDebounce {
 
   /// A release, stamped in the desktop's milliseconds.
   void release(int timestamp) {
+    timestamp = _stamp(timestamp);
     final pressedAt = _lastPressAt;
-    if (pressedAt != null && timestamp < pressedAt) return;
+    if (pressedAt != null &&
+        timestamp < pressedAt &&
+        _isStale(timestamp, pressedAt)) {
+      return;
+    }
     _lastReleaseAt = timestamp;
     if (!_down) return;
     final pairedWithPress =
@@ -82,6 +101,11 @@ class ReleaseDebounce {
     _lastReleaseAt = null;
     _settle();
   }
+
+  int _stamp(int timestamp) => timestamp > 0 ? timestamp : _arrival += 2;
+
+  static bool _isStale(int timestamp, int latest) =>
+      timestamp <= latest && latest - timestamp < _staleAtMost;
 
   void dispose() {
     _pending?.cancel();
