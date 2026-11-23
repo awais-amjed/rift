@@ -184,10 +184,12 @@ class ReportsCubit extends Cubit<ReportsState> {
   Future<APIResponse> dismiss(ReportEntry entry) =>
       _record(entry, ReportOutcome.dismissed);
 
-  /// Delete the reported message. Its files are left to the server's sweep:
-  /// the paths are the reporter's word against its sender's, and a body
-  /// naming other people's files would have had them deleted too
-  /// (`AttachmentCleanup.forMessage`). A message its author already deleted
+  /// Delete the reported message. Its files are the server's to free: the
+  /// message named them when it was sent (`attachment_paths`), and the
+  /// sweep removes them once it is gone. A message sent before console
+  /// 1.9.0 named none, and keeps them until the sweep's watermark passes.
+  /// The body's own paths are not used: they are its sender's word, and could
+  /// name other people's files (`AttachmentCleanup.forMessage`). A message its author already deleted
   /// is already the outcome wanted: the delete then finds nothing, and the
   /// record goes in anyway, the server checking the message is gone. Only if
   /// that is refused too does the delete's own error stand.

@@ -55,9 +55,11 @@ mixin _ForwardDmsMixin on _ForwardBlobsMixin {
       keyVersion: 1,
     );
 
-    final response = await dmsOn(
-      server.id,
-    ).sendDm(recipientId: target.peerId, envelope: envelope.toJson());
+    final response = await dmsOn(server.id).sendDm(
+      recipientId: target.peerId,
+      envelope: envelope.toJson(),
+      attachmentPaths: UploadedFiles(attachments: attachments).paths,
+    );
     return response.success ? null : (response.error?.toString() ?? 'Failed');
   }
 

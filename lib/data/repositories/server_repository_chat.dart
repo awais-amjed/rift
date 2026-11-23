@@ -80,6 +80,11 @@ mixin _ChatApiMixin {
   /// turns on (the `messages.mentions` column comment argues the trade). They are
   /// validated there, not trusted: ids that aren't live members are dropped
   /// and the array is capped.
+  ///
+  /// [attachmentPaths] are the message's files (`UploadedFiles.paths`), also
+  /// in the clear: the server checks each is the sender's own upload to this
+  /// channel, and frees them when the message is deleted, by whoever deletes
+  /// it ([ServerDb.withFilesNamed]).
   Future<APIResponse> sendMessage(
     String supabaseUrl, {
     required String anonKey,
@@ -90,7 +95,8 @@ mixin _ChatApiMixin {
     bool mentionsAll = false,
     String? toBot,
     Map<String, dynamic>? poll,
-  }) {
+    List<String> attachmentPaths = const [],
+  }) => ServerDb.withFilesNamed(attachmentPaths, (paths) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       return db
@@ -100,6 +106,7 @@ mixin _ChatApiMixin {
             ...envelope,
             'mentions': mentions,
             'mentions_all': mentionsAll,
+            'attachment_paths': ?paths,
             // Set only for a `/` command, and the reason the envelope above is
             // unsealed when it is. `messages_insert` refuses the two confusing
             // shapes: plaintext addressed to nobody, and a sealed body
@@ -113,7 +120,7 @@ mixin _ChatApiMixin {
           .select('id, created_at, channel_id, sender_id, poll, mentions_all')
           .single();
     });
-  }
+  });
 
   /// Press something on a bot's panel.
   ///
@@ -271,16 +278,21 @@ mixin _ChatApiMixin {
     String? bearerToken,
     required String recipientId,
     required Map<String, dynamic> envelope,
-  }) {
+    List<String> attachmentPaths = const [],
+  }) => ServerDb.withFilesNamed(attachmentPaths, (paths) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       return db
           .from('dm_messages')
-          .insert({'recipient_id': recipientId, ...envelope})
+          .insert({
+            'recipient_id': recipientId,
+            ...envelope,
+            'attachment_paths': ?paths,
+          })
           .select('id, created_at, sender_id, recipient_id')
           .single();
     });
-  }
+  });
 
   /// One page of conversations: an entry per peer with their identity material
   /// and the latest envelope, newest activity first.

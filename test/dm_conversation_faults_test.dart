@@ -147,6 +147,7 @@ class _DmServer extends ServerRepository {
     String? bearerToken,
     required String recipientId,
     required Map<String, dynamic> envelope,
+    List<String> attachmentPaths = const [],
   }) async {
     sent.add(envelope);
     return answerSend?.call(envelope) ??

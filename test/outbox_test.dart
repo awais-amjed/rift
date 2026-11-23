@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rift/data/classes/api_response.dart';
 import 'package:rift/data/classes/attachment.dart';
 import 'package:rift/data/classes/chat_message.dart';
 import 'package:rift/data/classes/pending_attachment.dart';
@@ -566,6 +567,87 @@ void main() {
       );
       expect(result.retired, isEmpty);
       expect(result.merged.map((m) => m.id), ['pending-2', '42']);
+    });
+  });
+
+  // Console 1.9.0: a message names its files beside the sealed body, so the
+  // server frees them on any delete. An older server has no such column.
+  group('naming a message\'s files', () {
+    test(
+      'a message without files is sent as before, column left out',
+      () async {
+        final asked = <List<String>?>[];
+        final sent = await ServerDb.withFilesNamed(const [], (paths) async {
+          asked.add(paths);
+          return APIResponse.success({'id': 1});
+        });
+        expect(sent.success, isTrue);
+        expect(asked, [null]);
+      },
+    );
+
+    test('names them, and only once when the server takes them', () async {
+      final asked = <List<String>?>[];
+      await ServerDb.withFilesNamed(const ['c/a.bin'], (paths) async {
+        asked.add(paths);
+        return APIResponse.success({'id': 1});
+      });
+      expect(asked, [
+        ['c/a.bin'],
+      ]);
+    });
+
+    test('a server without the column is asked again without it', () async {
+      final asked = <List<String>?>[];
+      final sent = await ServerDb.withFilesNamed(const ['c/a.bin'], (
+        paths,
+      ) async {
+        asked.add(paths);
+        return paths == null
+            ? APIResponse.success({'id': 1})
+            : APIResponse.error('no column', errorCode: 'PGRST204');
+      });
+      expect(sent.success, isTrue);
+      expect(asked, [
+        ['c/a.bin'],
+        null,
+      ]);
+    });
+
+    test('any other refusal stands, and is not sent twice', () async {
+      var calls = 0;
+      final sent = await ServerDb.withFilesNamed(const ['c/a.bin'], (_) async {
+        calls++;
+        return APIResponse.error(
+          'attachment_not_yours',
+          errorCode: 'attachment_not_yours',
+        );
+      });
+      expect(sent.success, isFalse);
+      expect(calls, 1);
+      expect(UploadedFiles.refusal(sent.errorCode), isNotNull);
+      expect(Outbox.canRetry(sent.errorCode), isFalse);
+    });
+
+    test('every object the files are is named: poster and card too', () {
+      Attachment file(String path, {Attachment? poster}) => Attachment(
+        id: path,
+        kind: poster == null ? AttachmentKind.image : AttachmentKind.video,
+        name: 'f',
+        mime: 'image/png',
+        size: 1,
+        storagePath: path,
+        keyB64: 'k',
+        nonceB64: 'n',
+        poster: poster,
+      );
+      final files = UploadedFiles(
+        attachments: [
+          file('c/v.bin', poster: file('c/p.bin')),
+          file('c/i.bin'),
+        ],
+      );
+      expect(files.paths, ['c/v.bin', 'c/p.bin', 'c/i.bin']);
     });
   });
 }

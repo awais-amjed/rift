@@ -480,12 +480,20 @@ at a time, and the nightly sweep takes each after 31 days (`account_storage_ceil
 past that Storage refuses the upload with `account_storage_full`, which the app
 puts into words. Deleting a message has to delete its blobs, and
 storage refuses a direct delete — so that path goes through an endpoint holding
-the Storage API rather than any database role. A client deletes the blobs only
-of a message of its own (`AttachmentCleanup.forMessage`): the paths are in a
-body its sender wrote, and a manager, whom `chat_attachments_delete` lets
-delete any file in the server, deleting a message that named other people's
-files would have deleted those too (found in the Nov 22 review). Another's are
-left to the orphan sweep. A send that is refused removes what it uploaded, and
+the Storage API rather than any database role. Since console 1.9.0 a message
+names its files beside the sealed body (`attachment_paths`: each attachment, a
+video's poster, a link card's picture), and the server checks each is its
+sender's own upload under that conversation's folder. Deleting the message, by
+anyone, puts them in the server's trash, and `sweep_attachments` removes those
+no other message names; that is how a moderator's or a report's delete frees
+them. A file is deleted directly only by its uploader (`chat_attachments_delete`).
+The sender's app also removes its own message's files at once
+(`AttachmentCleanup.forMessage`), which covers a message from before 1.9.0 or on
+an older server, where nothing names them and the sweep collects only what is
+older than the oldest message left; it never deletes from another's body, whose
+paths are that sender's word (found in the Nov 22 review). An app sending to an
+older server leaves the column out on PostgREST's `PGRST204` and sends again
+(`ServerDb.withFilesNamed`). A send that is refused removes what it uploaded, and
 a retry names the files its first attempt put up rather than uploading them
 again (`UploadedFiles`). Refused means the database said no: the gateway's own
 502, 503 or 504 is no answer, and the send is held like one over a dead socket
@@ -696,7 +704,10 @@ and iOS leave out of backups; not on the web.
 - **Metadata is visible** to the server admin and host: who, when, where, how much — and, since
   August 2026, **who a message named** (`messages.mentions`). E2E covers content only. That
   column exists so the server can ring somebody whose channel is set to mentions-only without
-  reading the message; the operator learns who was addressed, not what was said.
+  reading the message; the operator learns who was addressed, not what was said. Since console
+  1.9.0, **which stored files a message carries** (`attachment_paths`), so its files can be freed
+  when anyone deletes it. The server already saw each file's size, time, uploader and
+  conversation, and the message that followed it; it still sees no name, type or byte of one.
 - **Reactions, pins and poll votes are visible** to the server: who reacted with what, which
   messages are pinned, and who picked which option *number* of a poll. The question and the
   options are sealed in the body (in the clear where a channel's encryption is off); the rules the server enforces (how many options, one pick or

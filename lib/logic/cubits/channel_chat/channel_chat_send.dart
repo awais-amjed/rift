@@ -384,6 +384,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         mentions: mentioned,
         mentionsAll: named.all,
         toBot: command?.bot.id,
+        attachmentPaths: uploadedFiles.paths,
       );
 
       // After the message, not before: the bot is being told to stop, and it
@@ -411,7 +412,10 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
           channelId: channelId,
           heldAs: heldAs,
           errorCode: response.errorCode,
-          error: response.error ?? 'Failed to send message',
+          error:
+              UploadedFiles.refusal(response.errorCode) ??
+              response.error ??
+              'Failed to send message',
         );
       }
 

@@ -6,19 +6,17 @@ import 'media_store.dart';
 
 /// Removing the attachment blobs of a message that is being deleted.
 ///
-/// This has to happen on the client, and it is worth saying why, because the
-/// tidier-looking answers don't work:
+/// Since console 1.9.0 the server frees them itself: a message names its
+/// files beside the sealed body (`attachment_paths`, checked to be its
+/// sender's own uploads), a delete by anyone puts them in the server's trash,
+/// and `sweep_attachments` removes them. That is what a moderator's delete
+/// relies on. The database cannot delete an object directly
+/// (`storage.protect_delete()`), which is why it goes through the sweep.
 ///
-///   * The **server can't find them.** An attachment's storage path lives
-///     inside the E2E-encrypted message body — that is the whole design. Only
-///     a client that has decrypted the message knows which blobs are its own.
-///   * The **database can't delete them.** `storage.protect_delete()` refuses a
-///     direct DELETE on `storage.objects` ("Use the Storage API instead"), so
-///     an `ON DELETE CASCADE` from a message→blob table would have freed zero
-///     bytes. Such a table would have bought a metadata leak and nothing else.
-///
-/// So the client does the precise deletion, and `sweep_attachments` on the
-/// server cleans up whatever no client ever got to.
+/// The sender's own delete still removes them here at once, which also
+/// covers a message sent before 1.9.0 or to an older server, where nothing
+/// names them and the sweep only collects what is older than the oldest
+/// message left.
 class AttachmentCleanup {
   const AttachmentCleanup._();
 
@@ -33,9 +31,10 @@ class AttachmentCleanup {
   /// Only for a message of your own. The paths come from the body, and the
   /// body is its sender's to write: a member could name anyone's files in
   /// the conversation, and a manager deleting that message as spam, whom
-  /// `chat_attachments_delete` lets delete any file in the server, would
-  /// have deleted all of them (review, Nov 22). Another's are left to the
-  /// sweep. [origin] is where the files are (`AttachmentLoader.origin`), for
+  /// `chat_attachments_delete` let delete any file in the server before
+  /// 1.9.0, would have deleted all of them (review, Nov 22). Only the
+  /// uploader may delete a file now; another's are the server's to free.
+  /// [origin] is where the files are (`AttachmentLoader.origin`), for
   /// letting go of their bytes here, which happens for any message.
   static Future<void> forMessage(
     ChatMessage? message, {

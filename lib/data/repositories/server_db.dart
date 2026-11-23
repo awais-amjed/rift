@@ -49,6 +49,25 @@ class ServerDb {
   /// A 500 is left out: that one is the database's. As `CentralFailure`.
   static const Set<String> _gateway = {'502', '503', '504'};
 
+  /// Send with [paths] named, or, to a server from before console 1.9.0,
+  /// without.
+  ///
+  /// [send] is given the paths to put in `attachment_paths`, or null to leave
+  /// the column out: always for a message with no files, so one is sent
+  /// exactly as before, and on the second try when the server answered
+  /// PostgREST's `PGRST204`, which is a column it does not have. That server
+  /// keeps the files until its sweep's watermark passes them, as it always
+  /// did; the message itself is the same either way.
+  static Future<APIResponse> withFilesNamed(
+    List<String> paths,
+    Future<APIResponse> Function(List<String>? paths) send,
+  ) async {
+    if (paths.isEmpty) return send(null);
+    final sent = await send(paths);
+    if (sent.errorCode != 'PGRST204') return sent;
+    return send(null);
+  }
+
   /// Runs one database call and turns whatever comes back — rows, an RPC's
   /// json, an exception — into the [APIResponse] the rest of the app speaks.
   ///

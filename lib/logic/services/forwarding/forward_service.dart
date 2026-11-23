@@ -26,6 +26,7 @@ import '../attachment_staging.dart';
 import '../chat_attachment_uploader.dart';
 import '../file_save/save_target.dart';
 import '../message_cache.dart';
+import '../outbox.dart';
 import 'forward_target.dart';
 
 part 'forward_service_blobs.dart';
@@ -217,6 +218,7 @@ class ForwardService with _ForwardBlobsMixin, _ForwardDmsMixin {
     final response = await _channelMessagesOn(server.id).sendChatMessage(
       channelId: target.channel.id,
       envelope: envelope.toJson(),
+      attachmentPaths: UploadedFiles(attachments: attachments).paths,
     );
     return response.success ? null : (response.error?.toString() ?? 'Failed');
   }

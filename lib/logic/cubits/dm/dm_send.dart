@@ -227,6 +227,7 @@ mixin _DmSendMixin on Cubit<DmState> {
       final response = await dmsApi.sendDm(
         recipientId: peerId,
         envelope: envelope.toJson(),
+        attachmentPaths: uploadedFiles.paths,
       );
 
       if (!response.success) {
@@ -243,6 +244,7 @@ mixin _DmSendMixin on Cubit<DmState> {
                 response.errorCode,
                 peerName: peerName ?? 'They',
               ) ??
+              UploadedFiles.refusal(response.errorCode) ??
               response.error ??
               'Failed to send message',
         );

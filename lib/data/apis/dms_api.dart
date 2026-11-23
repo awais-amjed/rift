@@ -48,6 +48,7 @@ class DmsApi {
   Future<APIResponse> sendDm({
     required String recipientId,
     required Map<String, dynamic> envelope,
+    List<String> attachmentPaths = const [],
   }) async {
     final server = _target.server;
     final anonKey = server?.supabaseKey;
@@ -61,6 +62,7 @@ class DmsApi {
         anonKey: anonKey,
         recipientId: recipientId,
         envelope: envelope,
+        attachmentPaths: attachmentPaths,
         bearerToken: token,
       ),
     );

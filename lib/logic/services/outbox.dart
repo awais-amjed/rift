@@ -31,12 +31,26 @@ class UploadedFiles {
   });
 
   /// Every object they are: the files, a video's poster, the card's picture.
+  /// Sent with the message (`attachment_paths`), so the server frees them
+  /// when it is deleted, whoever deletes it.
   List<String> get paths => [
     for (final attachment in [...attachments, ?preview?.image]) ...[
       attachment.storagePath,
       ?attachment.poster?.storagePath,
     ],
   ];
+
+  /// What to say when the server would not take a message naming these.
+  ///
+  /// `attachment_not_yours` is what an honest app meets only when its files
+  /// were removed before the message went: a send held for over an hour,
+  /// past the sweep's grace for files no message names yet.
+  static String? refusal(String? errorCode) => switch (errorCode) {
+    'attachment_not_yours' =>
+      'Its files are no longer on the server. Attach them again and send.',
+    'too_many_attachments' => 'That message has too many files.',
+    _ => null,
+  };
 }
 
 /// One send that did not land, and everything a second attempt would need.

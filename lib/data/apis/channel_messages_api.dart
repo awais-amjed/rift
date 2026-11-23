@@ -43,6 +43,7 @@ class ChannelMessagesApi {
     bool mentionsAll = false,
     String? toBot,
     Map<String, dynamic>? poll,
+    List<String> attachmentPaths = const [],
   }) => _onNamed(
     (server, anonKey, token) => _repository.sendMessage(
       server.supabaseUrl,
@@ -53,6 +54,7 @@ class ChannelMessagesApi {
       mentionsAll: mentionsAll,
       toBot: toBot,
       poll: poll,
+      attachmentPaths: attachmentPaths,
       bearerToken: token,
     ),
   );
