@@ -30,10 +30,18 @@ class UpdateCubit extends Cubit<UpdateState> {
   static const firstCheckAfter = Duration(seconds: 20);
   static const checkEvery = Duration(hours: 6);
 
+  /// When to look again after a check or download failed, rather than
+  /// [checkEvery]: most failures are a network that was away for a moment.
+  static const retryAfter = Duration(minutes: 30);
+
   Timer? _timer;
   StreamSubscription<UpdateDownloadProgress>? _download;
   StreamSubscription<AppState>? _settings;
-  late bool _betas = _wantsBetas;
+
+  /// Whether checks take betas, as last seen in settings. Set in the
+  /// constructor, not on first read: the settings listener reads it first,
+  /// and would take the change it is there to notice as the starting value.
+  late bool _betas;
 
   /// The version whose download the person cancelled.
   String? _cancelled;
@@ -58,14 +66,53 @@ class UpdateCubit extends Cubit<UpdateState> {
         (state.installedVersion?.contains('-') ?? false)) {
       appCubit.setBetaUpdates(true);
     }
+    _betas = _wantsBetas;
     _timer = Timer(firstCheckAfter, _scheduled);
-    // Turning betas on is a reason to look again now, not in six hours. The
-    // person is in Settings, so what it finds waits for them.
     _settings = appCubit.stream.listen((_) {
       if (_wantsBetas == _betas) return;
       _betas = _wantsBetas;
-      unawaited(checkNow());
+      unawaited(_betasChanged());
     });
+  }
+
+  /// Turning betas on is a reason to look again now, not in six hours. The
+  /// person is in Settings, so what it finds waits for them. Turning them
+  /// off also stops a beta on its way, and throws away one waiting for a
+  /// restart, which the next start would otherwise put in place.
+  Future<void> _betasChanged() async {
+    if (_unwanted(state.version)) {
+      switch (state.status) {
+        case UpdateStatus.downloading || UpdateStatus.paused
+            when !state.preparing:
+          _stopDownload();
+        case UpdateStatus.ready:
+          await _discard();
+        default:
+      }
+    }
+    // A check under way looks again itself once it ends (see [_check]).
+    await checkNow();
+  }
+
+  /// Whether [version] is a beta while betas are off.
+  bool _unwanted(String? version) =>
+      !_betas && (version?.contains('-') ?? false);
+
+  /// Throws away the downloaded update, which is no longer wanted.
+  Future<void> _discard() async {
+    try {
+      await _repository.discardPending();
+    } catch (e) {
+      HelperMethods.printDebug('UpdateCubit: discard – $e');
+    }
+    if (!isClosed) emit(state.copyWith(status: UpdateStatus.upToDate));
+  }
+
+  /// Looks again in [retryAfter] rather than [checkEvery].
+  void _retrySoon() {
+    if (_timer == null) return;
+    _timer!.cancel();
+    _timer = Timer(retryAfter, _scheduled);
   }
 
   bool get _wantsBetas =>
@@ -95,9 +142,17 @@ class UpdateCubit extends Cubit<UpdateState> {
   Future<void> _check({required bool fetch}) async {
     if (!state.canUpdate || state.busy || isClosed) return;
     emit(state.copyWith(status: UpdateStatus.checking, clearError: true));
+    final betas = _betas;
     try {
-      final found = await _repository.check(includePrereleases: _betas);
+      final found = await _repository.check(includePrereleases: betas);
       if (isClosed) return;
+      if (betas != _betas) {
+        // Betas were turned on or off while it looked: what it found is
+        // for the old choice.
+        emit(state.copyWith(status: UpdateStatus.upToDate));
+        await _check(fetch: fetch);
+        return;
+      }
       if (found == null) {
         emit(state.copyWith(status: UpdateStatus.upToDate));
         return;
@@ -116,7 +171,14 @@ class UpdateCubit extends Cubit<UpdateState> {
     } catch (e) {
       HelperMethods.printDebug('UpdateCubit: check – $e');
       if (!isClosed) {
-        emit(state.copyWith(status: UpdateStatus.failed, error: '$e'));
+        emit(
+          state.copyWith(
+            status: UpdateStatus.failed,
+            error: '$e',
+            failure: UpdateFailure.check,
+          ),
+        );
+        _retrySoon();
       }
     }
   }
@@ -148,16 +210,34 @@ class UpdateCubit extends Cubit<UpdateState> {
         HelperMethods.printDebug('UpdateCubit: download – $e');
         _download = null;
         if (!isClosed) {
-          emit(state.copyWith(status: UpdateStatus.failed, error: '$e'));
+          emit(
+            state.copyWith(
+              status: UpdateStatus.failed,
+              error: '$e',
+              failure: UpdateFailure.download,
+            ),
+          );
+          _retrySoon();
         }
       },
       onDone: () {
         _download = null;
-        if (isClosed || state.status != UpdateStatus.downloading) return;
+        // Paused too: a pause pressed just as the last bytes came in lands
+        // after the download has ended, and the update is ready all the same.
+        final going =
+            state.status == UpdateStatus.downloading ||
+            state.status == UpdateStatus.paused;
+        if (isClosed || !going) return;
+        if (_unwanted(state.version)) {
+          // Betas were turned off while it was being put together.
+          unawaited(_discard().then((_) => checkNow()));
+          return;
+        }
         emit(
           state.copyWith(
             status: UpdateStatus.ready,
             downloadedBytes: state.totalBytes,
+            bytesPerSecond: 0,
           ),
         );
       },
@@ -184,9 +264,14 @@ class UpdateCubit extends Cubit<UpdateState> {
         state.status == UpdateStatus.downloading ||
         state.status == UpdateStatus.paused;
     if (!going || state.preparing) return;
+    _cancelled = state.version;
+    _stopDownload();
+  }
+
+  /// Ends the download; the update it was for stays found.
+  void _stopDownload() {
     unawaited(_download?.cancel());
     _download = null;
-    _cancelled = state.version;
     emit(
       state.copyWith(
         status: UpdateStatus.available,
@@ -208,7 +293,13 @@ class UpdateCubit extends Cubit<UpdateState> {
     } catch (e) {
       HelperMethods.printDebug('UpdateCubit: apply – $e');
       if (!isClosed) {
-        emit(state.copyWith(status: UpdateStatus.failed, error: '$e'));
+        emit(
+          state.copyWith(
+            status: UpdateStatus.failed,
+            error: '$e',
+            failure: UpdateFailure.apply,
+          ),
+        );
       }
       return;
     }

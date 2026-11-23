@@ -1056,7 +1056,7 @@ Velopack (`rust/src/updater`). The release workflow packs each platform with
 `vpk`: an installer that puts Rift in the person's own folder (no administrator
 prompt to install or update), an AppImage, and for each a full package, a
 delta from the release before, and a feed, `releases.<channel>.json`, listing
-every package with its size and SHA-256. Installed copies list the last thirty
+every package with its size and SHA-256. Installed copies list the last hundred
 GitHub releases and read the feeds of only those newer than themselves (the
 deltas from here to the newest), so a check that finds nothing is one request.
 The whole check has a minute; a GitHub too slow for that, or erring, fails it,
@@ -1069,7 +1069,15 @@ the person makes in Settings only finds: the download waits for them. Rift
 fetches the packages itself (`rust/src/updater/transfer.rs`) rather than
 through Velopack's download, so the person can pause one — the connection is
 let go and the rest asked for with a `Range` request — resume it, or cancel
-it, which the background check then respects for that version.
+it, which the background check then respects for that version. A connection
+that goes quiet for 30 s or is cut is asked again for the rest the same way,
+a few times in a row before the download fails; a failed check or download is
+tried again in half an hour. Turning betas off stops a beta on its way and
+throws away one waiting for a restart. On Linux the packages are kept in the
+person's own data folder (`velopack/<id>/packages`), not Velopack's
+`/var/tmp/velopack`, which every account on the computer shares: a package
+already on disk is put in place at the next start without any check, so a
+folder another account can write to is one it could plant code in.
 
 **The feed is the trust boundary.** Velopack refuses a package that does not
 match the feed, so whoever writes the feed chooses the code — and GitHub, or
@@ -1079,7 +1087,11 @@ signature over `rift-update-feed-v1\n<channel>\n` and the feed's bytes, by a
 key in `RELEASE_KEYS` (`rust/src/updater/signature.rs`). The private half is
 kept in the release manager's keyring and nowhere else; `scripts/sign_release.sh`
 signs a published release's feeds there, and until it has, no copy is offered
-that release. The channel is in the message so one platform's feed cannot be
+that release. It refuses to sign a release with a key that release's
+`RELEASE_KEYS` does not hold, which would pass its own check and be skipped by
+every copy. Whether a release is a beta is GitHub's word, which nobody signs,
+so a copy without betas also leaves out any package whose signed version is a
+pre-release. The channel is in the message so one platform's feed cannot be
 passed off as another's. Losing the key means no copy can be updated again
 without a reinstall, so it has an offline, passphrase-sealed backup
 (`scripts/release_key.sh export`); a replacement key is added to

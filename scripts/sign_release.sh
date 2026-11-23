@@ -60,6 +60,22 @@ sign_feed() {
   openssl base64 -A -in "$work/signature" >"$feed.sig"
 }
 
+# Stops before anything is signed for [tag] unless the key that would sign it
+# is one the release's own code accepts (RELEASE_KEYS in
+# rust/src/updater/signature.rs): signed with another, the feeds would check
+# out here and every installed copy would pass them over without a word. A
+# key file named in RIFT_RELEASE_KEY_FILE is a test rig's, never a release's.
+check_release_key() {
+  local tag=$1 public accepted
+  [[ -z ${RIFT_RELEASE_KEY_FILE:-} ]] ||
+    { echo "RIFT_RELEASE_KEY_FILE is set: that is for testing. Unset it to sign a release." >&2; exit 1; }
+  public=$(scripts/release_key.sh public)
+  accepted=$(git show "$tag:rust/src/updater/signature.rs" 2>/dev/null ||
+    cat rust/src/updater/signature.rs)
+  grep -qF "\"$public\"" <<<"$accepted" ||
+    { echo "The release key in the keyring is not in $tag's RELEASE_KEYS: nothing signed." >&2; exit 1; }
+}
+
 # The release workflow's run for [tag]: where the Android build waits.
 fetch_android() {
   local tag=$1 run kept
@@ -287,6 +303,7 @@ if [[ ${2:-} == --play-notes ]]; then
   (( $(python3 -c 'import sys; print(len(open(sys.argv[1]).read().strip()))' "$play_notes") <= 500 )) ||
     { echo "$play_notes is over Play's 500 characters" >&2; exit 1; }
 fi
+check_release_key "$tag"
 gh release view "$tag" -R "$repo" --json name,isPrerelease \
   --jq '"\(.name)\(if .isPrerelease then " (pre-release)" else "" end)"'
 for channel in "${channels[@]}"; do

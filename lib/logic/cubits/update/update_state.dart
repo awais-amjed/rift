@@ -22,6 +22,9 @@ enum UpdateStatus {
   failed,
 }
 
+/// What [UpdateStatus.failed] failed at.
+enum UpdateFailure { check, download, apply }
+
 class UpdateState extends Equatable {
   final UpdateStatus status;
 
@@ -48,6 +51,9 @@ class UpdateState extends Equatable {
   /// Why the last check or download failed.
   final String? error;
 
+  /// What failed, while [UpdateStatus.failed].
+  final UpdateFailure? failure;
+
   const UpdateState({
     required this.status,
     this.installedVersion,
@@ -57,6 +63,7 @@ class UpdateState extends Equatable {
     this.downloadedBytes = 0,
     this.bytesPerSecond = 0,
     this.error,
+    this.failure,
   });
 
   bool get canUpdate => status != UpdateStatus.unsupported;
@@ -89,6 +96,7 @@ class UpdateState extends Equatable {
     int? downloadedBytes,
     int? bytesPerSecond,
     String? error,
+    UpdateFailure? failure,
     bool clearError = false,
   }) {
     return UpdateState(
@@ -100,6 +108,7 @@ class UpdateState extends Equatable {
       downloadedBytes: downloadedBytes ?? this.downloadedBytes,
       bytesPerSecond: bytesPerSecond ?? this.bytesPerSecond,
       error: clearError ? null : (error ?? this.error),
+      failure: clearError ? null : (failure ?? this.failure),
     );
   }
 
@@ -113,5 +122,6 @@ class UpdateState extends Equatable {
     downloadedBytes,
     bytesPerSecond,
     error,
+    failure,
   ];
 }

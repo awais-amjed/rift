@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -289332364;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -390652855;
 
 // Section: executor
 
@@ -2724,6 +2724,38 @@ fn wire__crate__api__updater__updater_check_impl(
         },
     )
 }
+fn wire__crate__api__updater__updater_discard_pending_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "updater_discard_pending",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::updater::updater_discard_pending()?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__updater__updater_download_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -4298,24 +4330,30 @@ fn pde_ffi_dispatcher_primary_impl(
         }
         73 => wire__crate__api__updater__updater_cancel_impl(port, ptr, rust_vec_len, data_len),
         74 => wire__crate__api__updater__updater_check_impl(port, ptr, rust_vec_len, data_len),
-        75 => wire__crate__api__updater__updater_download_impl(port, ptr, rust_vec_len, data_len),
-        76 => wire__crate__api__updater__updater_pause_impl(port, ptr, rust_vec_len, data_len),
-        77 => wire__crate__api__updater__updater_pending_version_impl(
+        75 => wire__crate__api__updater__updater_discard_pending_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        78 => wire__crate__api__updater__updater_resume_impl(port, ptr, rust_vec_len, data_len),
-        79 => wire__crate__api__updater__updater_startup_impl(port, ptr, rust_vec_len, data_len),
-        80 => wire__crate__api__signatures__verify_ed25519_impl(port, ptr, rust_vec_len, data_len),
-        81 => {
+        76 => wire__crate__api__updater__updater_download_impl(port, ptr, rust_vec_len, data_len),
+        77 => wire__crate__api__updater__updater_pause_impl(port, ptr, rust_vec_len, data_len),
+        78 => wire__crate__api__updater__updater_pending_version_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        79 => wire__crate__api__updater__updater_resume_impl(port, ptr, rust_vec_len, data_len),
+        80 => wire__crate__api__updater__updater_startup_impl(port, ptr, rust_vec_len, data_len),
+        81 => wire__crate__api__signatures__verify_ed25519_impl(port, ptr, rust_vec_len, data_len),
+        82 => {
             wire__crate__api__watching__watch_event_stream_impl(port, ptr, rust_vec_len, data_len)
         }
-        83 => wire__crate__api__watching__watch_plays_h264_impl(port, ptr, rust_vec_len, data_len),
-        84 => wire__crate__api__watching__watch_plays_h265_impl(port, ptr, rust_vec_len, data_len),
-        86 => wire__crate__api__watching__watch_share_impl(port, ptr, rust_vec_len, data_len),
-        87 => wire__crate__api__watching__watch_share_stats_impl(port, ptr, rust_vec_len, data_len),
+        84 => wire__crate__api__watching__watch_plays_h264_impl(port, ptr, rust_vec_len, data_len),
+        85 => wire__crate__api__watching__watch_plays_h265_impl(port, ptr, rust_vec_len, data_len),
+        87 => wire__crate__api__watching__watch_share_impl(port, ptr, rust_vec_len, data_len),
+        88 => wire__crate__api__watching__watch_share_stats_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -4345,11 +4383,11 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
-        82 => {
+        83 => {
             wire__crate__api__watching__watch_frame_entry_points_impl(ptr, rust_vec_len, data_len)
         }
-        85 => wire__crate__api__watching__watch_plays_sound_impl(ptr, rust_vec_len, data_len),
-        88 => wire__crate__api__logs__write_log_line_impl(ptr, rust_vec_len, data_len),
+        86 => wire__crate__api__watching__watch_plays_sound_impl(ptr, rust_vec_len, data_len),
+        89 => wire__crate__api__logs__write_log_line_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

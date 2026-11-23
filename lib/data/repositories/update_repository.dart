@@ -54,6 +54,10 @@ class UpdateRepository {
   /// an error, which nobody needs to hear.
   Future<void> cancel() => rust.updaterCancel();
 
+  /// Throws away a downloaded update waiting for a restart, so the next
+  /// start does not put it in place.
+  Future<void> discardPending() => rust.updaterDiscardPending();
+
   /// Hands the downloaded update to the updater, which waits for this
   /// process to end, puts the update in place and starts Rift again.
   Future<void> applyOnExit() => rust.updaterApplyOnExit();

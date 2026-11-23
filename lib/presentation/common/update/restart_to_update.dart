@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../logic/cubits/update/update_cubit.dart';
+import '../../../logic/helper_methods.dart';
 import '../confirm_dialog.dart';
 
 /// Restarts Rift into the downloaded update. A channel's call is rejoined
@@ -26,4 +27,10 @@ Future<void> restartToUpdate(BuildContext context) async {
   }
   // Read after the question: the call may have changed while it was open.
   await updates.restartToUpdate(call: livekit.state.toResume(DateTime.now()));
+  // Pressed from the title bar's dialog, nothing else would say so.
+  if (updates.state.failure == UpdateFailure.apply) {
+    HelperMethods.showError(
+      error: "Couldn't install the update. Try again in a moment.",
+    );
+  }
 }

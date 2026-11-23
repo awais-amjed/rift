@@ -21,8 +21,18 @@ use velopack::{Error, VelopackAsset};
 /// The error a cancelled download ends with.
 pub(crate) const CANCELLED: &str = "The download was cancelled";
 
-/// How long a connection or a server's first answer may take.
+/// How long a connection or a server's first answer may take, and how long
+/// a read may wait for the next bytes: a connection that died without a word
+/// (the laptop slept, the network changed) otherwise left the read waiting
+/// for ever, and the download on its last count until Rift was restarted.
 const ANSWER_WAIT: Duration = Duration::from_secs(30);
+
+/// How many times in a row a cut connection is asked again for the rest
+/// before the download gives up; any bytes coming in start the count again.
+const RETRIES: u32 = 4;
+
+/// The wait before asking again after a cut.
+const RETRY_AFTER: Duration = Duration::from_secs(2);
 
 /// One read: small enough that a pause or cancel is felt at once.
 const PIECE: usize = 64 * 1024;
@@ -33,12 +43,33 @@ const RATE_WINDOW: Duration = Duration::from_secs(3);
 pub(crate) struct Transfer {
     state: Mutex<State>,
     changed: Condvar,
+    /// [ANSWER_WAIT] and [RETRY_AFTER], shorter in the tests.
+    read_wait: Duration,
+    retry_after: Duration,
+}
+
+/// A failure that asking again may get past: no connection, a quiet or cut
+/// one, a name that would not resolve while the network came back, a
+/// server's passing error.
+fn is_cut(error: &ureq::Error) -> bool {
+    matches!(
+        error,
+        ureq::Error::Io(_)
+            | ureq::Error::Timeout(_)
+            | ureq::Error::ConnectionFailed
+            | ureq::Error::HostNotFound
+            | ureq::Error::BodyStalled
+    ) || matches!(error, ureq::Error::StatusCode(code) if (500..600).contains(code))
 }
 
 #[derive(Default)]
 struct State {
-    paused: bool,
-    cancelled: bool,
+    /// The download each was asked during ([Transfer::ask]), so starting a
+    /// download clears what the one before it was asked and nothing later.
+    paused: Option<u64>,
+    cancelled: Option<u64>,
+    /// The downloads asked for so far.
+    asked: u64,
     /// The packages the counts below are about.
     planned: Vec<String>,
     total: u64,
@@ -57,39 +88,65 @@ impl Transfer {
         Transfer {
             state: Mutex::new(State::default()),
             changed: Condvar::new(),
+            read_wait: ANSWER_WAIT,
+            retry_after: RETRY_AFTER,
         }
     }
 
-    /// Starts a download of `packages` over: nothing down, not paused, not
-    /// cancelled.
-    pub(crate) fn plan(&self, packages: &[&VelopackAsset]) {
-        *self.state.lock().unwrap() = State {
+    #[cfg(test)]
+    fn quick(read_wait: Duration) -> Self {
+        Transfer {
+            read_wait,
+            retry_after: Duration::from_millis(10),
+            ..Transfer::new()
+        }
+    }
+
+    /// Counts a download asked for, and returns its number for [plan]. Made
+    /// when the person asks, which can be while the download before is still
+    /// ending: a pause or cancel from then on is this one's.
+    pub(crate) fn ask(&self) -> u64 {
+        let mut state = self.state.lock().unwrap();
+        state.asked += 1;
+        state.asked
+    }
+
+    /// Starts download `asked` of `packages` over: nothing down, and neither
+    /// paused nor cancelled by anything asked before it.
+    pub(crate) fn plan(&self, asked: u64, packages: &[&VelopackAsset]) {
+        let mut state = self.state.lock().unwrap();
+        *state = State {
             planned: packages.iter().map(|p| p.FileName.clone()).collect(),
             total: packages.iter().map(|p| p.Size).sum(),
+            paused: state.paused.filter(|&at| at >= asked),
+            cancelled: state.cancelled.filter(|&at| at >= asked),
+            asked: state.asked,
             ..State::default()
         };
         self.changed.notify_all();
     }
 
     pub(crate) fn pause(&self) {
-        self.state.lock().unwrap().paused = true;
+        let mut state = self.state.lock().unwrap();
+        state.paused = Some(state.asked);
         self.changed.notify_all();
     }
 
     pub(crate) fn resume(&self) {
-        self.state.lock().unwrap().paused = false;
+        self.state.lock().unwrap().paused = None;
         self.changed.notify_all();
     }
 
     pub(crate) fn cancel(&self) {
-        self.state.lock().unwrap().cancelled = true;
+        let mut state = self.state.lock().unwrap();
+        state.cancelled = Some(state.asked);
         self.changed.notify_all();
     }
 
     /// Bytes down and bytes in all, and whether it is paused.
     pub(crate) fn progress(&self) -> (u64, u64, bool) {
         let state = self.state.lock().unwrap();
-        (state.done, state.total, state.paused)
+        (state.done, state.total, state.paused.is_some())
     }
 
     /// Counts `asset` in. A package outside the plan is the full package
@@ -115,9 +172,9 @@ impl Transfer {
 
     fn stop(&self) -> Option<Stop> {
         let state = self.state.lock().unwrap();
-        if state.cancelled {
+        if state.cancelled.is_some() {
             Some(Stop::Cancel)
-        } else if state.paused {
+        } else if state.paused.is_some() {
             Some(Stop::Pause)
         } else {
             None
@@ -127,10 +184,10 @@ impl Transfer {
     /// Waits out a pause; an error once cancelled.
     fn wait_unpaused(&self) -> Result<(), Error> {
         let mut state = self.state.lock().unwrap();
-        while state.paused && !state.cancelled {
+        while state.paused.is_some() && state.cancelled.is_none() {
             state = self.changed.wait(state).unwrap();
         }
-        if state.cancelled {
+        if state.cancelled.is_some() {
             Err(Error::Other(CANCELLED.to_string()))
         } else {
             Ok(())
@@ -151,7 +208,8 @@ impl Transfer {
     fn fetch_into(&self, url: &str, size: u64, path: &Path) -> Result<(), Error> {
         let config = ureq::Agent::config_builder()
             .timeout_connect(Some(ANSWER_WAIT))
-            .timeout_recv_response(Some(ANSWER_WAIT));
+            .timeout_recv_response(Some(ANSWER_WAIT))
+            .timeout_per_read(Some(self.read_wait));
         // The tests' server is on this machine, where a proxy named in the
         // environment cannot reach it.
         #[cfg(test)]
@@ -164,6 +222,8 @@ impl Transfer {
         let mut file = File::create(path)?;
         let mut have: u64 = 0;
         let mut buffer = vec![0; PIECE];
+        // Cuts in a row with nothing coming in between.
+        let mut cuts = 0;
         loop {
             self.wait_unpaused()?;
             // Paused with the last byte already in.
@@ -174,7 +234,16 @@ impl Transfer {
             if have > 0 {
                 request = request.header("Range", format!("bytes={have}-"));
             }
-            let response = request.call()?;
+            let response = match request.call() {
+                Ok(response) => response,
+                Err(e) if cuts < RETRIES && is_cut(&e) => {
+                    cuts += 1;
+                    log::warn!("updater: asking again after {e}");
+                    self.wait_for_retry(self.retry_after)?;
+                    continue;
+                }
+                Err(e) => return Err(e.into()),
+            };
             if have > 0 && response.status().as_u16() != 206 {
                 file.set_len(0)?;
                 file.seek(SeekFrom::Start(0))?;
@@ -189,14 +258,48 @@ impl Transfer {
                     Some(Stop::Pause) => break,
                     None => {}
                 }
-                let read = body.read(&mut buffer)?;
+                let read = match body.read(&mut buffer) {
+                    Ok(read) => read,
+                    // A connection that went quiet or was cut mid-file: the
+                    // rest is asked for again, from where it got to.
+                    Err(e) if cuts < RETRIES => {
+                        cuts += 1;
+                        log::warn!("updater: asking again for the rest after {e}");
+                        self.wait_for_retry(self.retry_after)?;
+                        break;
+                    }
+                    Err(e) => return Err(e.into()),
+                };
                 if read == 0 {
+                    // Ended early, as a cut connection can: the size is
+                    // known, so the rest is asked for.
+                    if have < size && cuts < RETRIES {
+                        cuts += 1;
+                        log::warn!("updater: the connection ended at {have} of {size} bytes");
+                        self.wait_for_retry(self.retry_after)?;
+                        break;
+                    }
                     return Ok(());
                 }
+                cuts = 0;
                 file.write_all(&buffer[..read])?;
                 have += read as u64;
                 self.add(read as u64);
             }
+        }
+    }
+
+    /// Waits `wait` before asking again, or less once cancelled.
+    fn wait_for_retry(&self, wait: Duration) -> Result<(), Error> {
+        let state = self.state.lock().unwrap();
+        let (state, _) = self
+            .changed
+            .wait_timeout_while(state, wait, |s| s.cancelled.is_none())
+            .unwrap();
+        if state.cancelled.is_some() {
+            Err(Error::Other(CANCELLED.to_string()))
+        } else {
+            Ok(())
         }
     }
 }
@@ -323,7 +426,7 @@ mod tests {
         let path = scratch("resume");
         let transfer = Arc::new(Transfer::new());
         let pkg = asset("pkg", bytes.len() as u64);
-        transfer.plan(&[&pkg]);
+        transfer.plan(transfer.ask(), &[&pkg]);
         let worker = {
             let (transfer, path) = (transfer.clone(), path.clone());
             std::thread::spawn(move || transfer.fetch(&url, &pkg, &path))
@@ -357,7 +460,7 @@ mod tests {
         let path = std::path::PathBuf::from(std::env::var("RIFT_PROBE_OUT").unwrap());
         let transfer = Arc::new(Transfer::new());
         let pkg = asset("pkg", size);
-        transfer.plan(&[&pkg]);
+        transfer.plan(transfer.ask(), &[&pkg]);
         let worker = {
             let (transfer, path) = (transfer.clone(), path.clone());
             std::thread::spawn(move || transfer.fetch(&url, &pkg, &path))
@@ -388,7 +491,7 @@ mod tests {
         let path = scratch("over");
         let transfer = Arc::new(Transfer::new());
         let pkg = asset("pkg", bytes.len() as u64);
-        transfer.plan(&[&pkg]);
+        transfer.plan(transfer.ask(), &[&pkg]);
         let worker = {
             let (transfer, path) = (transfer.clone(), path.clone());
             std::thread::spawn(move || transfer.fetch(&url, &pkg, &path))
@@ -411,7 +514,7 @@ mod tests {
         let path = scratch("cancel");
         let transfer = Arc::new(Transfer::new());
         let pkg = asset("pkg", bytes.len() as u64);
-        transfer.plan(&[&pkg]);
+        transfer.plan(transfer.ask(), &[&pkg]);
         let worker = {
             let (transfer, path, pkg) = (transfer.clone(), path.clone(), pkg.clone());
             std::thread::spawn(move || transfer.fetch(&url, &pkg, &path))
@@ -425,6 +528,91 @@ mod tests {
         assert!(transfer
             .fetch("http://127.0.0.1:9/never", &pkg, &path)
             .is_err());
+    }
+
+    /// A server of `data` that sends the first request half of it and then
+    /// goes quiet with the connection open, as one does when the network
+    /// under it changes, and answers later requests from their `Range`.
+    fn serve_stalling(data: Vec<u8>) -> (String, Arc<Mutex<Vec<Option<String>>>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/pkg", listener.local_addr().unwrap());
+        let asked = Arc::new(Mutex::new(Vec::new()));
+        let log = asked.clone();
+        std::thread::spawn(move || {
+            let mut held = Vec::new();
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { return };
+                let mut range = None;
+                let mut reader = BufReader::new(stream.try_clone().unwrap());
+                loop {
+                    let mut line = String::new();
+                    if reader.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
+                        break;
+                    }
+                    if let Some(v) = line.to_ascii_lowercase().strip_prefix("range: bytes=") {
+                        range = Some(v.trim().trim_end_matches('-').to_string());
+                    }
+                }
+                let first = log.lock().unwrap().is_empty();
+                log.lock().unwrap().push(range.clone());
+                let from = range.and_then(|r| r.parse::<usize>().ok()).unwrap_or(0);
+                let status = if from > 0 {
+                    "206 Partial Content"
+                } else {
+                    "200 OK"
+                };
+                let head = format!(
+                    "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    data.len() - from
+                );
+                let _ = stream.write_all(head.as_bytes());
+                if first {
+                    let _ = stream.write_all(&data[..data.len() / 2]);
+                    // Never closed: the read on the other end waits.
+                    held.push(stream);
+                } else {
+                    let _ = stream.write_all(&data[from..]);
+                }
+            }
+        });
+        (url, asked)
+    }
+
+    #[test]
+    fn a_connection_gone_quiet_is_asked_again_for_the_rest() {
+        let bytes = data(200 * 1024);
+        let (url, asked) = serve_stalling(bytes.clone());
+        let path = scratch("stall");
+        let transfer = Transfer::quick(Duration::from_millis(300));
+        let pkg = asset("pkg", bytes.len() as u64);
+        transfer.plan(transfer.ask(), &[&pkg]);
+        transfer.fetch(&url, &pkg, &path).unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert_eq!(transfer.progress().0, bytes.len() as u64);
+        let asked = asked.lock().unwrap();
+        assert_eq!(asked.len(), 2);
+        assert_eq!(
+            asked[1].as_deref(),
+            Some((bytes.len() / 2).to_string().as_str())
+        );
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn starting_a_download_keeps_what_was_asked_of_it_before_it_started() {
+        let transfer = Transfer::new();
+        // The last download, cancelled, is still ending when the next is
+        // asked for, and paused before it gets going.
+        transfer.cancel();
+        let next = transfer.ask();
+        transfer.pause();
+        transfer.plan(next, &[&asset("pkg", 10)]);
+        assert_eq!(transfer.stop(), Some(Stop::Pause));
+        // Asked for again and started with nothing pressed since.
+        transfer.cancel();
+        let again = transfer.ask();
+        transfer.plan(again, &[&asset("pkg", 10)]);
+        assert_eq!(transfer.stop(), None);
     }
 
     #[test]
@@ -444,7 +632,7 @@ mod tests {
     fn a_package_outside_the_plan_starts_the_counts_again() {
         let transfer = Transfer::new();
         let (d1, d2) = (asset("d1", 100), asset("d2", 50));
-        transfer.plan(&[&d1, &d2]);
+        transfer.plan(transfer.ask(), &[&d1, &d2]);
         transfer.begin(&d1);
         transfer.add(100);
         transfer.begin(&d2);

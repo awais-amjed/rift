@@ -35,43 +35,51 @@ class _UpdateReadyDialog extends StatelessWidget {
     final state = context.watch<UpdateCubit>().state;
     final notes = state.notes.trim();
     final restarting = state.status == UpdateStatus.restarting;
-    return AppModal(
-      staysDialogOnPhone: true,
-      title: 'Rift ${state.version ?? ''} is ready',
-      titleIcon: IconTile.title(
-        icon: Icons.system_update_alt_rounded,
-        color: CustomColors.success,
-      ),
-      maxWidth: 480,
-      maxHeight: 560,
-      content: notes.isEmpty
-          ? Text(
-              'Restart Rift to start using it.',
-              style: AppText.body.copyWith(color: theme.textSecondary),
-            )
-          // Full width, so the notes start at the left edge rather than
-          // centring as a narrow block. The modal scrolls them when long.
-          : SizedBox(
-              width: double.infinity,
-              child: SelectableText.rich(
-                messageMarkupSpan(
-                  notes,
-                  base: AppText.body.copyWith(color: theme.textSecondary),
-                  theme: theme,
+    // A failed restart leaves nothing ready to restart into: the dialog goes,
+    // and Settings says what happened.
+    return BlocListener<UpdateCubit, UpdateState>(
+      listenWhen: (before, now) =>
+          now.status != UpdateStatus.ready &&
+          now.status != UpdateStatus.restarting,
+      listener: (context, _) => Navigator.of(context).pop(),
+      child: AppModal(
+        staysDialogOnPhone: true,
+        title: 'Rift ${state.version ?? ''} is ready',
+        titleIcon: IconTile.title(
+          icon: Icons.system_update_alt_rounded,
+          color: CustomColors.success,
+        ),
+        maxWidth: 480,
+        maxHeight: 560,
+        content: notes.isEmpty
+            ? Text(
+                'Restart Rift to start using it.',
+                style: AppText.body.copyWith(color: theme.textSecondary),
+              )
+            // Full width, so the notes start at the left edge rather than
+            // centring as a narrow block. The modal scrolls them when long.
+            : SizedBox(
+                width: double.infinity,
+                child: SelectableText.rich(
+                  messageMarkupSpan(
+                    notes,
+                    base: AppText.body.copyWith(color: theme.textSecondary),
+                    theme: theme,
+                  ),
                 ),
               ),
-            ),
-      actions: [
-        AppButton(
-          label: 'Later',
-          variant: AppButtonVariant.secondary,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        AppButton(
-          label: restarting ? 'Restarting…' : 'Restart now',
-          onPressed: restarting ? null : () => restartToUpdate(context),
-        ),
-      ],
+        actions: [
+          AppButton(
+            label: 'Later',
+            variant: AppButtonVariant.secondary,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          AppButton(
+            label: restarting ? 'Restarting…' : 'Restart now',
+            onPressed: restarting ? null : () => restartToUpdate(context),
+          ),
+        ],
+      ),
     );
   }
 }

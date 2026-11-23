@@ -38,6 +38,11 @@ Future<void> updaterResume() =>
 Future<void> updaterCancel() =>
     RustLib.instance.api.crateApiUpdaterUpdaterCancel();
 
+/// Throws away a downloaded update waiting for a restart, so the next start
+/// does not put it in place.
+Future<void> updaterDiscardPending() =>
+    RustLib.instance.api.crateApiUpdaterUpdaterDiscardPending();
+
 /// The version already downloaded and waiting for a restart, if any.
 Future<String?> updaterPendingVersion() =>
     RustLib.instance.api.crateApiUpdaterUpdaterPendingVersion();

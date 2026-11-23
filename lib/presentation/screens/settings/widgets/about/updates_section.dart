@@ -81,8 +81,14 @@ class UpdatesSection extends StatelessWidget {
     UpdateStatus.ready =>
       '${state.version} is ready. Restart Rift to start using it.',
     UpdateStatus.restarting => 'Restarting…',
-    UpdateStatus.failed =>
-      "Couldn't get the update. Check your connection and try again.",
+    UpdateStatus.failed => switch (state.failure) {
+      UpdateFailure.apply =>
+        "Couldn't install ${state.version}. Try again in a moment.",
+      UpdateFailure.download =>
+        "Couldn't download ${state.version}. Check your connection and "
+            'try again.',
+      _ => "Couldn't check for updates. Check your connection and try again.",
+    },
   };
 
   static String _soFar(UpdateState state) =>

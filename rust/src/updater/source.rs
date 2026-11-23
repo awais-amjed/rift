@@ -27,10 +27,11 @@ use velopack::{Error, VelopackAsset, VelopackAssetFeed};
 use super::signature;
 use super::transfer::Transfer;
 
-/// The public repository the release workflow publishes to. Thirty, so that
-/// a run of betas does not hide the last stable from someone without them;
-/// only those newer than the installed version are read further.
-const RELEASES_API: &str = "https://api.github.com/repos/awais-amjed/rift/releases?per_page=30";
+/// The public repository the release workflow publishes to. A hundred (the
+/// most GitHub lists at once), so that a run of betas does not hide the last
+/// stable from someone without them; only those newer than the installed
+/// version are read further.
+const RELEASES_API: &str = "https://api.github.com/repos/awais-amjed/rift/releases?per_page=100";
 
 /// A folder of releases to read instead of GitHub, for trying an update out
 /// before publishing it. Its feeds must be signed all the same.
@@ -75,6 +76,14 @@ impl Files {
 /// that is not one, which is then read like any newer release.
 fn tag_version(tag: &str) -> Option<Version> {
     Version::parse(tag.strip_prefix('v').unwrap_or(tag)).ok()
+}
+
+/// Whether a signed feed's `asset` is one to offer. Without betas, one
+/// whose signed version is a pre-release is left out whatever the listing
+/// said of its release: whether a release is a pre-release is GitHub's
+/// word, a tick box nobody signs.
+fn offered(asset: &VelopackAsset, include_prereleases: bool) -> bool {
+    include_prereleases || Version::parse(&asset.Version).is_ok_and(|v| v.pre.is_empty())
 }
 
 fn too_slow() -> Error {
@@ -199,6 +208,9 @@ impl SignedSource {
                 continue;
             };
             for asset in feed.Assets {
+                if !offered(&asset, self.include_prereleases) {
+                    continue;
+                }
                 if let Some(url) = files.url(&asset.FileName) {
                     // A package listed by two releases is the same file; the
                     // newer release's copy wins.
@@ -335,6 +347,18 @@ mod tests {
 
     fn soon() -> Instant {
         Instant::now() + Duration::from_secs(10)
+    }
+
+    #[test]
+    fn without_betas_a_signed_pre_release_is_left_out() {
+        let asset = |v: &str| VelopackAsset {
+            Version: v.into(),
+            ..Default::default()
+        };
+        assert!(offered(&asset("2.2.0"), false));
+        assert!(!offered(&asset("2.2.0-beta.7"), false));
+        assert!(!offered(&asset("not a version"), false));
+        assert!(offered(&asset("2.2.0-beta.7"), true));
     }
 
     #[test]

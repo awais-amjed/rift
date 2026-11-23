@@ -83,6 +83,19 @@ pub fn updater_cancel() {
     crate::updater::cancel();
 }
 
+/// Throws away a downloaded update waiting for a restart, so the next start
+/// does not put it in place.
+pub fn updater_discard_pending() -> Result<(), String> {
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    {
+        crate::updater::discard_pending()
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    {
+        Ok(())
+    }
+}
+
 /// The version already downloaded and waiting for a restart, if any.
 pub fn updater_pending_version() -> Option<String> {
     #[cfg(any(target_os = "windows", target_os = "linux"))]

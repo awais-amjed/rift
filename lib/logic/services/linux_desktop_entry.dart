@@ -39,7 +39,28 @@ class LinuxDesktopEntry {
   /// The line that marks an entry as this one's to rewrite.
   static const _marker = 'X-Rift-Written=true';
 
-  static String? get _appImage => Platform.environment['APPIMAGE'];
+  static String? get _appImage => appImageOf(
+    Platform.environment,
+    kIsWeb ? '' : Platform.resolvedExecutable,
+  );
+
+  /// The AppImage this copy runs from, or null when it is not one. An
+  /// AppImage's runtime names itself in `APPIMAGE` and the folder it mounted
+  /// in `APPDIR`; a program started from inside one — a terminal or an IDE
+  /// shipped as an AppImage — inherits both, so this copy counts as an
+  /// AppImage only when it runs from that folder. Otherwise a build started
+  /// from such a terminal wrote the terminal into Rift's app-menu entry.
+  @visibleForTesting
+  static String? appImageOf(Map<String, String> env, String executable) {
+    final appImage = env['APPIMAGE'];
+    final appDir = env['APPDIR'];
+    if (appImage == null || appImage.isEmpty) return null;
+    if (appDir == null || appDir.isEmpty) return null;
+    return p.isWithin(appDir, executable) ? appImage : null;
+  }
+
+  /// Whether this copy runs from an AppImage (see [appImageOf]).
+  static bool get isAppImage => _appImage != null;
 
   /// The program an entry should start: the AppImage file, which an update
   /// replaces in place, rather than the folder it is mounted on this time.

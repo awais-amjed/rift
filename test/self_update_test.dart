@@ -43,9 +43,24 @@ class _FakeUpdates implements UpdateRepository {
   @override
   String? installed = '1.5.0-beta.9';
 
+  /// The betas each check was asked with.
+  final checks = <bool>[];
+
+  /// Holds the next check until completed, when set.
+  Completer<void>? hold;
+
+  /// Throws from each check, when set.
+  Object? failWith;
+
   @override
-  Future<AvailableUpdate?> check({required bool includePrereleases}) async =>
-      found;
+  Future<AvailableUpdate?> check({required bool includePrereleases}) async {
+    checks.add(includePrereleases);
+    final held = hold;
+    hold = null;
+    if (held != null) await held.future;
+    if (failWith != null) throw failWith!;
+    return found;
+  }
 
   @override
   Stream<UpdateDownloadProgress> download() {
@@ -63,6 +78,9 @@ class _FakeUpdates implements UpdateRepository {
 
   @override
   Future<void> cancel() async => calls.add('cancel');
+
+  @override
+  Future<void> discardPending() async => calls.add('discard');
 
   @override
   Future<void> applyOnExit() async {}
@@ -184,12 +202,117 @@ void main() {
       },
     );
 
+    test(
+      'a pause landing as the last bytes come in is ready all the same',
+      () async {
+        await cubit.checkNow();
+        cubit.download();
+        updates.downloads.single.add(_at(49));
+        await Future<void>.delayed(Duration.zero);
+        cubit.pause();
+        await updates.downloads.single.close();
+        await Future<void>.delayed(Duration.zero);
+        expect(cubit.state.status, UpdateStatus.ready);
+      },
+    );
+
+    test('a failed check looks again soon, not in six hours', () {
+      fakeAsync((time) {
+        updates.failWith = 'offline';
+        final soon = UpdateCubit(appCubit: AppCubit(), repository: updates);
+        time.elapse(UpdateCubit.firstCheckAfter);
+        expect(soon.state.status, UpdateStatus.failed);
+        expect(soon.state.failure, UpdateFailure.check);
+        updates.failWith = null;
+        time.elapse(UpdateCubit.retryAfter);
+        expect(updates.checks, hasLength(2));
+        expect(soon.state.status, UpdateStatus.downloading);
+        unawaited(soon.close());
+      });
+    });
+
     test('a failed download says so', () async {
       await cubit.checkNow();
       cubit.download();
       updates.downloads.single.addError('connection reset');
       await Future<void>.delayed(Duration.zero);
       expect(cubit.state.status, UpdateStatus.failed);
+    });
+  });
+
+  group('turning betas off', () {
+    late _FakeUpdates updates;
+    late AppCubit app;
+    late UpdateCubit cubit;
+
+    setUp(() {
+      HydratedBloc.storage = _MemoryStorage();
+      updates = _FakeUpdates();
+      app = AppCubit();
+      cubit = UpdateCubit(appCubit: app, repository: updates);
+    });
+
+    tearDown(() => cubit.close());
+
+    Future<void> settle() => Future<void>.delayed(Duration.zero);
+
+    test('stops a beta on its way and looks for stables only', () async {
+      await cubit.checkInBackground();
+      expect(cubit.state.status, UpdateStatus.downloading);
+      updates.found = null;
+      app.setBetaUpdates(false);
+      await settle();
+      await settle();
+      expect(updates.calls, ['download', 'cancel']);
+      expect(updates.checks, [true, false]);
+      expect(cubit.state.status, UpdateStatus.upToDate);
+    });
+
+    test('throws away a beta waiting for a restart', () async {
+      await cubit.checkNow();
+      cubit.download();
+      await updates.downloads.single.close();
+      await settle();
+      expect(cubit.state.status, UpdateStatus.ready);
+      updates.found = null;
+      app.setBetaUpdates(false);
+      await settle();
+      await settle();
+      expect(updates.calls, ['download', 'discard']);
+      expect(cubit.state.status, UpdateStatus.upToDate);
+    });
+
+    test('in the middle of a check, looks again with the new choice', () async {
+      updates.hold = Completer<void>();
+      final first = updates.hold!;
+      final checking = cubit.checkInBackground();
+      await settle();
+      expect(cubit.state.status, UpdateStatus.checking);
+      app.setBetaUpdates(false);
+      await settle();
+      updates.found = null;
+      first.complete();
+      await checking;
+      expect(updates.checks, [true, false]);
+      expect(
+        updates.calls,
+        isEmpty,
+        reason: 'the beta it found is not fetched',
+      );
+      expect(cubit.state.status, UpdateStatus.upToDate);
+    });
+
+    test('leaves a stable alone', () async {
+      updates.found = const AvailableUpdate(
+        version: '1.5.0',
+        notesMarkdown: '',
+        downloadBytes: 1,
+      );
+      await cubit.checkInBackground();
+      app.setBetaUpdates(false);
+      await settle();
+      expect(updates.calls, ['download']);
+      expect(cubit.state.status, UpdateStatus.downloading);
     });
   });
 
@@ -223,6 +346,21 @@ void main() {
       expect(
         UpdatesSection.describe(base.copyWith(downloadedBytes: 50 * _mb)),
         'Getting 1.5.0-beta.10 ready…',
+      );
+    });
+
+    test('says what failed', () {
+      String failed(UpdateFailure failure) => UpdatesSection.describe(
+        base.copyWith(status: UpdateStatus.failed, failure: failure),
+      );
+      expect(failed(UpdateFailure.check), startsWith("Couldn't check"));
+      expect(
+        failed(UpdateFailure.download),
+        startsWith("Couldn't download 1.5.0-beta.10."),
+      );
+      expect(
+        failed(UpdateFailure.apply),
+        startsWith("Couldn't install 1.5.0-beta.10."),
       );
     });
   });
@@ -279,6 +417,35 @@ void main() {
   });
 
   group('Linux desktop entry', () {
+    test('counts as an AppImage only when run from its folder', () {
+      const env = {
+        'APPIMAGE': '/home/a/Rift.AppImage',
+        'APPDIR': '/tmp/.mount_rift-abc',
+      };
+      expect(
+        LinuxDesktopEntry.appImageOf(
+          env,
+          '/tmp/.mount_rift-abc/usr/bin/riftchat',
+        ),
+        '/home/a/Rift.AppImage',
+      );
+      // Started from a terminal that is itself an AppImage.
+      expect(
+        LinuxDesktopEntry.appImageOf(env, '/home/a/dev/build/riftchat'),
+        isNull,
+      );
+      expect(
+        LinuxDesktopEntry.appImageOf(const {
+          'APPIMAGE': '/home/a/Rift.AppImage',
+        }, '/tmp/.mount_rift-abc/usr/bin/riftchat'),
+        isNull,
+      );
+      expect(
+        LinuxDesktopEntry.appImageOf(const {}, '/opt/rift/riftchat'),
+        isNull,
+      );
+    });
+
     test('recognises its own entry, for any program', () {
       expect(
         LinuxDesktopEntry.isOwnEntry(

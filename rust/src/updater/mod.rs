@@ -20,6 +20,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
+use velopack::locator::VelopackLocatorConfig;
 use velopack::{UpdateCheck, UpdateInfo, UpdateManager, VelopackApp};
 
 use crate::api::updater::{AvailableUpdate, UpdateDownloadProgress};
@@ -39,8 +40,9 @@ struct Session {
 static SESSION: Mutex<Option<Session>> = Mutex::new(None);
 
 /// The last download's thread. A cancelled one can still be in a read the
-/// network is slow to answer, holding Velopack's lock on the packages folder,
-/// so the next download waits for it to end before starting.
+/// network is slow to answer (up to `transfer`'s 30 s), holding Velopack's
+/// lock on the packages folder, so the next download waits for it to end
+/// before starting.
 static LAST_DOWNLOAD: Mutex<Option<JoinHandle<()>>> = Mutex::new(None);
 
 /// How often a download says how far it is.
@@ -58,6 +60,9 @@ pub(crate) fn startup() -> Option<String> {
         // the one `vpk pack --aumid` gives the shortcuts.
         app = app.set_app_user_model_id("CodingFries.Rift");
     }
+    if let Some(config) = locator() {
+        app = app.set_locator(config);
+    }
     app.run();
     installed_manager(false, Arc::new(Transfer::new()))
         .ok()
@@ -69,7 +74,53 @@ fn installed_manager(
     transfer: Arc<Transfer>,
 ) -> Result<UpdateManager, String> {
     let source = SignedSource::new(include_prereleases, transfer);
-    UpdateManager::new(source, None, None).map_err(|e| e.to_string())
+    UpdateManager::new(source, None, locator()).map_err(|e| e.to_string())
+}
+
+/// Where Velopack finds this copy, with its downloads kept in the person's
+/// own folder on Linux. Velopack's own choice there is
+/// `/var/tmp/velopack/<id>/packages`, shared by every account on the
+/// computer: whoever made it first owns it, so nobody else could download,
+/// and a package another account put there was applied at the next start,
+/// since nothing checks a package already on disk. `None` elsewhere: on
+/// Windows the packages already sit in the person's own `%LocalAppData%`.
+#[cfg(target_os = "linux")]
+fn locator() -> Option<VelopackLocatorConfig> {
+    use std::os::unix::fs::DirBuilderExt;
+    use std::path::PathBuf;
+    use velopack::locator::{auto_locate_app_manifest, LocationContext};
+
+    let found = auto_locate_app_manifest(LocationContext::FromCurrentExe).ok()?;
+    let data = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))?;
+    let packages = data
+        .join("velopack")
+        .join(found.get_manifest_id())
+        .join("packages");
+    if let Err(e) = std::fs::DirBuilder::new()
+        .recursive(true)
+        .mode(0o700)
+        .create(&packages)
+    {
+        log::warn!("updater: no packages folder – {e}");
+        return None;
+    }
+    let bin = found.get_current_bin_dir();
+    Some(VelopackLocatorConfig {
+        RootAppDir: found.get_appimage_path(),
+        UpdateExePath: found.get_update_path(),
+        PackagesDir: packages,
+        ManifestPath: bin.join("sq.version"),
+        CurrentBinaryDir: bin,
+        IsPortable: true,
+    })
+}
+
+#[cfg(not(target_os = "linux"))]
+fn locator() -> Option<VelopackLocatorConfig> {
+    None
 }
 
 /// Asks for the newest release, among pre-releases too when
@@ -114,6 +165,9 @@ pub(crate) fn download(sink: StreamSink<UpdateDownloadProgress>) {
         let _ = sink.add_error("There is no update to download".to_string());
         return;
     };
+    // Counted now, not once the last download has ended: a pause or cancel
+    // pressed while it ends is this one's.
+    let asked = transfer.ask();
     let mut last = LAST_DOWNLOAD.lock().unwrap();
     let previous = last.take();
     *last = Some(std::thread::spawn(move || {
@@ -125,7 +179,7 @@ pub(crate) fn download(sink: StreamSink<UpdateDownloadProgress>) {
         } else {
             update.DeltasToTarget.iter().collect()
         };
-        transfer.plan(&packages);
+        transfer.plan(asked, &packages);
         let (done_tx, done_rx) = mpsc::channel();
         std::thread::spawn(move || {
             let _ = done_tx.send(manager.download_updates(&update, None));
@@ -187,6 +241,27 @@ pub(crate) fn apply_on_exit() -> Result<(), String> {
     manager
         .wait_exit_then_apply_updates(&pending, false, true, restart_args)
         .map_err(|e| e.to_string())
+}
+
+/// Throws away every downloaded update waiting for a restart, so the next
+/// start does not put one in place: a beta, once betas are turned off.
+pub(crate) fn discard_pending() -> Result<(), String> {
+    use velopack::locator::{auto_locate_app_manifest, find_local_full_packages, LocationContext};
+
+    let manager = installed_manager(false, Arc::new(Transfer::new()))?;
+    let installed = manager.get_current_version();
+    let packages = match locator() {
+        Some(config) => config.PackagesDir,
+        None => auto_locate_app_manifest(LocationContext::FromCurrentExe)
+            .map_err(|e| e.to_string())?
+            .get_packages_dir(),
+    };
+    for (path, manifest) in find_local_full_packages(&packages) {
+        if manifest.version > installed {
+            std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
 }
 
 /// The version downloaded and waiting for a restart, if any.

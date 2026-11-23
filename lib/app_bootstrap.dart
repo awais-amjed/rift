@@ -132,7 +132,7 @@ class AppBootstrap {
     // the home screen). Not awaited: nothing here waits on the menu.
     if (!kIsWeb &&
         Platform.isLinux &&
-        (Platform.environment.containsKey('APPIMAGE') ||
+        (LinuxDesktopEntry.isAppImage ||
             appCubit.state.addToAppMenu == true)) {
       unawaited(LinuxDesktopEntry.ensure());
     }
