@@ -157,10 +157,21 @@ class _ReportActionsState extends State<ReportActions> {
             variant: AppButtonVariant.secondary,
             onPressed: _busy ? null : () => unawaited(_ban(cubit)),
           ),
+        // Gone by their own hand: nobody put them out, so there is nothing to
+        // close it as. A ban keeps them from coming back, and records that;
+        // otherwise it is dismissed. The server refuses "kicked" here.
+        if (target != null &&
+            target.hasLeft &&
+            can(ServerPermission.banMembers))
+          AppButton(
+            label: 'Ban',
+            variant: AppButtonVariant.secondary,
+            onPressed: _busy ? null : () => unawaited(_ban(cubit)),
+          ),
         // Put out some other way — from a profile, the voice menu, or a ban
         // whose record failed. Closing it as that is the true record, and
         // the server checks it.
-        if (target != null && target.isBanned)
+        if (target != null && target.isBanned && !target.hasLeft)
           AppButton(
             label: target.isKicked ? 'Close as kicked' : 'Close as banned',
             variant: AppButtonVariant.secondary,

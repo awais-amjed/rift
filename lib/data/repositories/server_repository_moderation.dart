@@ -65,10 +65,12 @@ mixin _ModerationApiMixin {
     required bool open,
     int limit = ServerRepository.reportsPage,
   }) {
-    return ServerDb.run(() async {
-      // Both people and the channel ride along, each under its own policy:
-      // a private channel the reviewer is not inside comes back null, which
-      // is what the page says about it.
+    // Both people and the channel ride along, each under its own policy:
+    // a private channel the reviewer is not inside comes back null, which
+    // is what the page says about it. `left_at` tells somebody who left from
+    // somebody kicked (`leave_server`), and a server from before it (Oct 17)
+    // has no such column, so it is asked again without.
+    Future<APIResponse> read({required bool withLeft}) => ServerDb.run(() {
       final query = _db
           .client(supabaseUrl, anonKey, bearerToken)
           .from('reports')
@@ -78,14 +80,19 @@ mixin _ModerationApiMixin {
             '(display_name, username, avatar_path), '
             'target:users!reports_target_id_fkey'
             '(display_name, username, avatar_path, public_key, is_banned, '
-            'kicked_at, timed_out_until), '
+            'kicked_at, ${withLeft ? 'left_at, ' : ''}timed_out_until), '
             'channel:channels(name)',
           );
       final filtered = open
           ? query.isFilter('outcome', null)
           : query.not('outcome', 'is', null);
-      return await filtered.order('id', ascending: false).limit(limit);
+      return filtered.order('id', ascending: false).limit(limit);
     });
+
+    return read(withLeft: true).then(
+      (response) =>
+          response.errorCode == '42703' ? read(withLeft: false) : response,
+    );
   }
 
   /// Record what was done. The server checks it happened

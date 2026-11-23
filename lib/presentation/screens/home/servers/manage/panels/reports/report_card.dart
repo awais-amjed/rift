@@ -60,7 +60,9 @@ class ReportCard extends StatelessWidget {
           ),
           if (target != null && (target.isBanned || target.isTimedOut))
             Text(
-              target.isKicked
+              target.hasLeft
+                  ? '$about left the server.'
+                  : target.isKicked
                   ? '$about was kicked.'
                   : target.isBanned
                   ? '$about is banned.'

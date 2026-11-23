@@ -161,8 +161,13 @@ class ReportPerson extends Equatable {
   final bool isBanned;
 
   /// Out until an invite brings them back — a kick, which is a ban to the
-  /// server, so [isBanned] is true as well.
+  /// server, so [isBanned] is true as well. Leaving is one too, by their own
+  /// hand ([hasLeft]).
   final bool isKicked;
+
+  /// They left (`users.left_at`): [isKicked] by themselves, not by anybody
+  /// reviewing. Never closed as a kick (the server checks).
+  final bool hasLeft;
   final DateTime? timedOutUntil;
 
   const ReportPerson({
@@ -172,6 +177,7 @@ class ReportPerson extends Equatable {
     this.publicKey,
     this.isBanned = false,
     this.isKicked = false,
+    this.hasLeft = false,
     this.timedOutUntil,
   });
 
@@ -187,6 +193,7 @@ class ReportPerson extends Equatable {
       publicKey: json['public_key'] as String?,
       isBanned: json['is_banned'] == true,
       isKicked: json['kicked_at'] != null,
+      hasLeft: json['kicked_at'] != null && json['left_at'] != null,
       timedOutUntil: DateTime.tryParse(
         json['timed_out_until'] as String? ?? '',
       )?.toLocal(),
@@ -201,6 +208,7 @@ class ReportPerson extends Equatable {
     publicKey,
     isBanned,
     isKicked,
+    hasLeft,
     timedOutUntil,
   ];
 }

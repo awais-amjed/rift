@@ -74,6 +74,35 @@ void main() {
     expect(report.channelName, isNull);
   });
 
+  test('somebody who left is told from somebody kicked', () {
+    ReportPerson? target(Map<String, dynamic> extra) => MemberReport.fromJson(
+      row(
+        overrides: {
+          'target': {
+            'display_name': 'Tom',
+            'username': 'tom',
+            'is_banned': true,
+            ...extra,
+          },
+        },
+      ),
+    ).target;
+
+    final kicked = target({'kicked_at': '2026-11-22T10:00:00Z'});
+    expect(kicked!.isKicked, isTrue);
+    expect(kicked.hasLeft, isFalse);
+
+    final left = target({
+      'kicked_at': '2026-11-22T10:00:00Z',
+      'left_at': '2026-11-22T10:00:00Z',
+    });
+    expect(left!.isKicked, isTrue);
+    expect(left.hasLeft, isTrue);
+
+    // A server from before `left_at` (Oct 17) is read without it.
+    expect(target({'kicked_at': '2026-11-22T10:00:00Z'})!.hasLeft, isFalse);
+  });
+
   test('a private channel the reviewer cannot see comes back unnamed', () {
     expect(
       MemberReport.fromJson(row(overrides: {'channel': null})).channelName,

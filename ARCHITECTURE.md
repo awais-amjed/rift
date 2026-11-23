@@ -998,7 +998,8 @@ the same way and lifted the same way: you drop off the member list and out of th
 member cap, lose your roles and private seats, and any new invite brings you back
 as yourself. `users.left_at` marks it yours, which keeps you off the banned list a
 moderator reads and tells your other devices to drop the server rather than show it
-shut. The owner cannot leave without handing the server on; for them, and on a
+shut. A report about you then says you left, and is never closed as a kick
+(`resolve_report` checks, from console 1.9.0); a reviewer bans you or dismisses it. The owner cannot leave without handing the server on; for them, and on a
 server too old to ask, leaving only forgets the server on the device.
 
 **A link that needs a Rift account** [Built November 2026, driven live Nov 16 2026: see `TESTING.md`].
