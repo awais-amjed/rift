@@ -329,6 +329,25 @@ void main() {
   });
 
   group('endDmRing — a decline or a give-up', () {
+    test('a server with end_dm_ring answers by itself', () async {
+      final ringEnded = row(ended: t0, outcome: 'declined');
+      final repo = _Calls([row()], ring: APIResponse.success(ringEnded));
+      final answer = await repo.endDmRing('u', anonKey: 'k', callId: 'c1');
+      expect(answer.data, ringEnded);
+      expect(repo.asked, isFalse);
+      expect(repo.ended, isEmpty);
+    });
+
+    test('a refusal from end_dm_ring is not taken for an old server', () async {
+      final repo = _Calls([
+        row(),
+      ], ring: APIResponse.error('no', errorCode: 'call_ended'));
+      final answer = await repo.endDmRing('u', anonKey: 'k', callId: 'c1');
+      expect(answer.errorCode, 'call_ended');
+      expect(repo.ended, isEmpty);
+    });
+
+    // A server before console 1.9.0, without end_dm_ring: asked first.
     test('a ring still ringing is ended', () async {
       final repo = _Calls([row()]);
       await repo.endDmRing('u', anonKey: 'k', callId: 'c1');
@@ -462,9 +481,22 @@ void main() {
 /// `end_dm_call` written down.
 class _Calls extends ServerRepository {
   final List<Map<String, dynamic>>? rows;
-  final List<String> ended = [];
 
-  _Calls(this.rows);
+  /// What `end_dm_ring` answers; a server without it by default.
+  final APIResponse ring;
+  final List<String> ended = [];
+  bool asked = false;
+
+  _Calls(this.rows, {APIResponse? ring})
+    : ring = ring ?? APIResponse.error('missing', errorCode: 'PGRST202');
+
+  @override
+  Future<APIResponse> endDmRingOnServer(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required String callId,
+  }) async => ring;
 
   @override
   Future<APIResponse> myDmCalls(
@@ -472,8 +504,12 @@ class _Calls extends ServerRepository {
     required String anonKey,
     String? bearerToken,
     List<String> known = const [],
-  }) async =>
-      rows == null ? APIResponse.error('offline') : APIResponse.success(rows);
+  }) async {
+    asked = true;
+    return rows == null
+        ? APIResponse.error('offline')
+        : APIResponse.success(rows);
+  }
 
   @override
   Future<APIResponse> endDmCall(

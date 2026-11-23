@@ -73,9 +73,12 @@ mixin _DmCallsApiMixin {
     String? bearerToken,
     required String callId,
   }) async {
-    final ended = await _rpc(supabaseUrl, anonKey, bearerToken, 'end_dm_ring', {
-      'p_call': callId,
-    });
+    final ended = await endDmRingOnServer(
+      supabaseUrl,
+      anonKey: anonKey,
+      bearerToken: bearerToken,
+      callId: callId,
+    );
     if (ended.errorCode != 'PGRST202') return ended;
     final asked = await myDmCalls(
       supabaseUrl,
@@ -100,6 +103,17 @@ mixin _DmCallsApiMixin {
       callId: callId,
     );
   }
+
+  /// The server's `end_dm_ring` alone; [endDmRing] is what to call. A
+  /// server without it answers `PGRST202`.
+  Future<APIResponse> endDmRingOnServer(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required String callId,
+  }) => _rpc(supabaseUrl, anonKey, bearerToken, 'end_dm_ring', {
+    'p_call': callId,
+  });
 
   /// The heartbeat. `true` while the call is still going.
   Future<APIResponse> dmCallAlive(
