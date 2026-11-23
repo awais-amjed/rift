@@ -118,6 +118,18 @@ class _ReportActionsState extends State<ReportActions> {
     bool can(ServerPermission p) => perms?.can(p) ?? false;
     final report = widget.entry.report;
     final target = report.target;
+    // Deleting is the message's channel's to allow (`messages_delete`): a
+    // channel can grant or take Manage messages from a role, so the
+    // server-wide bit says neither yes nor no here.
+    final channelId = report.message?.channelId;
+    final mayDelete = context.select<ServerCubit, bool>((c) {
+      final server = c.state.serverOn(serverId);
+      final channel = server?.channels
+          .where((ch) => ch.id == channelId)
+          .firstOrNull;
+      return channel != null &&
+          (server?.user?.permissions.mayDeleteAnyMessageIn(channel) ?? false);
+    });
 
     return Wrap(
       spacing: 8,
@@ -125,9 +137,7 @@ class _ReportActionsState extends State<ReportActions> {
       children: [
         // Not in a channel the reviewer cannot see: the delete would reach
         // nothing, and the report would stay open saying so.
-        if (report.message != null &&
-            report.channelName != null &&
-            can(ServerPermission.manageMessages))
+        if (report.message != null && report.channelName != null && mayDelete)
           AppButton(
             label: 'Delete message',
             variant: AppButtonVariant.secondary,

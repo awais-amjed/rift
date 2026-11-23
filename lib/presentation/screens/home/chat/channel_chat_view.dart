@@ -424,18 +424,17 @@ class _ChannelChatViewState extends State<ChannelChatView>
 
   /// Who may delete anyone's message here, as `messages_delete` decides it:
   /// the channel's `MANAGE_MESSAGES`, or managing the channel.
-  bool _isModerator(BuildContext context) {
-    final permissions = _myPermissions(context);
-    if (permissions == null) return false;
-    if (permissions.can(ServerPermission.manageMessages)) return true;
-    final channel = _channel(
-      context,
-      context.read<ChannelChatCubit>().state.channelId,
-    );
-    return channel != null && channel.isPrivate
-        ? channel.canManage
-        : permissions.isChannelManager || permissions.isServerAdmin;
-  }
+  bool _isModerator(BuildContext context) =>
+      context
+          .read<ServerCubit>()
+          .state
+          .serverOn(ServerScope.readId(context))
+          ?.user
+          ?.permissions
+          .mayDeleteAnyMessageIn(
+            _channel(context, context.read<ChannelChatCubit>().state.channelId),
+          ) ??
+      false;
 
   /// Ours in the open channel: the server's, with the channel's overrides
   /// applied (`Channel.myPermissions`).

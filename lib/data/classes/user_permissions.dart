@@ -72,6 +72,19 @@ class UserPermissions extends Equatable {
     return bits == null ? this : copyWith(bits: bits);
   }
 
+  /// Whether these permissions — the server's, as this member holds them —
+  /// may delete anybody's message in [channel], as `messages_delete` decides
+  /// it: the channel's `MANAGE_MESSAGES` (overrides applied), or managing the
+  /// channel — its own managers when it is private, `MANAGE_CHANNELS` when it
+  /// is not. Asked by the chat and by a report, which is about a message in
+  /// a channel the reviewer may not be reading.
+  bool mayDeleteAnyMessageIn(Channel? channel) {
+    if (inChannel(channel).can(ServerPermission.manageMessages)) return true;
+    return channel != null && channel.isPrivate
+        ? channel.canManage
+        : isChannelManager || isServerAdmin;
+  }
+
   factory UserPermissions.fromJson(Map<String, dynamic> json) {
     return UserPermissions(
       isServerAdmin: json['is_server_admin'] as bool? ?? false,

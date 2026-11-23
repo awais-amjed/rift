@@ -141,6 +141,54 @@ void main() {
     });
   });
 
+  group('UserPermissions.mayDeleteAnyMessageIn', () {
+    Channel channel({int? mine, bool private = false, bool manage = false}) =>
+        Channel(
+          id: 'c',
+          name: 'general',
+          channelType: ChannelType.text,
+          myPermissions: mine,
+          isPrivate: private,
+          canManage: manage,
+        );
+    final manageMessages = ServerPermission.manageMessages.mask;
+
+    test('a channel granting Manage messages allows it without the server', () {
+      // The report page asked the server-wide bit and showed no Delete here.
+      expect(
+        const UserPermissions().mayDeleteAnyMessageIn(
+          channel(mine: manageMessages),
+        ),
+        isTrue,
+      );
+    });
+
+    test('a channel taking it away refuses it despite the server', () {
+      // ...and showed a Delete the server then refused.
+      expect(
+        UserPermissions(
+          bits: manageMessages,
+        ).mayDeleteAnyMessageIn(channel(mine: 0)),
+        isFalse,
+      );
+    });
+
+    test('managing the channel allows it, as messages_delete does', () {
+      const manager = UserPermissions(isChannelManager: true);
+      expect(manager.mayDeleteAnyMessageIn(channel(mine: 0)), isTrue);
+      expect(
+        manager.mayDeleteAnyMessageIn(channel(mine: 0, private: true)),
+        isFalse,
+      );
+      expect(
+        const UserPermissions().mayDeleteAnyMessageIn(
+          channel(mine: 0, private: true, manage: true),
+        ),
+        isTrue,
+      );
+    });
+  });
+
   group('UserPermissions.inChannel', () {
     final server = UserPermissions(
       bits:
