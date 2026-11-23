@@ -128,17 +128,20 @@ class _AddClipFormState extends State<AddClipForm> {
     final mime = (file.mimeType?.isNotEmpty ?? false)
         ? file.mimeType!
         : mimeFromName(file.name);
-    final bytes = await file.readAsBytes();
+    // The size is asked before the file is read: a picked film was read
+    // whole into memory only to be refused for being too big.
     final rejection = SoundboardStaging.rejectionFor(
       fileName: file.name,
       mime: mime,
-      bytes: bytes.length,
+      bytes: await file.length(),
     );
     if (!mounted) return;
     if (rejection != null) {
       setState(() => _error = rejection);
       return;
     }
+    final bytes = await file.readAsBytes();
+    if (!mounted) return;
 
     // Measured by the stack that will play it, before anything is uploaded.
     final duration = await SoundboardStaging.measure(bytes, path: file.path);

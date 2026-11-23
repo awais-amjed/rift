@@ -26,6 +26,23 @@ class SoundboardApi {
 
   ServerRepository get _repository => _session.repository;
 
+  /// Where this server's clips come from, which the clip cache keys them
+  /// under beside their path ([SoundboardCache]). Null with the server gone.
+  String? get origin => _target.server?.supabaseUrl;
+
+  /// Whether [objectPath] is one of [serverId]'s own objects, one name deep:
+  /// `<serverId>/<name>`, as `SoundboardRepository.buildPath` mints them.
+  /// The insert policy checks the first part only, so a row could carry a
+  /// path that climbs (`..`, or a backslash on Windows) — dropped here rather
+  /// than offered for a press.
+  static bool ownsPath(String serverId, String objectPath) {
+    final prefix = '$serverId/';
+    if (!objectPath.startsWith(prefix)) return false;
+    final name = objectPath.substring(prefix.length);
+    return RegExp(r'^[A-Za-z0-9_-][A-Za-z0-9._-]*$').hasMatch(name) &&
+        !name.contains('..');
+  }
+
   /// Every clip on the server.
   Future<({List<SoundboardSound> sounds, String? error})> listSounds() async {
     final server = _target.server;
@@ -53,7 +70,9 @@ class SoundboardApi {
     return (
       sounds: [
         for (final r in rows.cast<Map<String, dynamic>>())
-          SoundboardSound.fromJson(r),
+          if (SoundboardSound.fromJson(r) case final sound
+              when ownsPath(server.id, sound.objectPath))
+            sound,
       ],
       error: null,
     );
@@ -114,7 +133,13 @@ class SoundboardApi {
     );
     // The uploader's own copy, so their first press does not fetch back what
     // they just sent.
-    unawaited(SoundboardCache.instance.warm(sound.objectPath, bytes));
+    unawaited(
+      SoundboardCache.instance.warm(
+        server.supabaseUrl,
+        sound.objectPath,
+        bytes,
+      ),
+    );
     return (sound: sound, error: null);
   }
 
@@ -165,8 +190,10 @@ class SoundboardApi {
     );
   }
 
-  /// Remove one. A trigger takes the bytes with the row, so there is one call
-  /// here and nothing left over if this client dies halfway.
+  /// Remove one: the row, then the object it names. Nothing in the database
+  /// can delete the object (see below), so a client that dies between the two
+  /// leaves an object nobody points at, which the server's sweep of
+  /// unreferenced objects takes later.
   Future<({bool success, String? error})> deleteSound({
     required String soundId,
     required String objectPath,
@@ -184,7 +211,9 @@ class SoundboardApi {
       ),
     );
     if (response.success) {
-      unawaited(SoundboardCache.instance.forget(objectPath));
+      unawaited(
+        SoundboardCache.instance.forget(server.supabaseUrl, objectPath),
+      );
       // The row is gone, so the picker is already right. The file is a
       // second call because nothing in the database can make it: Storage
       // refuses a direct DELETE on its own table, and doing it there would
@@ -206,9 +235,7 @@ class SoundboardApi {
     }
     return (
       success: response.success,
-      error: response.success
-          ? null
-          : response.error ?? 'Could not remove that clip',
+      error: response.success ? null : _addFailure(response.error),
     );
   }
 

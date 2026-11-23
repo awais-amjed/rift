@@ -2340,7 +2340,9 @@ attribute is set, the clipper's own included. And two notices:
   (`ClipNoticeRules`), as the soundboard's cooldown is, so a modified client
   cannot flood anyone with it; the length is held to 1–120 s. The packet is a
   courtesy: a client can leave it out, and the attribute and its mark are what
-  say someone can clip.
+  say someone can clip. LiveKit drops it, silently, from a member whose token
+  gives no data: one without the soundboard or Speak in the channel,
+  Listen-only included. Such a member can still clip, and the mark still shows.
 
 Every client that joins a call shows the mark and both notices, phones and the
 web included, though only Windows and Linux can clip. **Rift versions from

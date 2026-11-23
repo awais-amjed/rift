@@ -78,17 +78,18 @@ mixin _SoundboardApiMixin {
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      await db
+      final rows = await db
           .from('soundboard_sounds')
           .update({'name': name, 'emoji': emoji})
-          .eq('id', soundId);
+          .eq('id', soundId)
+          .select('id');
+      _refusedIfNone(rows);
       return {'renamed': true};
     });
   }
 
-  /// Remove one. The object in the bucket goes with the row — a trigger does
-  /// it, so there is nothing to delete here and nothing left behind if this
-  /// client dies between the two calls it would otherwise have made.
+  /// Remove one row. The object in the bucket is a second call, made by
+  /// `SoundboardApi.deleteSound` once this one lands.
   Future<APIResponse> deleteSound(
     String supabaseUrl, {
     required String anonKey,
@@ -97,8 +98,24 @@ mixin _SoundboardApiMixin {
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      await db.from('soundboard_sounds').delete().eq('id', soundId);
+      final rows = await db
+          .from('soundboard_sounds')
+          .delete()
+          .eq('id', soundId)
+          .select('id');
+      _refusedIfNone(rows);
       return {'deleted': true};
     });
+  }
+
+  /// `soundboard_update` and `soundboard_delete` filter out what the caller
+  /// may not touch, so a member whose Manage soundboard was taken away
+  /// changes nothing and hears no error: no rows back is the refusal. The
+  /// message carries the words `SoundboardApi` turns into one for people.
+  static void _refusedIfNone(Object? rows) {
+    if (rows is List && rows.isNotEmpty) return;
+    throw const PostgrestException(
+      message: 'Refused by row-level security, or the clip is already gone',
+    );
   }
 }

@@ -133,19 +133,18 @@ class SoundboardCubit extends Cubit<SoundboardState>
   /// echo a data packet back to its sender — and because the presser's own
   /// per-person settings are not theirs to apply to themselves.
   Future<void> press(SoundboardSound sound) async {
-    final room = _livekitCubit?.state.room;
-    if (room == null || !(_livekitCubit?.state.inCall ?? false)) return;
+    final call = _livekitCubit?.state;
+    final room = call?.room;
+    if (room == null || !(call?.inCall ?? false)) return;
+    // This server's clip into this server's call only. A card left open
+    // while the call moved to another server would send an id nobody there
+    // has, and play it here alone.
+    if (call?.callServerId != _watcher.serverId) return;
     if (!_canPlay) return;
 
     // The same gate as a listener's, keyed on ourselves: a held-down button
     // should not flood the room even though nothing here would stop it.
     if (!_gate.admit('', DateTime.now())) return;
-
-    emit(state.copyWith(pressed: {...state.pressed, sound.id}));
-    Timer(SoundboardPlay.cooldown, () {
-      if (isClosed) return;
-      emit(state.copyWith(pressed: {...state.pressed}..remove(sound.id)));
-    });
 
     try {
       await room.localParticipant?.publishData(
@@ -154,10 +153,20 @@ class SoundboardCubit extends Cubit<SoundboardState>
         topic: SoundboardPlay.topic,
       );
     } catch (e) {
+      // Not played here either: a clip only you heard, with the button
+      // saying it went, is a press that looks sent and was not.
       HelperMethods.printDebug(
         'SoundboardCubit: could not send the press – $e',
       );
+      return;
     }
+    if (isClosed) return;
+
+    emit(state.copyWith(pressed: {...state.pressed, sound.id}));
+    Timer(SoundboardPlay.cooldown, () {
+      if (isClosed) return;
+      emit(state.copyWith(pressed: {...state.pressed}..remove(sound.id)));
+    });
 
     await _playLocally(sound, volume: _volumeFor(null));
   }
@@ -260,8 +269,13 @@ class SoundboardCubit extends Cubit<SoundboardState>
     required double volume,
   }) async {
     final library = _library;
-    if (volume <= 0 || library == null) return;
+    final origin = library?.origin;
+    if (volume <= 0 || library == null || origin == null) return;
+    // Read before the wait for the bytes, so a stop while they come — the
+    // call left, a deafen — keeps this one from starting after it.
+    final since = SoundboardPlayer.instance.generation;
     final source = await SoundboardCache.instance.source(
+      origin,
       sound.objectPath,
       () => library.loadSound(sound.objectPath),
     );
@@ -273,6 +287,7 @@ class SoundboardCubit extends Cubit<SoundboardState>
       clipId: sound.id,
       volume: volume,
       output: _appCubit.state.callOutputId,
+      since: since,
     );
   }
 
@@ -307,6 +322,7 @@ class SoundboardCubit extends Cubit<SoundboardState>
   @override
   Future<void> close() async {
     _clearHeard();
+    _retryTimer?.cancel();
     // Never stops the player: the call cuts its own clips off as it ends
     // (`silence`), and a server's context closing — a Manage page shut, a
     // server no longer read — must not cut off one the call is playing.

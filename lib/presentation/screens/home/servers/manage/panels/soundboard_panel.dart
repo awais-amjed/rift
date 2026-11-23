@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../../data/classes/soundboard_sound.dart';
 import '../../../../../../logic/cubits/soundboard/soundboard_cubit.dart';
+import '../../../../../common/app_button.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/hint_card.dart';
 import '../../../../../common/message_banner.dart';
@@ -101,11 +104,31 @@ class _SoundboardPanelState extends State<SoundboardPanel> {
                 MessageBanner(message: error, kind: MessageBannerKind.error),
                 const SizedBox(height: 8),
               ],
+              // A read that failed is said, with the clips it may be missing
+              // still shown: an empty list here read as "Nothing here yet"
+              // and a count of zero for a server that has a full board.
+              if (state.status == SoundboardStatus.error) ...[
+                MessageBanner(
+                  message: state.isEmpty
+                      ? "Couldn't load this server's soundboard."
+                      : "Couldn't refresh this server's soundboard.",
+                  kind: MessageBannerKind.error,
+                  action: AppButton(
+                    label: 'Try again',
+                    variant: AppButtonVariant.secondary,
+                    onPressed: () =>
+                        unawaited(context.read<SoundboardCubit>().refresh()),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               if (state.status == SoundboardStatus.loading)
                 Text(
                   'Loading…',
                   style: AppText.rowQuiet.copyWith(color: theme.textTertiary),
                 )
+              else if (state.isEmpty && state.status == SoundboardStatus.error)
+                const SizedBox.shrink()
               else if (state.isEmpty)
                 Text(
                   'Nothing here yet.',

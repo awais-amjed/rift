@@ -176,6 +176,24 @@ class _CallSoundboardButtonState extends State<_CallSoundboardButton> {
     if (route != null && route.isActive) _navigator?.removeRoute(route);
   }
 
+  /// The server the card's library is from. The card holds that server's
+  /// soundboard, so when the call moves to another server it is taken away
+  /// rather than left offering the old one's clips.
+  String? _scopeServerId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final serverId = ServerScope.of(context).serverId;
+    if (_scopeServerId != null && serverId != _scopeServerId) {
+      // Never a navigator call from inside a build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _route != null) setState(_dismiss);
+      });
+    }
+    _scopeServerId = serverId;
+  }
+
   @override
   void dispose() {
     _dismiss();

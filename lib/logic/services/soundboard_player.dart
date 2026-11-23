@@ -45,30 +45,51 @@ class SoundboardPlayer {
 
   final List<_Clip> _playing = [];
 
+  /// Bumped by [stopAll]. A caller reads it before the wait for a clip's
+  /// bytes and hands it to [play], so a clip that finishes downloading after
+  /// the call was left or the listener deafened is never started: the stop
+  /// had already run, and nothing would have come back to stop it.
+  int get generation => _generation;
+  int _generation = 0;
+
   /// Start [source], the sound [clipId], at [volume] (0–1), on [output] — a
   /// device as WebRTC lists it, or null for the system default. Whatever is
   /// still playing that same sound is stopped first. Returns once playback
-  /// has been asked for, not once it has finished.
+  /// has been asked for, not once it has finished. Nothing starts when
+  /// [since], a [generation] read earlier, is no longer current.
   Future<void> play(
     Source source, {
     required String clipId,
     required double volume,
     String? output,
+    int? since,
   }) async {
     if (volume <= 0) return;
+    final generation = since ?? _generation;
+    if (generation != _generation) return;
 
+    // The place is taken before anything is awaited. Taken after, presses
+    // landing together all passed the ceiling and the same-clip check while
+    // the first was still being decoded, and a stop in that gap missed it.
     for (final clip in List<_Clip>.from(_playing)) {
-      if (clip.id == clipId) await _retire(clip);
+      if (clip.id == clipId) unawaited(_retire(clip));
     }
     while (_playing.length >= _maxConcurrent) {
-      await _retire(_playing.first);
+      unawaited(_retire(_playing.first));
     }
+    final clip = _Clip(clipId);
+    _playing.add(clip);
 
     final level = volume.clamp(0.0, 1.0);
     final onOutput = await _playOnOutput(source, level, output);
     if (onOutput != null) {
-      final clip = _Clip(clipId, cue: onOutput.id);
-      _playing.add(clip);
+      // Stopped, or pushed out, while it was being decoded.
+      if (!_playing.contains(clip) || generation != _generation) {
+        _playing.remove(clip);
+        await _stopCue(onOutput.id);
+        return;
+      }
+      clip.cue = onOutput.id;
       final lasts = math.min(
         onOutput.durationMs,
         SoundboardPlay.maxPlayback.inMilliseconds,
@@ -80,10 +101,13 @@ class SoundboardPlayer {
       );
       return;
     }
+    if (!_playing.contains(clip) || generation != _generation) {
+      _playing.remove(clip);
+      return;
+    }
 
     final player = AudioPlayer();
-    final clip = _Clip(clipId, player: player);
-    _playing.add(clip);
+    clip.player = player;
     try {
       await player.setVolume(level);
       await player.play(source);
@@ -92,14 +116,25 @@ class SoundboardPlayer {
       await _retire(clip);
       return;
     }
+    // Retired while it started: [_retire] has already let the player go.
+    if (!_playing.contains(clip)) return;
     unawaited(_recycle(clip, player));
   }
 
   /// Stop everything — leaving a call, or being deafened halfway through
-  /// somebody's airhorn.
+  /// somebody's airhorn — including a clip still on its way to starting.
   Future<void> stopAll() async {
+    _generation++;
     for (final clip in List<_Clip>.from(_playing)) {
       await _retire(clip);
+    }
+  }
+
+  static Future<void> _stopCue(int id) async {
+    try {
+      await stopCue(id: id);
+    } catch (_) {
+      // Already finished.
     }
   }
 
@@ -189,13 +224,7 @@ class SoundboardPlayer {
   Future<void> _retire(_Clip clip) async {
     if (!_playing.remove(clip)) return;
     final cue = clip.cue;
-    if (cue != null) {
-      try {
-        await stopCue(id: cue);
-      } catch (_) {
-        // Already finished.
-      }
-    }
+    if (cue != null) await _stopCue(cue);
     final player = clip.player;
     if (player == null) return;
     try {
@@ -213,10 +242,13 @@ class SoundboardPlayer {
 
 /// One clip that is audible: the sound [id], on the player, or as a cue in
 /// the Rust library.
+///
+/// Held from before it is audible, with neither filled in yet, so the place
+/// it takes counts while its bytes are still being decoded.
 class _Clip {
   final String id;
-  final AudioPlayer? player;
-  final int? cue;
+  AudioPlayer? player;
+  int? cue;
 
-  _Clip(this.id, {this.player, this.cue});
+  _Clip(this.id);
 }

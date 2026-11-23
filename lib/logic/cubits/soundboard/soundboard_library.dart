@@ -17,26 +17,58 @@ mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
     null => null,
   };
 
+  /// Counts reads, so one that comes back after a later one is dropped: a
+  /// slow read from before a change brought a removed clip back, or took away
+  /// one just added (and its file with it).
+  int _reads = 0;
+
+  /// A read that failed tries again once by itself after [_retryAfter]: the
+  /// call's button is hidden over an empty library, so with nothing to press
+  /// there is nothing that would otherwise ask again until the next change.
+  Timer? _retryTimer;
+  static const Duration _retryAfter = Duration(seconds: 30);
+
   Future<void> refresh() async {
     final serverId = _libraryServerId;
     if (serverId == null) return;
+    _retryTimer?.cancel();
+    final read = ++_reads;
 
-    final result = await _apiOn(serverId).listSounds();
+    final api = _apiOn(serverId);
+    final result = await api.listSounds();
     // The rail moved while this was in flight; the answer is another
     // server's and drawing it under this one's name would be a lie.
     if (isClosed || _libraryServerId != serverId) return;
+    if (read != _reads) return;
 
-    _forgetVanished(serverId: serverId, result: result);
+    if (result.error != null) {
+      // The clips already shown stay: a failed read is not an empty board,
+      // and drawing it as one hid the button and said "Nothing here yet".
+      emit(
+        state.copyWith(
+          status: SoundboardStatus.error,
+          serverId: serverId,
+          error: result.error,
+        ),
+      );
+      _retryTimer = Timer(_retryAfter, () {
+        if (!isClosed && _libraryServerId == serverId) unawaited(refresh());
+      });
+      return;
+    }
+
+    _forgetVanished(
+      serverId: serverId,
+      origin: api.origin,
+      sounds: result.sounds,
+    );
 
     emit(
       state.copyWith(
-        status: result.error == null
-            ? SoundboardStatus.ready
-            : SoundboardStatus.error,
+        status: SoundboardStatus.ready,
         serverId: serverId,
         sounds: result.sounds,
-        error: result.error,
-        clearError: result.error == null,
+        clearError: true,
       ),
     );
   }
@@ -56,7 +88,8 @@ mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
   ///
   /// - act on a **failed** read. A refresh that could not reach the server
   ///   comes back with an empty list and an error, which is indistinguishable
-  ///   from a library somebody emptied unless the error is checked.
+  ///   from a library somebody emptied unless the error is checked —
+  ///   [refresh] only calls this with a read that worked.
   /// - act across a **server switch**. `onServerChanged` resets the state
   ///   before the new server's first refresh, so the list being compared has
   ///   to be one that belonged to this same server.
@@ -68,15 +101,16 @@ mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
   /// this being made cleverer.
   void _forgetVanished({
     required String serverId,
-    required ({List<SoundboardSound> sounds, String? error}) result,
+    required String? origin,
+    required List<SoundboardSound> sounds,
   }) {
-    if (result.error != null || state.serverId != serverId) return;
+    if (origin == null || state.serverId != serverId) return;
     if (state.sounds.isEmpty) return;
 
-    final kept = {for (final sound in result.sounds) sound.objectPath};
+    final kept = {for (final sound in sounds) sound.objectPath};
     for (final sound in state.sounds) {
       if (kept.contains(sound.objectPath)) continue;
-      unawaited(SoundboardCache.instance.forget(sound.objectPath));
+      unawaited(SoundboardCache.instance.forget(origin, sound.objectPath));
     }
   }
 
@@ -98,6 +132,8 @@ mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
       duration: duration,
     );
     if (result.error != null) return result.error;
+    // A read already in flight began before this clip existed.
+    _reads++;
     // Shown at once rather than waited for: the realtime doorbell will bring
     // the same row along in a moment, and a picker that stays empty until it
     // does reads as a failed upload.
@@ -120,6 +156,7 @@ mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
       emoji: emoji,
     );
     if (!result.success) return result.error;
+    _reads++;
     if (!isClosed) {
       emit(
         state.copyWith(
@@ -143,7 +180,13 @@ mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
       soundId: sound.id,
       objectPath: sound.objectPath,
     );
-    if (!result.success) return result.error;
+    if (!result.success) {
+      // Refused, or somebody else removed it first: either way the list is
+      // read again rather than left showing a clip that may be gone.
+      unawaited(refresh());
+      return result.error;
+    }
+    _reads++;
     if (!isClosed) {
       emit(
         state.copyWith(

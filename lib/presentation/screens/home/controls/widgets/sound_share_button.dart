@@ -29,6 +29,9 @@ class SoundShareButton extends StatelessWidget {
       await soundShareCubit.stopSoundShare();
       return;
     }
+    // Starting or stopping: a picker now would only have its choice dropped
+    // by [SoundShareCubit.startSoundShare] once it closed.
+    if (!soundShareCubit.state.canStart) return;
 
     final source = await showCustomDialog<AudioSource>(
       context: context,
@@ -43,7 +46,7 @@ class SoundShareButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<SoundShareCubit, SoundShareState>(
-      buildWhen: (prev, curr) => prev.isSharing != curr.isSharing,
+      buildWhen: (prev, curr) => prev.status != curr.status,
       builder: (context, state) {
         final sharing = state.isSharing;
         return ControlButton(

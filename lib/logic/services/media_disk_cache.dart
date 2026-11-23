@@ -149,14 +149,17 @@ class MediaDiskCache {
     return result;
   }
 
-  /// A name that cannot hold a separator or say where the picture came from
-  /// at a glance: the SHA-256 of the host and the path.
-  Future<File> _fileFor(String origin, String path) async {
+  Future<File> _fileFor(String origin, String path) async =>
+      File('${(await _rootDir()).path}/${await fileNameFor(origin, path)}');
+
+  /// A name that cannot hold a separator or say where the bytes came from at
+  /// a glance: the SHA-256 of the host and the path. A server chooses its own
+  /// paths, so a name built from one could climb out of the folder (`..\` on
+  /// Windows) or stand in for another server's file. The soundboard's clips
+  /// are named the same way (`SoundboardCache`).
+  static Future<String> fileNameFor(String origin, String path) async {
     final digest = await Sha256().hash(utf8.encode('$origin\n$path'));
-    final hex = digest.bytes
-        .map((b) => b.toRadixString(16).padLeft(2, '0'))
-        .join();
-    return File('${(await _rootDir()).path}/$hex');
+    return digest.bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
 
   Future<Directory> _rootDir() async => _dir ??= await _root();

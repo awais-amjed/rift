@@ -49,6 +49,24 @@ class SoundboardActivityChip extends StatefulWidget {
 class _SoundboardActivityChipState extends State<SoundboardActivityChip> {
   bool _hovered = false;
 
+  /// Held for [dispose], where the tree can no longer be read.
+  late final SoundboardCubit _cubit;
+
+  @override
+  void initState() {
+    super.initState();
+    _cubit = context.read<SoundboardCubit>();
+  }
+
+  /// A chip that goes while the pointer is on it hears no exit, so the clock
+  /// [_hover] stopped is started again here, or the line stayed up until
+  /// three newer ones pushed it out or the call ended.
+  @override
+  void dispose() {
+    if (_hovered) _cubit.releaseHeard(widget.heard.id);
+    super.dispose();
+  }
+
   /// Set the moment the mute is applied. The chip becomes its own receipt
   /// rather than raising a toast: an undo has to be where the thing you just
   /// did was, and somebody who mis-tapped mid-call will not go hunting for
@@ -61,7 +79,7 @@ class _SoundboardActivityChipState extends State<SoundboardActivityChip> {
 
   void _hover(bool on) {
     setState(() => _hovered = on);
-    final cubit = context.read<SoundboardCubit>();
+    final cubit = _cubit;
     // A 2.4s window you cannot hit is not an affordance, and the button
     // lives inside it.
     if (on) {
