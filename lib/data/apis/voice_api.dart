@@ -99,6 +99,23 @@ class VoiceApi {
     return response;
   }
 
+  /// Tells the call this device is in that it clipped the last [seconds]:
+  /// [channelId]'s, or DM call [callId]'s. The server sends the notice, so
+  /// the others believe it ([ServerRepository.noteClip]).
+  Future<APIResponse> noteClip({
+    String? channelId,
+    String? callId,
+    required int seconds,
+  }) => _target.call(
+    (server, token) => _repository.noteClip(
+      server.supabaseUrl,
+      channelId: channelId,
+      callId: callId,
+      seconds: seconds,
+      bearerToken: token,
+    ),
+  );
+
   /// Moves the call in [channelId] to [nodeId] (channel manager or admin).
   ///
   /// Everybody in it reconnects, which is a second or two of silence for the

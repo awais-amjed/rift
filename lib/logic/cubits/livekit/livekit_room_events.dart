@@ -14,7 +14,7 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   ClipRecorder get _clipRecorder;
   void _syncClipping();
   void _noticeClippers();
-  void _hearClip(Participant from, int seconds);
+  void _hearClip(String identity, int seconds);
 
   /// Implemented by [_LiveKitConnectionMixin]; a dropped call joins again
   /// through the same path as a click.
@@ -278,8 +278,9 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         }
       })
       ..on<ParticipantPermissionsUpdatedEvent>((e) => _syncParticipants())
-      // Two things arrive on the data channel, and which one a packet is
-      // turns on whether it has a sender.
+      // What arrives on the data channel, and which one a packet is turns on
+      // whether it has a sender: the server's moves and clip notices have
+      // none, a soundboard press has its presser.
       ..on<DataReceivedEvent>((e) {
         // Staff pulling us into another channel, sent by the `move_user` edge
         // function. A packet from the LiveKit API has no sender; a member
@@ -329,13 +330,15 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         }
 
         // Somebody kept the last stretch of the call (CALLS.md, *Clipping a
-        // call*). Told at most once a minute per person, decided here.
-        final clipped = ClipSignal.secondsOf(
+        // call*). Sent by the server, which checked they are in the call, so
+        // like a move it has no sender. Told at most once a minute per
+        // person, decided here.
+        final clipped = ClipSignal.read(
           data: e.data,
           topic: e.topic,
-          fromParticipant: e.participant != null,
+          fromServer: e.participant == null,
         );
-        if (clipped != null) _hearClip(e.participant!, clipped);
+        if (clipped != null) _hearClip(clipped.identity, clipped.seconds);
       })
       ..on<RoomDisconnectedEvent>((e) {
         // Only handle unexpected disconnects; intentional disconnects set state beforehand.

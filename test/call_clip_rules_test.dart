@@ -10,47 +10,60 @@ import 'package:rift/logic/services/voice_attributes.dart';
 /// The notices are the whole of the consent story: nobody can stop a clip,
 /// so being told is what they get. A notice that never shows hides a
 /// recording; one that shows on every rejoin is spam people learn to ignore.
-/// The packet decoder runs on bytes any participant can send.
+/// The notice decoder runs on bytes off the data channel.
 void main() {
   List<int> packet(Object? body) => utf8.encode(jsonEncode(body));
 
   group('ClipSignal', () {
-    int? read(List<int> data, {String? topic, bool fromParticipant = true}) =>
-        ClipSignal.secondsOf(
-          data: data,
-          topic: topic ?? ClipSignal.topic,
-          fromParticipant: fromParticipant,
-        );
+    // The server's notice (`note_clip`), as it sends it.
+    Map<String, Object?> notice({
+      Object? v = 2,
+      Object? type = 'clipped',
+      Object? identity = 'user-a~pc',
+      Object? seconds = 60,
+    }) => {'v': v, 'type': type, 'identity': identity, 'seconds': seconds};
 
-    test('a clip round-trips with its length', () {
-      expect(read(ClipSignal.encode(seconds: 60)), 60);
+    ({String identity, int seconds})? read(
+      Object? body, {
+      String? topic,
+      bool fromServer = true,
+    }) => ClipSignal.read(
+      data: body is List<int> ? body : packet(body),
+      topic: topic ?? ClipSignal.topic,
+      fromServer: fromServer,
+    );
+
+    test('the server\'s notice names the connection and the length', () {
+      expect(read(notice()), (identity: 'user-a~pc', seconds: 60));
+    });
+
+    test('a member\'s own packet is not believed', () {
+      // Anybody with the data right can send one, and before 1.9.0 the
+      // clipper did; only the server checks the clipper is in the call.
+      expect(read(notice(), fromServer: false), isNull);
+      expect(read({'v': 1, 'type': 'clipped', 'seconds': 60}), isNull);
     });
 
     test('another topic is not a clip', () {
-      expect(read(ClipSignal.encode(seconds: 60), topic: 'rift.sound'), isNull);
-    });
-
-    test('a packet from the server is not a clip', () {
-      expect(
-        read(ClipSignal.encode(seconds: 60), fromParticipant: false),
-        isNull,
-      );
+      expect(read(notice(), topic: 'rift.sound'), isNull);
     });
 
     test('an unknown version or type is ignored', () {
-      expect(read(packet({'v': 2, 'type': 'clipped', 'seconds': 60})), isNull);
-      expect(read(packet({'v': 1, 'type': 'sound', 'seconds': 60})), isNull);
+      expect(read(notice(v: 3)), isNull);
+      expect(read(notice(type: 'sound')), isNull);
     });
 
     test('garbage is ignored', () {
-      expect(read([0xff, 0x00, 0x12]), isNull);
-      expect(read(packet([1, 2, 3])), isNull);
-      expect(read(packet({'v': 1, 'type': 'clipped', 'seconds': 'x'})), isNull);
+      expect(read(<int>[0xff, 0x00, 0x12]), isNull);
+      expect(read([1, 2, 3]), isNull);
+      expect(read(notice(seconds: 'x')), isNull);
+      expect(read(notice(identity: '')), isNull);
+      expect(read(notice(identity: 7)), isNull);
     });
 
     test('the length is held to 1..120 seconds', () {
-      expect(read(packet({'v': 1, 'type': 'clipped', 'seconds': 0})), 1);
-      expect(read(packet({'v': 1, 'type': 'clipped', 'seconds': 500})), 120);
+      expect(read(notice(seconds: 0))?.seconds, 1);
+      expect(read(notice(seconds: 500))?.seconds, 120);
     });
   });
 
@@ -79,7 +92,10 @@ void main() {
       final rules = ClipNoticeRules();
       final t0 = DateTime(2026, 11, 21, 12);
       expect(rules.admitClip('a', t0), isTrue);
-      expect(rules.admitClip('a', t0.add(const Duration(seconds: 59))), isFalse);
+      expect(
+        rules.admitClip('a', t0.add(const Duration(seconds: 59))),
+        isFalse,
+      );
       expect(rules.admitClip('b', t0.add(const Duration(seconds: 1))), isTrue);
       expect(rules.admitClip('a', t0.add(const Duration(seconds: 60))), isTrue);
     });

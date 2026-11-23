@@ -2335,14 +2335,18 @@ attribute is set, the clipper's own included. And two notices:
   leaving on purpose or switching calls starts afresh, Rift's own rejoins do
   not, and Restart to update does, since it is kept in memory.
 - "Sam clipped the last minute", from a reliable data packet on `rift.clip`
-  (`ClipSignal`, `{v: 1, type: "clipped", seconds}`), at most once a minute
-  per person. The limit is applied by the receiver as the packet comes in
-  (`ClipNoticeRules`), as the soundboard's cooldown is, so a modified client
-  cannot flood anyone with it; the length is held to 1–120 s. The packet is a
-  courtesy: a client can leave it out, and the attribute and its mark are what
-  say someone can clip. LiveKit drops it, silently, from a member whose token
-  gives no data: one without the soundboard or Speak in the channel,
-  Listen-only included. Such a member can still clip, and the mark still shows.
+  (`ClipSignal`, `{v: 2, type: "clipped", identity, seconds}`) sent by the
+  server. The clipper's app asks `note_clip` (console 1.9.0), which checks
+  that device's voice connection is in the room and sends the notice through
+  LiveKit's API naming it; a packet from the API has no sender, which no
+  member can fake, so the app believes only those, as it does a move. So a
+  member without the soundboard or Speak, whose own packets LiveKit drops, is
+  announced too. At most once a minute per person: the server keeps a minute
+  per member (`note_clip_allowed`), and the receiver applies its own as the
+  packet comes in (`ClipNoticeRules`); the length is held to 1–120 s. A
+  modified client can still skip asking, so the attribute and its mark are
+  what say someone can clip. On a server before 1.9.0 nobody is told: the
+  clipper's own packet (version 1) is no longer believed.
 
 Every client that joins a call shows the mark and both notices, phones and the
 web included, though only Windows and Linux can clip. **Rift versions from

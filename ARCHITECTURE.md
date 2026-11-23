@@ -972,11 +972,12 @@ Where a member can't post they can't edit either (`messages_update_own`; a bot
 still redraws its own panel), and a clip is sound in the call, so the soundboard
 needs Speak as well as its own bit and Listen-only takes it. A press is a data
 packet the server never sees, so the server holds it back at LiveKit instead: only a
-connection with both bits may send data (`canPublishData`). A press and the
-"clipped the last minute" notice (`rift.clip`) are the only packets a member sends, so a
-member without both bits sends neither: their clipping mark still shows, the notice
-does not. A DM call's token (`get_dm_call_token`) gives data to every call connection,
-so there the soundboard bit is only the presser's own app's to keep (seen Nov 23). A call token is good for an hour and says what was true when it
+connection with both bits may send data (`canPublishData`). A press is the only packet
+a member sends: the "clipped the last minute" notice (`rift.clip`) comes from the
+server (`note_clip`, console 1.9.0), which checks the clipper is in the call, so a member
+without the soundboard is announced too and a member's own notice is not believed. A DM
+call's token (`get_dm_call_token`) asks the same two bits of the server, which has no
+channel there to override them (before 1.9.0 it gave every DM call connection data). A call token is good for an hour and says what was true when it
 was minted, so every join is checked again against the rules as they are now
 (`livekit_webhook`): an app that kept an old token and rejoined with it is pushed back
 to muted, Listen-only or without the soundboard, or removed if the server would no

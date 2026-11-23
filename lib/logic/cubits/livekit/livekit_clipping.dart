@@ -13,6 +13,7 @@ mixin _ClippingMixin on Cubit<LiveKitState> {
   ClipLibrary get _clipLibrary;
   VaultCubit get _vaultCubit;
   SessionRepository? get _session;
+  VoiceApi? _voiceOn(String serverId);
 
   Future<bool> _publishSelfStateChecked();
 
@@ -78,18 +79,49 @@ mixin _ClippingMixin on Cubit<LiveKitState> {
     );
   }
 
-  /// Somebody else clipped the last [seconds] of the call.
+  /// The server says the person on connection [identity] clipped the last
+  /// [seconds] of the call ([ClipSignal]). Named from the room, so a notice
+  /// is about somebody this client can see in the call.
   // See [_noticeClippers].
   // ignore: unused_element
-  void _hearClip(Participant from, int seconds) {
-    if (isClosed || from is LocalParticipant) return;
-    final userId = ParticipantIdentity.userIdOf(from.identity);
+  void _hearClip(String identity, int seconds) {
+    final room = state.room;
+    if (isClosed || room == null) return;
+    final self = room.localParticipant;
+    final userId = ParticipantIdentity.userIdOf(identity);
+    if (self != null && ParticipantIdentity.userIdOf(self.identity) == userId) {
+      return;
+    }
+    final from = room.remoteParticipants[identity];
+    if (from == null) return;
     if (!_clipRules.admitClip(userId, DateTime.now())) return;
     emit(
       state.copyWith(
         notice: Notice.info('Clipped', clippedText(_clipNameOf(from), seconds)),
       ),
     );
+  }
+
+  /// Has the server tell the call about a clip (`note_clip`). The call is
+  /// read now, before anything is awaited, so a clip is told to the call it
+  /// was made in. A server before console 1.9.0 has no `note_clip`, and the
+  /// others are not told there.
+  Future<void> _tellCall(int seconds) async {
+    final serverId = state.callServerId;
+    final dm = state.dmCall;
+    final channelId = state.currentChannelId;
+    final voice = serverId == null ? null : _voiceOn(serverId);
+    if (voice == null || (dm == null && channelId == null)) return;
+    final response = await voice.noteClip(
+      channelId: dm == null ? channelId : null,
+      callId: dm?.callId,
+      seconds: seconds,
+    );
+    if (!response.success) {
+      HelperMethods.printDebug(
+        '[Clips] could not tell the call: ${response.errorCode}',
+      );
+    }
   }
 
   String _clipNameOf(Participant p) =>
@@ -118,17 +150,7 @@ mixin _ClippingMixin on Cubit<LiveKitState> {
     // Kept before anything else is awaited, while the call is still the one
     // it was clipped from.
     unawaited(_keepClip(audio));
-    try {
-      await state.room?.localParticipant?.publishData(
-        ClipSignal.encode(
-          seconds: audio.seconds.clamp(1, ClipSignal.maxSeconds),
-        ),
-        reliable: true,
-        topic: ClipSignal.topic,
-      );
-    } catch (e) {
-      HelperMethods.printDebug('[Clips] could not tell the call: $e');
-    }
+    unawaited(_tellCall(audio.seconds.clamp(1, ClipSignal.maxSeconds)));
     // Rift may be behind a game: the sound says the press was heard.
     unawaited(SoundService.instance.play(AppSound.stream));
     if (isClosed) return;

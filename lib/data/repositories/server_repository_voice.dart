@@ -47,6 +47,24 @@ mixin _VoiceApiMixin {
     }, bearerToken: bearerToken);
   }
 
+  /// Tell the call this device is in that it just kept the last [seconds]
+  /// (`note_clip`, console 1.9.0). [channelId] for a voice channel's call,
+  /// [callId] for a DM call. The server checks this device's connection is
+  /// in that room and sends the notice itself, at most once a minute; a
+  /// member's own packet would need the soundboard right, and could be forged.
+  Future<APIResponse> noteClip(
+    String supabaseUrl, {
+    String? channelId,
+    String? callId,
+    required int seconds,
+    String? bearerToken,
+  }) => _post(supabaseUrl, 'note_clip', {
+    'channel_id': ?channelId,
+    'call_id': ?callId,
+    'device_id': DeviceId.current,
+    'seconds': seconds,
+  }, bearerToken: bearerToken);
+
   /// Move the call running in [channelId] to another LiveKit region.
   ///
   /// A room cannot migrate, so the server does this in two halves: it
