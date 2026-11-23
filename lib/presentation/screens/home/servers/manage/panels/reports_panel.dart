@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -22,6 +24,16 @@ class ReportsPanel extends StatefulWidget {
 
 class _ReportsPanelState extends State<ReportsPanel> {
   bool _showClosed = false;
+
+  /// Read again on opening: a report rings when it is filed or closed, but
+  /// not when the person it is about leaves, or is kicked or banned from
+  /// their profile, and a card read before that offered Kick to somebody
+  /// already gone.
+  @override
+  void initState() {
+    super.initState();
+    unawaited(context.read<ReportsCubit>().refresh());
+  }
 
   void _setShowClosed(bool closed) {
     setState(() => _showClosed = closed);
