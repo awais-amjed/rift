@@ -123,11 +123,13 @@ class VoiceLocations {
   /// How long someone's own word outranks a roster read.
   ///
   /// LiveKit counts a room's people at most every five seconds
-  /// (`roomUpdateInterval`, v1.13), and `voice_roster` skips a room it counts
-  /// as empty: for up to five seconds after someone opens an empty channel,
-  /// every read leaves them out. Verified Nov 21 2026: a read asked 0.6 s
-  /// after the announcement came back without them, and the watching client
-  /// drew the channel empty until they moved again.
+  /// (`roomUpdateInterval`, v1.13), and `voice_roster` before console 1.9.0
+  /// skipped a room it counted as empty: for up to five seconds after someone
+  /// opened an empty channel, every read left them out. Verified Nov 21 2026:
+  /// a read asked 0.6 s after the announcement came back without them, and
+  /// the watching client drew the channel empty until they moved again.
+  /// 1.9.0 asks every visible room; this stays for older servers, and for a
+  /// read that was already on its way when someone moved.
   static const heardOutranksRead = Duration(seconds: 10);
 
   /// Who spoke recently enough that a read [asked] for then may not know it:
