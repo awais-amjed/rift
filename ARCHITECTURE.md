@@ -221,7 +221,8 @@ servers it listed, so deleting it does not lift the ban (`directory_ban_marks`,
 described in `rift-central`'s `docs/DIRECTORY.md`).
 
 Central also runs the **public server directory** (opt-in, each listing proved by
-a token the server's admin mints) and the **push relay**, which exists because an
+a token the server's admin mints, so the listing follows the server's admins: one
+publishing over another's takes it over, from central 021) and the **push relay**, which exists because an
 FCM token is scoped to the app's Firebase project, so a self-hosted server cannot
 wake its own members' phones. Relaying teaches central a device token and a
 moment: not the sender, not the text, not the server or the channel. The push

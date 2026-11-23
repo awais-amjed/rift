@@ -19,7 +19,7 @@ import 'public_server_tile.dart';
 /// server is the way in.
 class BrowseResults extends StatelessWidget {
   final PublicServersState state;
-  final Set<String> joinedServerIds;
+  final bool Function(PublicServer listing) isJoined;
   final void Function(PublicServer server) onJoin;
   final void Function(PublicServer server) onLike;
   final VoidCallback onRetry;
@@ -29,14 +29,19 @@ class BrowseResults extends StatelessWidget {
   /// after the end.
   final VoidCallback onLoadMore;
 
+  /// Ask again for the page that failed. Scrolling alone does not, or a
+  /// failing central would be asked on every frame.
+  final VoidCallback onRetryMore;
+
   const BrowseResults({
     super.key,
     required this.state,
-    required this.joinedServerIds,
+    required this.isJoined,
     required this.onJoin,
     required this.onLike,
     required this.onRetry,
     required this.onLoadMore,
+    required this.onRetryMore,
   });
 
   /// How close to the bottom counts as "nearly there" — about two tiles.
@@ -98,13 +103,23 @@ class BrowseResults extends StatelessWidget {
         itemCount: state.results.length + (state.hasMore ? 1 : 0),
         separatorBuilder: (_, _) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
-          if (index == state.results.length) return const ListLoadingFooter();
+          if (index == state.results.length) {
+            if (!state.moreFailed) return const ListLoadingFooter();
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: AppButton(
+                  label: 'Couldn\'t load more. Try again',
+                  variant: AppButtonVariant.secondary,
+                  onPressed: onRetryMore,
+                ),
+              ),
+            );
+          }
           final server = state.results[index];
           return PublicServerTile(
             server: server,
-            onJoin: joinedServerIds.contains(server.serverId)
-                ? null
-                : () => onJoin(server),
+            onJoin: isJoined(server) ? null : () => onJoin(server),
             onLike: () => onLike(server),
             likeBusy: state.liking.contains(server.id),
           );

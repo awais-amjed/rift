@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../classes/api_response.dart';
@@ -73,6 +74,33 @@ class DirectoryIconRepository {
       return APIResponse.error(e.message);
     } catch (e) {
       return APIResponse.error(e);
+    }
+  }
+
+  /// Read a server's own icon from [source], for a publish to copy. Null on
+  /// any failure, or when it runs past [maxBytes]: counted as it arrives, so
+  /// a source that is not an icon is dropped there rather than read whole.
+  Future<Uint8List?> fetchSource(Uri source, {required int maxBytes}) async {
+    final client = http.Client();
+    try {
+      final response = await client
+          .send(http.Request('GET', source))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) return null;
+      final declared = response.contentLength;
+      if (declared != null && declared > maxBytes) return null;
+      final bytes = BytesBuilder(copy: false);
+      await for (final chunk in response.stream.timeout(
+        const Duration(seconds: 10),
+      )) {
+        bytes.add(chunk);
+        if (bytes.length > maxBytes) return null;
+      }
+      return bytes.takeBytes();
+    } catch (_) {
+      return null;
+    } finally {
+      client.close();
     }
   }
 

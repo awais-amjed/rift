@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -75,12 +76,16 @@ class _OverviewPanelState extends State<OverviewPanel> {
   bool _isLoading = false;
   String? _error;
 
+  /// Central's answer about the listing, which Save waits for: saved before
+  /// it, a rename skipped the directory and its toggles were overwritten.
+  Future<void>? _listingLoad;
+
   @override
   void initState() {
     super.initState();
     final server = widget.server;
     _nameCtrl = TextEditingController(text: server.name);
-    _loadListing();
+    _listingLoad = _loadListing();
     _loadMemberCount();
     _loadPushStatus();
   }
@@ -98,15 +103,51 @@ class _OverviewPanelState extends State<OverviewPanel> {
     if (!context.read<SupabaseBackupCubit>().state.isSignedIn) return;
     final server = widget.server;
     final cubit = context.read<PublicServersCubit>();
-    await cubit.loadMine();
+    const unreachable = "Couldn't reach the directory to check this listing.";
+    if (!await cubit.loadMine()) {
+      if (mounted) {
+        setState(() => _listing.loadError = cubit.state.error ?? unreachable);
+      }
+      return;
+    }
     if (!mounted) return;
 
-    setState(
-      () => _listing.seed(cubit.listingFor(server.supabaseUrl, server.id)),
-    );
+    final mine = cubit.listingFor(server.supabaseUrl, server.id);
+    if (mine != null) {
+      setState(() => _listing.seed(mine));
+    } else {
+      // Not ours, but maybe somebody's: an admin before you may have listed
+      // it, and drawing "not listed" over that read as a free slot.
+      final any = await cubit.anyListing(
+        supabaseUrl: server.supabaseUrl,
+        serverId: server.id,
+      );
+      if (!mounted) return;
+      if (!any.ok) {
+        setState(() => _listing.loadError = unreachable);
+        return;
+      }
+      final theirs = any.listing;
+      setState(
+        () => _listing.seed(
+          theirs != null && theirs.ownerId != cubit.currentUserId
+              ? theirs
+              : null,
+          ownedElsewhere: true,
+        ),
+      );
+    }
+    unawaited(_loadNeedsAccount());
+  }
 
-    // Whether the listing's link needs a Rift account: the server says, for
-    // whoever asks, whichever admin made the link.
+  void _retryListing() {
+    setState(() => _listing.loadError = null);
+    _listingLoad = _loadListing();
+  }
+
+  /// Whether the listing's link needs a Rift account: the server says, for
+  /// whoever asks, whichever admin made the link.
+  Future<void> _loadNeedsAccount() async {
     final link = _listing.listing?.inviteLink;
     if (link == null) return;
     final resolved = await JoiningApi(
@@ -126,8 +167,11 @@ class _OverviewPanelState extends State<OverviewPanel> {
   /// advertised itself as having exactly a thousand members.
   Future<void> _loadMemberCount() async {
     final counts = await MembersApi(ServerScope.read(context)).memberCounts();
-    if (!mounted) return;
-    setState(() => _memberCount = counts.people + counts.bots);
+    // A failed count is 0, and every server has at least its admin: publish
+    // the listing's own count rather than a zero.
+    final total = counts.people + counts.bots;
+    if (!mounted || total == 0) return;
+    setState(() => _memberCount = total);
   }
 
   /// Also non-blocking, for the same reason as the two above.
@@ -190,6 +234,8 @@ class _OverviewPanelState extends State<OverviewPanel> {
       _isLoading = true;
       _error = null;
     });
+    await _listingLoad;
+    if (!mounted) return;
 
     final error = await ServerSettingsSave.run(
       server: widget.server,
@@ -270,6 +316,7 @@ class _OverviewPanelState extends State<OverviewPanel> {
         enabled: !_isLoading,
         onChanged: () => setState(() {}),
         onRemoveListing: _removeListing,
+        onRetryListing: _retryListing,
         pushEnabled: _pushEnabled,
         onPushChanged: _setPush,
       ),

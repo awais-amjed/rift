@@ -89,15 +89,18 @@ class InvitesApi {
     );
   }
 
-  /// Throw away an invite this account minted.
+  /// Throw away an invite by its code. Answers whether a row went: the
+  /// policy lets you delete your own, and an admin any on a server from 032,
+  /// so a link another admin made may be refused as no row at all.
   ///
-  /// Best effort and deliberately quiet: the callers are failure paths that
-  /// already have something to say, and "the listing failed, and so did
-  /// tidying up after it" is not a second thing to put in front of somebody.
-  Future<void> revokeInvite({required String inviteCode}) async {
+  /// Most callers are failure paths that already have something to say, and
+  /// ignore the answer: "the listing failed, and so did tidying up after it"
+  /// is not a second thing to put in front of somebody. A reset link reads
+  /// it, since it promised the old link would stop working.
+  Future<bool> revokeInvite({required String inviteCode}) async {
     final server = _target.server;
-    if (server == null) return;
-    await _session.callFor(
+    if (server == null) return false;
+    final response = await _session.callFor(
       server,
       (token) => _repository.deleteInvite(
         server.supabaseUrl,
@@ -106,6 +109,8 @@ class InvitesApi {
         bearerToken: token,
       ),
     );
+    return response.success &&
+        ((response.data as Map<String, dynamic>?)?['removed'] as int? ?? 0) > 0;
   }
 
   /// The server's links, newest first: every one for an administrator, a

@@ -24,6 +24,11 @@ class PublicServersState extends Equatable {
   /// under results, the other replaces them.
   final bool loadingMore;
 
+  /// The last further page failed. The rows already read stay on screen and
+  /// the footer offers a retry, instead of one blip replacing the whole list
+  /// with an error.
+  final bool moreFailed;
+
   /// Listings whose like is in flight, so a second tap is dropped and the
   /// heart can stop answering until central has.
   final Set<String> liking;
@@ -48,6 +53,7 @@ class PublicServersState extends Equatable {
     this.hasBrowsed = false,
     this.hasMore = false,
     this.loadingMore = false,
+    this.moreFailed = false,
     this.liking = const {},
     this.myListings = const [],
     this.cap,
@@ -80,6 +86,7 @@ class PublicServersState extends Equatable {
     bool? hasBrowsed,
     bool? hasMore,
     bool? loadingMore,
+    bool? moreFailed,
     Set<String>? liking,
     List<PublicServer>? myListings,
     int? cap,
@@ -97,6 +104,7 @@ class PublicServersState extends Equatable {
       hasBrowsed: hasBrowsed ?? this.hasBrowsed,
       hasMore: hasMore ?? this.hasMore,
       loadingMore: loadingMore ?? this.loadingMore,
+      moreFailed: moreFailed ?? this.moreFailed,
       liking: liking ?? this.liking,
       myListings: myListings ?? this.myListings,
       cap: cap ?? this.cap,
@@ -115,6 +123,7 @@ class PublicServersState extends Equatable {
     hasBrowsed,
     hasMore,
     loadingMore,
+    moreFailed,
     SetProp(liking),
     myListings,
     cap,

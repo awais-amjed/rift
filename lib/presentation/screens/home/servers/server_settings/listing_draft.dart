@@ -38,9 +38,10 @@ class ListingDraft {
   bool needsAccount = false;
   bool savedNeedsAccount = false;
 
-  /// The server has said, so the switch shows what is true.
+  /// The server has said, so the switch shows what is true — unless it was
+  /// turned while the server was being asked, which is the person's say.
   void seedNeedsAccount(bool value) {
-    needsAccount = value;
+    if (needsAccount == savedNeedsAccount) needsAccount = value;
     savedNeedsAccount = value;
   }
 
@@ -48,11 +49,30 @@ class ListingDraft {
   /// been published. Also the source of the invite code a save reuses.
   PublicServer? listing;
 
+  /// Whether central has been asked and answered. Until then the section is
+  /// read-only and Save leaves the directory alone: an unknown listing drawn
+  /// as "not listed" was saved over with blanks and a second link.
+  bool known = false;
+
+  /// Why central could not be asked, for the section to say with a retry.
+  String? loadError;
+
+  /// [listing] was published by another Rift account — an admin before you.
+  /// Saving takes it over (central's `publish_server_as` lets any admin the
+  /// server vouches for), which the section says before it happens.
+  bool ownedElsewhere = false;
+
+  /// The listing is this account's own, so its picture is in our folder.
+  bool get ownedByMe => listing != null && !ownedElsewhere;
+
   /// Fill from the existing listing. A server that has never been published
   /// starts unlisted with everything blank — publishing is always something
   /// somebody chose, never a default that ran.
-  void seed(PublicServer? listing) {
+  void seed(PublicServer? listing, {bool ownedElsewhere = false}) {
     this.listing = listing;
+    this.ownedElsewhere = listing != null && ownedElsewhere;
+    known = true;
+    loadError = null;
     descriptionCtrl.text = listing?.description ?? '';
     committedTags = listing?.tags ?? const [];
     isListed = listing?.isListed ?? false;
@@ -73,7 +93,7 @@ class ListingDraft {
   /// Whether Save has anything to send to central at all. A server that was
   /// never listed and still isn't shouldn't cost a round trip, or an error
   /// from a service the admin never asked to use.
-  bool get touchesDirectory => listing != null || isListed;
+  bool get touchesDirectory => known && (listing != null || isListed);
 
   void dispose() {
     descriptionCtrl.dispose();

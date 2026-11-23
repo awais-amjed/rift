@@ -34,6 +34,16 @@ class ListingActions {
     required PublicServersCubit publicServers,
     required int memberCount,
   }) async {
+    if (!draft.known) {
+      // Not signed in to central (nothing to say), or central did not answer
+      // when the dialog opened: then a rename may not have reached the
+      // listing, and "Saved" alone would say it had.
+      return draft.loadError == null
+          ? null
+          : 'Server settings saved, but the directory could not be reached, '
+                'so its listing was not updated. Try again once Discovery '
+                'loads.';
+    }
     if (!draft.touchesDirectory) return null;
 
     // Proof that an admin of this server asked for the listing, before
@@ -68,6 +78,9 @@ class ListingActions {
         server.id,
         iconPath,
       ),
+      // The picture the listing already shows, kept if the copy fails — but
+      // only one in this account's own folder, which a takeover's is not.
+      keepIconPath: draft.ownedByMe ? draft.listing?.iconPath : null,
       tags: draft.tags,
       memberCount: memberCount,
       isListed: draft.isListed,
@@ -82,8 +95,21 @@ class ListingActions {
       return 'Server settings saved, but the public listing did not: '
           '${publicServers.state.error ?? 'central could not be reached.'}';
     }
+    final replaced = draft.listing?.inviteCode;
     draft.listing = saved;
     draft.savedNeedsAccount = draft.needsAccount;
+    draft.resetLink = false;
+    draft.ownedElsewhere = false;
+
+    // A reset is a promise that the old link stops working, so it is taken
+    // down once the listing carries the new one, and not before: until then
+    // the old one is what the directory hands out.
+    if (minted.isNew && replaced != null && replaced != code) {
+      if (!await invites.revokeInvite(inviteCode: replaced)) {
+        return 'The listing has its new join link, but the old one could not '
+            'be revoked and still works. Revoke it under Invite people.';
+      }
+    }
     return null;
   }
 

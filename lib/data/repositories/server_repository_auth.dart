@@ -180,8 +180,12 @@ mixin _AuthApiMixin {
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      await db.from('invites').delete().eq('code', inviteCode);
-      return <String, dynamic>{};
+      final removed = await db
+          .from('invites')
+          .delete()
+          .eq('code', inviteCode)
+          .select('id');
+      return <String, dynamic>{'removed': removed.length};
     });
   }
 

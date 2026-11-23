@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/classes/api_response.dart';
 import '../../../data/classes/equality_props.dart';
 import '../../../data/classes/public_server.dart';
+import '../../../data/classes/server.dart';
 import '../../../data/enums/directory_sort.dart';
 import '../../../data/enums/listing_kind.dart';
 import '../../../data/enums/report_reason.dart';
@@ -66,15 +67,27 @@ class PublicServersCubit extends Cubit<PublicServersState> {
   /// after the debounce set by [search].
   Future<void> browse() async {
     final browseId = ++_browseId;
-    emit(state.copyWith(loading: true, clearError: true));
+    // A page still on its way belongs to the browse this one replaces.
+    emit(
+      state.copyWith(
+        loading: true,
+        loadingMore: false,
+        moreFailed: false,
+        clearError: true,
+      ),
+    );
 
     final page = await _fetch(offset: 0);
-    if (isClosed || browseId != _browseId || page == null) return;
+    if (isClosed || browseId != _browseId) return;
+    if (page.error != null) {
+      emit(state.copyWith(loading: false, error: page.error));
+      return;
+    }
 
     emit(
       state.copyWith(
         loading: false,
-        results: page.results,
+        results: page.results!,
         hasMore: page.hasMore,
         hasBrowsed: true,
         clearError: true,
@@ -87,32 +100,37 @@ class PublicServersCubit extends Cubit<PublicServersState> {
   /// The directory used to be one page of 50 with no way to ask for the next,
   /// so the 51st listed server could not be found at all and nothing on screen
   /// said so. Safe to call on every scroll frame: a call while one is in
-  /// flight, or after the end, is a no-op.
-  Future<void> loadMore() async {
+  /// flight, or after the end, is a no-op, and so is one after a page failed
+  /// until [retry] says to ask again — scrolling must not hammer central.
+  Future<void> loadMore({bool retry = false}) async {
     if (state.loading || state.loadingMore || !state.hasMore) return;
+    if (state.moreFailed && !retry) return;
     final browseId = _browseId;
-    emit(state.copyWith(loadingMore: true));
+    emit(state.copyWith(loadingMore: true, moreFailed: false));
 
     final page = await _fetch(offset: state.results.length);
     if (isClosed || browseId != _browseId) return;
-    if (page == null) {
-      emit(state.copyWith(loadingMore: false));
+    if (page.error != null) {
+      // The rows already on screen stay: a blip on page three is not a
+      // reason to take away pages one and two.
+      emit(state.copyWith(loadingMore: false, moreFailed: true));
       return;
     }
 
     emit(
       state.copyWith(
         loadingMore: false,
-        results: [...state.results, ...page.results],
+        results: [...state.results, ...page.results!],
         hasMore: page.hasMore,
         clearError: true,
       ),
     );
   }
 
-  /// One page of the directory, or null when the request failed — in which
-  /// case [PublicServersState.error] carries the reason.
-  Future<({List<PublicServer> results, bool hasMore})?> _fetch({
+  /// One page of the directory, or why not. Emits nothing: whether the
+  /// answer still matters is the caller's to decide, and a slow failure
+  /// emitted here replaced a newer browse's results with an error.
+  Future<({List<PublicServer>? results, bool hasMore, String? error})> _fetch({
     required int offset,
   }) async {
     final response = await _repo.browse(
@@ -121,15 +139,18 @@ class PublicServersCubit extends Cubit<PublicServersState> {
       sort: state.sort,
       offset: offset,
     );
-    if (isClosed) return null;
     if (!response.success) {
-      emit(state.copyWith(loading: false, error: response.error));
-      return null;
+      return (
+        results: null,
+        hasMore: false,
+        error: response.error ?? 'Could not reach the directory.',
+      );
     }
     final data = response.data as Map<String, dynamic>;
     return (
       results: data['results'] as List<PublicServer>,
       hasMore: data['has_more'] == true,
+      error: null,
     );
   }
 
@@ -216,7 +237,6 @@ class PublicServersCubit extends Cubit<PublicServersState> {
 
   // ── Publishing ────────────────────────────────────────────
 
-  /// Load the caller's own listings and the cap they count against.
   /// Whether the server is already in the directory, by anybody's hand.
   /// Answers false when central cannot be asked: the join flow then offers
   /// the listing page, which is the safe direction to be wrong in.
@@ -253,17 +273,19 @@ class PublicServersCubit extends Cubit<PublicServersState> {
     return listing;
   }
 
-  Future<void> loadMine() async {
+  /// Load the caller's own listings and the cap they count against. Answers
+  /// whether it worked; [PublicServersState.error] says why not.
+  Future<bool> loadMine() async {
     emit(state.copyWith(savingListing: true, clearError: true));
 
     final results = await Future.wait([_repo.myListings(), _repo.cap()]);
-    if (isClosed) return;
+    if (isClosed) return false;
 
     final mine = results[0];
     final cap = results[1];
     if (!mine.success) {
       emit(state.copyWith(savingListing: false, error: mine.error));
-      return;
+      return false;
     }
     emit(
       state.copyWith(
@@ -273,6 +295,23 @@ class PublicServersCubit extends Cubit<PublicServersState> {
         clearError: true,
       ),
     );
+    return true;
+  }
+
+  /// The server's listing as anybody signed in may read it — listed and not
+  /// hidden, unless it is the caller's own — whoever published it. For the
+  /// Discovery panel, which must not draw "not listed" over a listing another
+  /// admin made. `ok` is false when central could not be asked.
+  Future<({bool ok, PublicServer? listing})> anyListing({
+    required String supabaseUrl,
+    required String serverId,
+  }) async {
+    final response = await _repo.listingFor(
+      supabaseUrl: supabaseUrl,
+      serverId: serverId,
+    );
+    if (!response.success) return (ok: false, listing: null);
+    return (ok: true, listing: response.data as PublicServer?);
   }
 
   /// Create or update the listing for one server. Returns the saved row, or
@@ -296,6 +335,10 @@ class PublicServersCubit extends Cubit<PublicServersState> {
     /// the publisher's host — see [DirectoryIconPublish]. Null, and a failed
     /// copy, both mean the listing draws its initial.
     String? iconSourceUrl,
+
+    /// The picture the listing already has, kept when the copy of
+    /// [iconSourceUrl] fails rather than taken off the listing by a timeout.
+    String? keepIconPath,
     List<String> tags = const [],
     int memberCount = 0,
     bool isListed = true,
@@ -304,8 +347,9 @@ class PublicServersCubit extends Cubit<PublicServersState> {
 
     // Before the publish rather than after: a listing that named an object
     // which had not been stored yet would draw nothing until the next save.
-    final iconPath = await DirectoryIconPublish.copyToCentral(iconSourceUrl);
+    final icon = await DirectoryIconPublish.copyToCentral(iconSourceUrl);
     if (isClosed) return null;
+    final iconPath = icon.failed ? keepIconPath : icon.path;
 
     final response = await _repo.publish(
       supabaseUrl: supabaseUrl,
@@ -362,9 +406,14 @@ class PublicServersCubit extends Cubit<PublicServersState> {
   /// The listing this client already holds for a server, if any. Read before a
   /// network call so the publish dialog opens filled in rather than empty and
   /// then jumping.
+  ///
+  /// The address compared loosely ([Server.sameUrl]): central keys a listing
+  /// on the host however it is spelled, and another device may have
+  /// published it with a trailing slash this one's list does not have.
   PublicServer? listingFor(String supabaseUrl, String serverId) {
     for (final listing in state.myListings) {
-      if (listing.supabaseUrl == supabaseUrl && listing.serverId == serverId) {
+      if (listing.serverId == serverId &&
+          Server.sameUrl(listing.supabaseUrl, supabaseUrl)) {
         return listing;
       }
     }

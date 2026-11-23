@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/classes/public_server.dart';
+import '../../../../../data/classes/server.dart';
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/public_servers/public_servers_cubit.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
@@ -39,7 +40,12 @@ class BrowseServersModal extends StatefulWidget {
 }
 
 class _BrowseServersModalState extends State<BrowseServersModal> {
-  final _searchCtrl = TextEditingController();
+  /// Filled with the query the directory still holds: the cubit outlives
+  /// this step, so coming Back from a join would otherwise show an empty box
+  /// over a filtered list.
+  late final _searchCtrl = TextEditingController(
+    text: context.read<PublicServersCubit>().state.query,
+  );
 
   @override
   void initState() {
@@ -55,10 +61,19 @@ class _BrowseServersModalState extends State<BrowseServersModal> {
     super.dispose();
   }
 
-  /// Server ids this client already holds. A listing is only an address, so
-  /// the check is on the server it points at, not on the listing.
-  Set<String> get _joined =>
-      context.read<ServerCubit>().state.servers.map((s) => s.id).toSet();
+  /// Whether this client is already in the server a listing points at. A
+  /// listing is only an address, so the check is on that server: the same id
+  /// at the same host, and one that still lets us in — a kicked member comes
+  /// back through the listing's invite like any other, and [AddServerDialog]
+  /// lets them.
+  bool _joined(PublicServer listing) {
+    final server = context.read<ServerCubit>().state.serverById(
+      listing.serverId,
+    );
+    return server != null &&
+        server.admitsUs &&
+        Server.sameUrl(server.supabaseUrl, listing.supabaseUrl);
+  }
 
   /// A refused like (no handle claimed) is said once, over the list.
   Future<void> _like(PublicServersCubit cubit, PublicServer server) async {
@@ -134,11 +149,12 @@ class _BrowseServersModalState extends State<BrowseServersModal> {
               height: _resultsHeight,
               child: BrowseResults(
                 state: state,
-                joinedServerIds: _joined,
+                isJoined: _joined,
                 onJoin: widget.onJoin,
                 onLike: (server) => unawaited(_like(cubit, server)),
                 onRetry: cubit.browse,
                 onLoadMore: () => unawaited(cubit.loadMore()),
+                onRetryMore: () => unawaited(cubit.loadMore(retry: true)),
               ),
             ),
             const SizedBox(height: 12),

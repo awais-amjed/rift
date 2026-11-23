@@ -72,6 +72,9 @@ class PublicServerRepository {
       if (sort != DirectorySort.fresh) {
         ordered = ordered.order('created_at', ascending: false);
       }
+      // Last, so rows that tie on everything keep one order from page to
+      // page, and none is read twice or skipped.
+      ordered = ordered.order('id');
       final rows = await ordered.range(offset, offset + limit);
 
       final page = Paging.split(rows, limit: limit);
@@ -254,8 +257,24 @@ class PublicServerRepository {
           .eq('id', listingId)
           .select('id');
       if (gone.isEmpty) {
+        // Nothing went, which the policy answers the same for three things.
+        // Read the row again to tell which.
+        final row = await _client
+            .from(_table)
+            .select('hidden_at')
+            .eq('id', listingId)
+            .maybeSingle();
+        // Already gone — removed from another device, say. What was asked
+        // for is true.
+        if (row == null) return APIResponse.success(null);
+        if (row['hidden_at'] != null) {
+          return APIResponse.error(
+            'Rift moderators hid this listing, so it cannot be removed.',
+          );
+        }
         return APIResponse.error(
-          'Rift moderators hid this listing, so it cannot be removed.',
+          'Another Rift account publishes this listing now. Ask them, or '
+          'save it from Discovery to make it yours.',
         );
       }
       return APIResponse.success(null);

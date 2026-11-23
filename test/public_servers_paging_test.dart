@@ -6,6 +6,7 @@ import 'package:rift/data/classes/public_server.dart';
 import 'package:rift/data/enums/directory_sort.dart';
 import 'package:rift/data/repositories/public_server_repository.dart';
 import 'package:rift/logic/cubits/public_servers/public_servers_cubit.dart';
+import 'package:rift/presentation/screens/home/servers/server_settings/listing_draft.dart';
 
 PublicServer server(String id) => PublicServer(
   id: id,
@@ -31,6 +32,12 @@ class _FakeRepo implements PublicServerRepository {
   /// Held open when set, so a test can look at the state mid-flight.
   Completer<void>? gate;
 
+  /// Per call, by its number from 0: held until completed, and answered with
+  /// a failure when listed in [failing].
+  final Map<int, Completer<void>> holds = {};
+  final Set<int> failing = {};
+  int _calls = 0;
+
   _FakeRepo(this.pages);
 
   @override
@@ -41,12 +48,16 @@ class _FakeRepo implements PublicServerRepository {
     int limit = 50,
     int offset = 0,
   }) async {
+    final call = _calls++;
     offsets.add(offset);
     sorts.add(sort);
-    if (gate != null) await gate!.future;
-    final page = pages.isEmpty
+    // Taken in call order, before any hold: a held call still owns its page.
+    final page = failing.contains(call) || pages.isEmpty
         ? (results: <PublicServer>[], hasMore: false)
         : pages.removeAt(0);
+    if (gate != null) await gate!.future;
+    if (holds[call] case final hold?) await hold.future;
+    if (failing.contains(call)) return APIResponse.error('central is down');
     return APIResponse.success({
       'results': page.results,
       'has_more': page.hasMore,
@@ -191,5 +202,141 @@ void main() {
       expect(cubit.state.results.single.likedByMe, isFalse);
       expect(cubit.state.liking, isEmpty);
     });
+  });
+
+  group('PublicServersCubit after the Nov 23 review', () {
+    test(
+      'a browse that cuts off a page in flight leaves paging working',
+      () async {
+        // The page in flight was dropped as stale without clearing its flag, so
+        // every later loadMore returned early for the rest of the session.
+        final repo = _FakeRepo([
+          (results: [server('a')], hasMore: true),
+          (results: [server('stale')], hasMore: true),
+          (results: [server('x')], hasMore: true),
+          (results: [server('y')], hasMore: false),
+        ]);
+        final cubit = PublicServersCubit(repo: repo);
+        await cubit.browse();
+
+        repo.holds[1] = Completer<void>();
+        final cut = cubit.loadMore();
+        await cubit.browse();
+        repo.holds[1]!.complete();
+        await cut;
+
+        expect(cubit.state.loadingMore, isFalse);
+        await cubit.loadMore();
+        expect(cubit.state.results.map((s) => s.id), ['x', 'y']);
+      },
+    );
+
+    test('a slow failure does not replace a newer search\'s results', () async {
+      final repo = _FakeRepo([
+        (results: [server('ab')], hasMore: false),
+        (results: [server('abc')], hasMore: false),
+      ]);
+      final cubit = PublicServersCubit(repo: repo);
+
+      repo.holds[0] = Completer<void>();
+      repo.failing.add(0);
+      final slow = cubit.browse();
+      await cubit.browse();
+      repo.holds[0]!.complete();
+      await slow;
+
+      expect(cubit.state.error, isNull);
+      expect(cubit.state.results.map((s) => s.id), ['ab']);
+    });
+
+    test(
+      'a failed further page keeps the list and waits for a retry',
+      () async {
+        final repo = _FakeRepo([
+          (results: [server('a')], hasMore: true),
+          (results: [server('b')], hasMore: false),
+        ]);
+        final cubit = PublicServersCubit(repo: repo);
+        await cubit.browse();
+
+        repo.failing.add(1);
+        await cubit.loadMore();
+        expect(cubit.state.error, isNull, reason: 'the list is not an error');
+        expect(cubit.state.moreFailed, isTrue);
+        expect(cubit.state.results.map((s) => s.id), ['a']);
+
+        // Scrolling does not ask again; the footer's Try again does.
+        await cubit.loadMore();
+        expect(repo.offsets, [0, 1]);
+        await cubit.loadMore(retry: true);
+        expect(cubit.state.moreFailed, isFalse);
+        expect(cubit.state.results.map((s) => s.id), ['a', 'b']);
+      },
+    );
+
+    test('a listing is found however its address is spelled', () async {
+      final repo = _FakeRepo([]);
+      final cubit = PublicServersCubit(repo: repo);
+      cubit.emit(
+        cubit.state.copyWith(
+          myListings: [
+            PublicServer(
+              id: 'l',
+              serverId: 's',
+              ownerId: 'me',
+              supabaseUrl: 'https://Example.test/',
+              inviteCode: 'code',
+              name: 'S',
+              isListed: true,
+              memberCount: 1,
+              updatedAt: DateTime(2026),
+            ),
+          ],
+        ),
+      );
+      expect(cubit.listingFor('https://example.test', 's')?.id, 'l');
+    });
+  });
+
+  group('ListingDraft', () {
+    test('touches nothing on central until central has answered', () {
+      final draft = ListingDraft()..isListed = true;
+      expect(draft.touchesDirectory, isFalse);
+      draft.seed(null);
+      draft.isListed = true;
+      expect(draft.touchesDirectory, isTrue);
+      draft.dispose();
+    });
+
+    test(
+      'a late answer about the account switch keeps a change made meanwhile',
+      () {
+        final draft = ListingDraft()..seed(server('a'));
+        draft.needsAccount = true;
+        draft.seedNeedsAccount(false);
+        expect(draft.needsAccount, isTrue);
+        expect(draft.savedNeedsAccount, isFalse);
+
+        final quiet = ListingDraft()..seed(server('a'));
+        quiet.seedNeedsAccount(true);
+        expect(quiet.needsAccount, isTrue);
+        draft.dispose();
+        quiet.dispose();
+      },
+    );
+
+    test(
+      'another account\'s listing is not ours to delete or reuse a picture of',
+      () {
+        final draft = ListingDraft()..seed(server('a'), ownedElsewhere: true);
+        expect(draft.ownedElsewhere, isTrue);
+        expect(draft.ownedByMe, isFalse);
+        draft.seed(server('a'));
+        expect(draft.ownedByMe, isTrue);
+        draft.seed(null, ownedElsewhere: true);
+        expect(draft.ownedElsewhere, isFalse);
+        draft.dispose();
+      },
+    );
   });
 }

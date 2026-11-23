@@ -1,7 +1,10 @@
+import 'dart:math';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/apis/invites_api.dart';
+import '../../../../../data/apis/members_api.dart';
 import '../../../../../data/apis/server_api.dart';
 import '../../../../../data/classes/directory_tags.dart';
 import '../../../../../data/classes/public_server.dart';
@@ -107,6 +110,14 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
       _error = null;
     });
 
+    // A server joined as its admin may be an established one, which listed
+    // as "1 member" until its next Save. Counted by the server; a failed
+    // count is 0, and every server has at least the admin.
+    final counts = widget.joined
+        ? await MembersApi(session).memberCounts()
+        : (people: 1, bots: 0);
+    if (!mounted) return;
+
     // Proof that an admin of this server asked, before anything is minted.
     // Central redeems it against the server's own domain, because it has no
     // other way to tell an administrator from any other member — see the
@@ -159,9 +170,9 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
         server.iconPath,
       ),
       tags: DirectoryTags.withPending(_tags, _tagCtrl.text),
-      // Brand new, so its only member is the admin who just registered — the
+      // Brand new, its only member is the admin who just registered — the
       // roster fetch for it may not even have landed yet.
-      memberCount: 1,
+      memberCount: max(1, counts.people + counts.bots),
       isListed: true,
     );
     if (!mounted) return;
@@ -191,7 +202,15 @@ class _PublishNewServerModalState extends State<PublishNewServerModal> {
       (c) => c.state.serverOn(widget.serverId)?.name ?? 'your server',
     );
 
+    // Not closable while a publish is in flight, as JoinServerModal: closed
+    // mid-way, the app-wide cubit still listed the server with nobody told,
+    // or the invite minted for it stayed open with no listing and no revoke.
+    return PopScope(canPop: !_publishing, child: _modal(signedIn, name));
+  }
+
+  Widget _modal(bool signedIn, String name) {
     return AppModal(
+      closable: !_publishing,
       title: widget.joined ? 'Joined as an admin' : 'Server created',
       subtitle: signedIn
           ? 'Let people find $name, or keep it invite-only'

@@ -32,6 +32,7 @@ class ServerDiscoverySection extends StatelessWidget {
   final VoidCallback onChanged;
 
   final VoidCallback onRemove;
+  final VoidCallback onRetry;
   final bool enabled;
 
   const ServerDiscoverySection({
@@ -41,6 +42,7 @@ class ServerDiscoverySection extends StatelessWidget {
     required this.memberCount,
     required this.onChanged,
     required this.onRemove,
+    required this.onRetry,
     this.enabled = true,
   });
 
@@ -66,7 +68,35 @@ class ServerDiscoverySection extends StatelessWidget {
                 'server needs a Rift account — that is what makes the listing '
                 'yours to edit or remove later, from any device.',
           )
+        else if (!draft.known)
+          // Read-only until central answers: drawn as "not listed" meanwhile,
+          // a toggle saved over a listing that exists.
+          draft.loadError == null
+              ? Text(
+                  'Checking the directory…',
+                  style: AppText.secondary.copyWith(
+                    color: themeState.textTertiary,
+                  ),
+                )
+              : HintCard(
+                  icon: Icons.cloud_off_outlined,
+                  text: draft.loadError!,
+                  action: AppButton(
+                    label: 'Try again',
+                    variant: AppButtonVariant.secondary,
+                    onPressed: onRetry,
+                  ),
+                )
         else ...[
+          if (draft.ownedElsewhere) ...[
+            const HintCard(
+              icon: Icons.people_outline,
+              text:
+                  'Another Rift account published this listing — an admin '
+                  'before you, most likely. Saving here makes it yours.',
+            ),
+            const SizedBox(height: 14),
+          ],
           if (draft.listing case final listing? when listing.isHidden) ...[
             ListingHiddenNotice(reason: listing.hiddenReason),
             const SizedBox(height: 14),
@@ -169,7 +199,9 @@ class ServerDiscoverySection extends StatelessWidget {
                   label: 'Remove listing',
                   variant: AppButtonVariant.danger,
                   // See ListingHiddenNotice: a hidden listing stays put.
-                  onPressed: enabled && !draft.listing!.isHidden
+                  // Not someone else's: only its publisher may delete a row.
+                  onPressed:
+                      enabled && !draft.listing!.isHidden && draft.ownedByMe
                       ? onRemove
                       : null,
                 ),

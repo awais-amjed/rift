@@ -76,6 +76,10 @@ class _JoinServerModalState extends State<JoinServerModal> {
   /// already; a listing has not, so it is asked once the form is open.
   late bool _needsAccount = widget.invite.needsAccount;
 
+  /// The server is being asked. Join waits for it: pressed sooner, the join
+  /// asked central for a pass before the note saying it would had shown.
+  bool _askingAccount = false;
+
   bool get _canSubmit =>
       ServerUsername.isValid(_usernameCtrl.text) &&
       _displayNameCtrl.text.trim().isNotEmpty;
@@ -89,7 +93,10 @@ class _JoinServerModalState extends State<JoinServerModal> {
     );
     _usernameCtrl.text = defaults.username;
     _displayNameCtrl.text = defaults.displayName;
-    if (!_needsAccount) _askNeedsAccount();
+    if (!_needsAccount) {
+      _askingAccount = true;
+      _askNeedsAccount();
+    }
   }
 
   Future<void> _askNeedsAccount() async {
@@ -97,8 +104,13 @@ class _JoinServerModalState extends State<JoinServerModal> {
     final resolved = await JoiningApi(
       context.read<SessionRepository>(),
     ).resolveInvite(InviteLink.build(invite.serverUrl, invite.inviteCode));
-    if (!mounted || resolved.invite?.needsAccount != true) return;
-    setState(() => _needsAccount = true);
+    if (!mounted) return;
+    // A failed ask lets Join go on: the join resolves the link again, and a
+    // server that cannot answer here will not let anybody in there either.
+    setState(() {
+      _askingAccount = false;
+      if (resolved.invite?.needsAccount == true) _needsAccount = true;
+    });
   }
 
   @override
@@ -274,7 +286,9 @@ class _JoinServerModalState extends State<JoinServerModal> {
         ),
         AppButton(
           label: _isLoading ? 'Joining…' : 'Join server',
-          onPressed: _canSubmit && !_isLoading ? _submit : null,
+          onPressed: _canSubmit && !_isLoading && !_askingAccount
+              ? _submit
+              : null,
           isLoading: _isLoading,
         ),
       ],

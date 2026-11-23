@@ -39,6 +39,9 @@ class ServerSettingsForm extends StatelessWidget {
 
   final VoidCallback onRemoveListing;
 
+  /// Ask central about the listing again, after it could not be reached.
+  final VoidCallback onRetryListing;
+
   /// Whether this server may wake its members' phones, or null while the
   /// server is still being asked. Owned by the dialog because it is not part
   /// of Save — the toggle acts immediately, since turning it on has to mint a
@@ -56,6 +59,7 @@ class ServerSettingsForm extends StatelessWidget {
     required this.enabled,
     required this.onChanged,
     required this.onRemoveListing,
+    required this.onRetryListing,
     required this.pushEnabled,
     required this.onPushChanged,
   });
@@ -89,6 +93,7 @@ class ServerSettingsForm extends StatelessWidget {
               memberCount: memberCount,
               onChanged: onChanged,
               onRemove: onRemoveListing,
+              onRetry: onRetryListing,
 
               enabled: enabled,
             ),
