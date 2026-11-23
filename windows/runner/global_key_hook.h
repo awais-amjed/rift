@@ -14,6 +14,9 @@
 //            decided on (global_key_hook.cpp) rather than one the hook saw
 static constexpr UINT kWmPttKeyEvent = WM_APP + 100;
 
+// Posted to the hook thread when Dart changes which hooks it wants.
+static constexpr UINT kWmHookWant = WM_APP + 104;
+
 // Singleton that installs WH_KEYBOARD_LL and WH_MOUSE_LL hooks on a dedicated
 // thread so that key and mouse button events are received even when the
 // application is not in the foreground.
@@ -33,6 +36,12 @@ class GlobalKeyHook {
   void Stop();
 
   bool IsRunning() const { return running_.load(); }
+
+  // Which hooks to keep installed: the keyboard's while a key is bound, the
+  // mouse's only while push-to-talk is on a mouse button. Windows calls a
+  // mouse hook for every move in every app, a game's too, and waits for it
+  // each time, so it is not left in for nothing. Either may be called first.
+  void Want(bool keyboard, bool mouse);
 
  private:
   GlobalKeyHook() = default;

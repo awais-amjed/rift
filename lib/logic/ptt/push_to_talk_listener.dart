@@ -19,7 +19,8 @@ import 'windows_key_hook.dart';
 ///
 /// On Windows a WH_KEYBOARD_LL hook installed in the native runner sends every
 /// key event through [WindowsKeyHook] so PTT continues to work while the app is
-/// running in the background.  Flutter's [HardwareKeyboard] reports the key
+/// running in the background. It is in only while a key is bound, and the
+/// mouse's hook only while push-to-talk is on a button ([hooksWantedFor]).  Flutter's [HardwareKeyboard] reports the key
 /// too while Rift has focus; the two agree, and the cubit takes a press it
 /// already holds as nothing.
 ///
@@ -43,6 +44,7 @@ class PushToTalkListener extends StatefulWidget {
 class _PushToTalkListenerState extends State<PushToTalkListener>
     with WidgetsBindingObserver {
   StreamSubscription<HookKey>? _bgSub;
+  StreamSubscription<({bool keyboard, bool mouse})>? _hookWants;
   LinuxGlobalShortcuts? _linux;
 
   @override
@@ -55,6 +57,17 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
 
     if (!kIsWeb && Platform.isWindows) {
       _bgSub = WindowsKeyHook.keys.listen(_handleBgKeyEvent);
+      final app = context.read<AppCubit>();
+      ({bool keyboard, bool mouse}) wanted(AppState state) => hooksWantedFor(
+        pushToTalk: state.pushToTalkEnabled,
+        pushToTalkKeyId: state.pushToTalkKeyId,
+        calls: state.callShortcuts,
+      );
+      unawaited(_want(wanted(app.state)));
+      _hookWants = app.stream
+          .map(wanted)
+          .distinct()
+          .listen((hooks) => unawaited(_want(hooks)));
     }
     if (!kIsWeb && Platform.isLinux) {
       _linux = LinuxGlobalShortcuts(
@@ -67,6 +80,7 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
   @override
   void dispose() {
     _bgSub?.cancel();
+    _hookWants?.cancel();
     _linux?.dispose();
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     GestureBinding.instance.pointerRouter.removeGlobalRoute(_handlePointer);
@@ -196,6 +210,14 @@ class _PushToTalkListenerState extends State<PushToTalkListener>
       key.down,
       via: key.byCheck ? 'hook held-key check' : 'hook',
     );
+  }
+
+  static Future<void> _want(({bool keyboard, bool mouse}) hooks) async {
+    try {
+      await WindowsKeyHook.want(keyboard: hooks.keyboard, mouse: hooks.mouse);
+    } catch (e) {
+      HelperMethods.printDebug('PushToTalkListener: hooks not set – $e');
+    }
   }
 
   /// Keybinds already complained about, so an unmappable one is reported once

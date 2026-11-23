@@ -42,7 +42,13 @@ class FlutterWindow : public Win32Window {
   std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>> ptt_channel_;
   std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> ptt_event_sink_;
 
-  // Configure |ptt_channel_| against the running Flutter engine.
+  // MethodChannel on which Dart says which hooks it needs
+  // (GlobalKeyHook::Want).
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
+      ptt_want_channel_;
+
+  // Configure |ptt_channel_| and |ptt_want_channel_| against the running
+  // Flutter engine.
   void SetupPttChannel();
 
   // EventChannel that tells Dart whether anybody can see this window, while

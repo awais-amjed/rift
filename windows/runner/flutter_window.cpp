@@ -223,6 +223,31 @@ void FlutterWindow::SetupPttChannel() {
       });
 
   ptt_channel_->SetStreamHandler(std::move(handler));
+
+  ptt_want_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "rift/ptt_hooks",
+          &flutter::StandardMethodCodec::GetInstance());
+  ptt_want_channel_->SetMethodCallHandler(
+      [](const flutter::MethodCall<flutter::EncodableValue>& call,
+         std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+             result) {
+        if (call.method_name() != "want") {
+          result->NotImplemented();
+          return;
+        }
+        const auto* args =
+            std::get_if<flutter::EncodableMap>(call.arguments());
+        const auto flag = [args](const char* name) {
+          if (args == nullptr) return false;
+          const auto it = args->find(flutter::EncodableValue(name));
+          if (it == args->end()) return false;
+          const auto* value = std::get_if<bool>(&it->second);
+          return value != nullptr && *value;
+        };
+        GlobalKeyHook::Instance().Want(flag("keyboard"), flag("mouse"));
+        result->Success();
+      });
 }
 
 void FlutterWindow::SetupSeenChannel() {

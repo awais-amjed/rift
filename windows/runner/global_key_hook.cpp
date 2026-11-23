@@ -12,6 +12,12 @@ static std::atomic<HWND> g_target_hwnd{nullptr};
 static HHOOK g_hook = nullptr;
 static HHOOK g_mouse_hook = nullptr;
 
+// What Dart wants installed (GlobalKeyHook::Want): bit 1 the keyboard hook,
+// bit 2 the mouse hook. Written on the main thread, read on the hook thread.
+static constexpr int kWantKeyboard = 1;
+static constexpr int kWantMouse = 2;
+static std::atomic<int> g_wanted{0};
+
 // ----------------------------------------------------------------------------
 // Held-key check
 // ----------------------------------------------------------------------------
@@ -150,6 +156,20 @@ static void ReportKey(UINT vk, bool is_down, bool from_keyboard) {
   }
 }
 
+// Lets go of everything the hook believes is down from the keyboard
+// (|keyboard|) or the mouse, before that hook comes out: its key-ups would
+// never be heard, and Dart would go on holding the keys.
+static void ReleaseHeld(bool keyboard) {
+  for (UINT vk = 0; vk < 256; ++vk) {
+    if (g_down_since[vk] == 0 || IsMouseButton(vk) == keyboard) continue;
+    g_down_since[vk] = 0;
+    g_last_down[vk] = 0;
+    g_repeat_gap[vk] = 0;
+    g_windows_saw_down[vk] = false;
+    PostKey(vk, false, true);
+  }
+}
+
 // ----------------------------------------------------------------------------
 // GlobalKeyHook implementation
 // ----------------------------------------------------------------------------
@@ -225,18 +245,41 @@ void GlobalKeyHook::Start(HWND hwnd) {
     PeekMessage(&queue, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
     SetEvent(ready_event);
 
-    g_hook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc,
-                               nullptr, 0);
-    // Push-to-talk on a mouse's side buttons. Windows calls this for every
-    // move as well, on this thread, so the procedure has to stay trivial.
-    g_mouse_hook =
-        SetWindowsHookEx(WH_MOUSE_LL, LowLevelMouseProc, nullptr, 0);
-    if (g_hook || g_mouse_hook) {
-      MSG msg;
-      while (GetMessage(&msg, nullptr, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+    // Installs and removes the hooks to match what Dart wants. On this
+    // thread, which is the one Windows calls them on.
+    const auto apply_wanted = []() {
+      const int wanted = g_wanted.load();
+      const bool keyboard = (wanted & kWantKeyboard) != 0;
+      const bool mouse = (wanted & kWantMouse) != 0;
+      if (keyboard && !g_hook) {
+        g_hook =
+            SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, nullptr, 0);
+      } else if (!keyboard && g_hook) {
+        ReleaseHeld(true);
+        UnhookWindowsHookEx(g_hook);
+        g_hook = nullptr;
       }
+      // Push-to-talk on a mouse's side buttons. Windows calls this for every
+      // move as well, on this thread, so the procedure has to stay trivial.
+      if (mouse && !g_mouse_hook) {
+        g_mouse_hook =
+            SetWindowsHookEx(WH_MOUSE_LL, LowLevelMouseProc, nullptr, 0);
+      } else if (!mouse && g_mouse_hook) {
+        ReleaseHeld(false);
+        UnhookWindowsHookEx(g_mouse_hook);
+        g_mouse_hook = nullptr;
+      }
+    };
+    apply_wanted();
+    MSG msg;
+    while (GetMessage(&msg, nullptr, 0, 0)) {
+      // A thread message: no window to dispatch it to.
+      if (msg.hwnd == nullptr && msg.message == kWmHookWant) {
+        apply_wanted();
+        continue;
+      }
+      TranslateMessage(&msg);
+      DispatchMessage(&msg);
     }
     if (g_hook) UnhookWindowsHookEx(g_hook);
     if (g_mouse_hook) UnhookWindowsHookEx(g_mouse_hook);
@@ -253,6 +296,14 @@ void GlobalKeyHook::Start(HWND hwnd) {
   // Wait until the hook thread has stored its ID.
   WaitForSingleObject(ready_event, INFINITE);
   CloseHandle(ready_event);
+}
+
+void GlobalKeyHook::Want(bool keyboard, bool mouse) {
+  g_wanted = (keyboard ? kWantKeyboard : 0) | (mouse ? kWantMouse : 0);
+  // Not running yet: the thread reads it when it starts.
+  if (running_.load() && hook_thread_id_ != 0) {
+    PostThreadMessage(hook_thread_id_, kWmHookWant, 0, 0);
+  }
 }
 
 void GlobalKeyHook::Stop() {
