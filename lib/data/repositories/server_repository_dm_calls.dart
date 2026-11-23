@@ -63,15 +63,20 @@ mixin _DmCallsApiMixin {
   /// `end_dm_call` ends a call in any state. Pressed on a ring that was
   /// answered a moment ago — Decline on the phone after answering on the PC,
   /// or the caller's thirty seconds running out while the answer was on its
-  /// way — it hung up a call somebody was in (review, Nov 22). Asking first
-  /// leaves that to the gap of one round trip; closing it altogether would
-  /// take a function on the server.
+  /// way — it hung up a call somebody was in (review, Nov 22). The server's
+  /// `end_dm_ring` ends it only while unanswered, under the lock an answer
+  /// takes. A server without it (before console 1.9.0) is asked first
+  /// instead, which leaves the gap of one round trip.
   Future<APIResponse> endDmRing(
     String supabaseUrl, {
     required String anonKey,
     String? bearerToken,
     required String callId,
   }) async {
+    final ended = await _rpc(supabaseUrl, anonKey, bearerToken, 'end_dm_ring', {
+      'p_call': callId,
+    });
+    if (ended.errorCode != 'PGRST202') return ended;
     final asked = await myDmCalls(
       supabaseUrl,
       anonKey: anonKey,

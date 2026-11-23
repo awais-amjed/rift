@@ -866,9 +866,11 @@ A call follows the DM rules exactly: only an open conversation (a request has to
 be accepted first), never across a block, not while timed out, not without
 `CONNECT`, and at most five unanswered calls to one person an hour. The client
 rings for 30 seconds; the server allows 45 so an answer given at the last moment
-still lands. A decline, or the caller giving up at 30 seconds, first asks
-whether the ring was answered in the meantime, since `end_dm_call` ends a call
-in any state; one answered on another device is left alone. A ring is timed
+still lands. A decline, or the caller giving up at 30 seconds, sends
+`end_dm_ring`, which ends the call only while it is unanswered, under the lock
+an answer takes, so one answered on another device is left alone (a server
+before console 1.9.0 has only `end_dm_call`, which ends a call in any state, and
+the app asks first there). A ring is timed
 from when the device first heard it, never against the row's `started_at`,
 because a device's clock that disagrees with the server's dropped every ring. Central (friends) DMs have no calls, because central has no LiveKit.
 
