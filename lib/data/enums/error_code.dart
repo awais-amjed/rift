@@ -37,6 +37,11 @@ class ErrorCode {
   /// moment, so the client offers to try again.
   static const String voiceChannelFull = 'voice_channel_full';
 
+  /// The voice server a call goes to did not answer when the room was
+  /// opened (console 1.9.0; an older server said `unexpected_error`). About
+  /// the server, never the caller's access, so it is said as that.
+  static const String voiceServerUnreachable = 'voice_server_unreachable';
+
   // ── Server ───────────────────────────────────────────────────────────────────
   /// The server already holds `max_members` people. Returned
   /// by `register`, where it is the last refusal checked — everything above it

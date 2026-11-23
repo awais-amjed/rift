@@ -90,6 +90,15 @@ class ConnectionFailure {
     if (code == ErrorCode.voiceChannelFull) {
       return ConnectionFailure.callFull(response.error);
     }
+    if (code == ErrorCode.voiceServerUnreachable) {
+      return ConnectionFailure(
+        title: 'The voice server isn’t answering',
+        message:
+            'The server is up, but the voice server calls run on is not. '
+            'Try again in a moment.',
+        detail: response.error,
+      );
+    }
     if (ErrorCode.isRetryable(code)) {
       return ConnectionFailure(
         title: 'This server isn’t answering',

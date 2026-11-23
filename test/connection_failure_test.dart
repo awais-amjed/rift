@@ -198,6 +198,15 @@ void main() {
       }
     });
 
+    test('a voice server that is down is said as that', () {
+      final failure = ConnectionFailure.tokenRefused(
+        refused(ErrorCode.voiceServerUnreachable),
+      );
+      expect(failure.title, 'The voice server isn’t answering');
+      expect(failure.message, isNot(contains('access')));
+      expect(failure.canRetry, isTrue);
+    });
+
     test('a full call and a refusal keep their own cases', () {
       expect(
         ConnectionFailure.tokenRefused(
