@@ -15,11 +15,11 @@ import 'support/memory_storage.dart';
 
 /// In a call, watching one stream, and nothing else.
 class _StubLiveKitCubit extends Cubit<LiveKitState> implements LiveKitCubit {
-  _StubLiveKitCubit()
+  _StubLiveKitCubit({Set<String> watching = const {'alice'}})
     : super(
-        const LiveKitState(
+        LiveKitState(
           connectionState: LiveKitConnectionState.connected,
-          subscribedScreenshares: {'alice'},
+          subscribedScreenshares: watching,
         ),
       );
 
@@ -30,13 +30,18 @@ class _StubLiveKitCubit extends Cubit<LiveKitState> implements LiveKitCubit {
 void main() {
   setUp(() => HydratedBloc.storage = MemoryStorage());
 
-  Future<void> pumpPip(WidgetTester tester) async {
+  Future<void> pumpPip(
+    WidgetTester tester, {
+    Set<String> watching = const {'alice'},
+  }) async {
     await tester.pumpWidget(
       MultiBlocProvider(
         providers: [
           BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
           BlocProvider<AppCubit>(create: (_) => AppCubit()),
-          BlocProvider<LiveKitCubit>(create: (_) => _StubLiveKitCubit()),
+          BlocProvider<LiveKitCubit>(
+            create: (_) => _StubLiveKitCubit(watching: watching),
+          ),
         ],
         child: const MaterialApp(home: Scaffold(body: CallStreamPip())),
       ),
@@ -181,5 +186,42 @@ void main() {
       find.ancestor(of: badge, matching: find.byType(AnimatedOpacity)),
     );
     expect(fades.every((f) => f.opacity == 1), isTrue);
+  });
+
+  /// One step of a window being dragged larger or smaller.
+  Future<void> resizeWindow(WidgetTester tester, Size to) async {
+    tester.view.physicalSize = to;
+    await tester.pump();
+  }
+
+  testWidgets('a window being resized moves it at once, with nothing left '
+      'animating', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 800);
+    addTearDown(tester.view.reset);
+    await pumpPip(tester);
+    final gap = const Offset(1200, 800) - card(tester).bottomRight;
+
+    await resizeWindow(tester, const Size(1100, 760));
+
+    // Already in its corner of the new pane: a slide would restart on every
+    // step of the drag and ask for a frame on every vsync while it lasted.
+    expect(card(tester).bottomRight, const Offset(1100, 760) - gap);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+  });
+
+  testWidgets('with no stream to show, a resize starts nothing either', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 800);
+    addTearDown(tester.view.reset);
+    await pumpPip(tester, watching: const {});
+    expect(find.byType(CallPipCard), findsNothing);
+
+    for (final width in [1150.0, 1100.0, 1050.0]) {
+      await resizeWindow(tester, Size(width, 800));
+      expect(tester.binding.hasScheduledFrame, isFalse);
+    }
   });
 }

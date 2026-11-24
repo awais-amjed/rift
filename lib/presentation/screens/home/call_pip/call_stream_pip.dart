@@ -43,6 +43,15 @@ class _CallStreamPipState extends State<CallStreamPip> {
   /// Its width while the grip is being dragged.
   double? _resizing;
 
+  /// The pane the last layout was for. A pane that changed size since — the
+  /// window being resized, a sidebar opening beside it — moves the card with
+  /// it at once. Sliding after it restarted on every step of a window drag,
+  /// shown or not, and drew a frame on every vsync for as long as the drag
+  /// lasted: on Windows, where each step waits for its frame, the window's
+  /// edge trailed the pointer by 60 px (Nov 24, against 25 for an empty
+  /// Flutter app).
+  Size? _laidOutIn;
+
   @override
   Widget build(BuildContext context) {
     final stageShown = context.select<AppCubit, bool>(
@@ -76,12 +85,14 @@ class _CallStreamPipState extends State<CallStreamPip> {
         final shown = identity != null && most >= K.callPipMinWidth * 0.75;
         final at = _drag ?? _restingAt(corner, area, size);
         final held = _drag != null || _resizing != null;
+        final reflowed = _laidOutIn != null && _laidOutIn != area;
+        _laidOutIn = area;
         return Stack(
           children: [
             AnimatedPositioned(
-              // Under the pointer while dragged or resized; into its corner
-              // once let go.
-              duration: held ? Duration.zero : AppMotion.state,
+              // Under the pointer while dragged or resized, and with the pane
+              // while it changes size; into its corner once let go.
+              duration: held || reflowed ? Duration.zero : AppMotion.state,
               curve: AppMotion.settle,
               left: at.dx,
               top: at.dy,

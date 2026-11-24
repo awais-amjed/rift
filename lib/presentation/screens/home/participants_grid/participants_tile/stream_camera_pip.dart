@@ -85,6 +85,14 @@ class _StreamCameraPipState extends State<StreamCameraPip> {
   /// Its width while the grip is being dragged.
   double? _resizing;
 
+  /// The stage the last build was for. A stage that changed size since —
+  /// the window being resized, a panel opening beside it — moves the card
+  /// with it at once: sliding after it restarted on every step of a window
+  /// drag and drew a frame on every vsync for as long as the drag lasted,
+  /// which on Windows, where each step waits for its frame, left the
+  /// window's edge trailing the pointer.
+  Size? _builtFor;
+
   Size get _size => switch (_resizing) {
     final w? => Size(w, w / StreamCameraPip._aspect),
     null => StreamCameraPip.sizeFor(widget.stage, widget.scale),
@@ -147,10 +155,12 @@ class _StreamCameraPipState extends State<StreamCameraPip> {
     final at = _drag ?? _restingAt(widget.corner);
     final radius = BorderRadius.circular(K.radiusCard);
     final held = _drag != null || _resizing != null;
+    final reflowed = _builtFor != null && _builtFor != widget.stage;
+    _builtFor = widget.stage;
     return AnimatedPositioned(
-      // Under the pointer while dragged or resized; into its corner once let
-      // go.
-      duration: held ? Duration.zero : AppMotion.state,
+      // Under the pointer while dragged or resized, and with the stage while
+      // it changes size; into its corner once let go.
+      duration: held || reflowed ? Duration.zero : AppMotion.state,
       curve: AppMotion.settle,
       left: at.dx,
       top: at.dy,
