@@ -17,7 +17,7 @@ class AudioSourceSection extends StatelessWidget {
 
   /// Null for every app but Rift.
   final ValueChanged<AudioSource?> onChanged;
-  final VoidCallback onRefresh;
+  final Future<void> Function() onRefresh;
   final String label;
 
   const AudioSourceSection({
@@ -67,31 +67,16 @@ class AudioSourceSection extends StatelessWidget {
           // Refresh beside the list whatever it holds: an app opened after
           // the dialog is missing from a list that is not empty, and that is
           // when the person goes looking for it.
-          Row(
-            spacing: 4,
-            children: [
-              Expanded(
-                child: AppDropdown<AudioSource?>(
-                  value: selectedAudioSource,
-                  hint: allApps,
-                  options: [
-                    const AppDropdownOption(value: null, label: allApps),
-                    for (final source in sources)
-                      AppDropdownOption(
-                        value: source,
-                        label: _buildLabel(source),
-                      ),
-                  ],
-                  onChanged: onChanged,
-                ),
-              ),
-              IconButton(
-                tooltip: 'Refresh the list',
-                icon: const Icon(Icons.refresh, size: K.iconButton),
-                color: themeState.textSecondary,
-                onPressed: onRefresh,
-              ),
+          AppDropdown<AudioSource?>(
+            value: selectedAudioSource,
+            hint: allApps,
+            options: [
+              const AppDropdownOption(value: null, label: allApps),
+              for (final source in sources)
+                AppDropdownOption(value: source, label: _buildLabel(source)),
             ],
+            onChanged: onChanged,
+            onRefresh: onRefresh,
           ),
           // An app that starts later is heard anyway; this is only for
           // picking it on its own.

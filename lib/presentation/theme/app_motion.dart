@@ -48,6 +48,15 @@ class AppMotion {
   /// arbitrary. Nothing waits on this — it fades under whatever you do next.
   static const Duration linger = Duration(milliseconds: 900);
 
+  /// One turn of a refresh button's arrow, each time it is pressed
+  /// (`RefreshButton`).
+  ///
+  /// Longer than [state] because nothing waits on it: the list is replaced
+  /// the moment it comes back, mid-turn or not. A list that comes back at
+  /// once changed nothing on screen, so without a whole turn to see, a press
+  /// looked ignored.
+  static const Duration turn = Duration(milliseconds: 500);
+
   // ── And how ───────────────────────────────────────────────
 
   /// Settling into a new state. Fast at the start, easing out, no overshoot.

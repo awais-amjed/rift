@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -28,9 +29,21 @@ class ContextMenuOverlay {
   /// a menu opened over a focused composer is exactly when something does.
   FocusNode? _focus;
 
+  /// What the open entry draws: [replace] swaps it while the menu stays up.
+  Widget? _menu;
+
   bool get isOpen => _entry != null;
 
-  void show(BuildContext context, Widget menu, Offset globalPosition) {
+  /// [passThrough], in global coordinates, is a part of the screen the
+  /// barrier leaves alone: a click there reaches what is under it and the
+  /// menu stays open. A dropdown's refresh button, so the list can be
+  /// fetched again while it is being read.
+  void show(
+    BuildContext context,
+    Widget menu,
+    Offset globalPosition, {
+    Rect? passThrough,
+  }) {
     dismiss();
     // Built outside the tree it opened from, so about the selected server
     // unless told otherwise — a call tile's menu is about the call's.
@@ -43,6 +56,7 @@ class ContextMenuOverlay {
       return;
     }
 
+    _menu = menu;
     _previousFocus = FocusManager.instance.primaryFocus;
     final focus = _focus = FocusNode(debugLabel: 'context menu');
     _entry = OverlayEntry(
@@ -64,15 +78,18 @@ class ContextMenuOverlay {
           children: [
             // Full-screen barrier to dismiss on tap
             Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: dismiss,
-                onSecondaryTap: dismiss,
+              child: _Holed(
+                hole: passThrough,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: dismiss,
+                  onSecondaryTap: dismiss,
+                ),
               ),
             ),
             _PositionedMenu(
               position: globalPosition,
-              child: ContextMenuScope(dismiss: dismiss, child: menu),
+              child: ContextMenuScope(dismiss: dismiss, child: _menu ?? menu),
             ),
           ],
         ),
@@ -85,10 +102,21 @@ class ContextMenuOverlay {
     _onClosed = watcher?.onClosed;
   }
 
+  /// Draw [menu] in place of the open one, where it is: a dropdown whose
+  /// list came back while it was open. Nothing while none is open, nor on a
+  /// phone, whose sheet is not this overlay's.
+  void replace(BuildContext context, Widget menu) {
+    final entry = _entry;
+    if (entry == null) return;
+    _menu = ServerScope.carry(context, menu);
+    entry.markNeedsBuild();
+  }
+
   void dismiss() {
     final wasOpen = _entry != null;
     _entry?.remove();
     _entry = null;
+    _menu = null;
     final focus = _focus;
     _focus = null;
     // After the entry's last frame, which still holds the node.
@@ -122,5 +150,34 @@ class _PositionedMenu extends StatelessWidget {
         child: child,
       ),
     );
+  }
+}
+
+/// The barrier, with [hole] (global) cut out of it: a point there is not the
+/// barrier's, so the hit goes on to whatever is underneath.
+class _Holed extends SingleChildRenderObjectWidget {
+  final Rect? hole;
+
+  const _Holed({required this.hole, super.child});
+
+  @override
+  _RenderHoled createRenderObject(BuildContext context) => _RenderHoled(hole);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderHoled renderObject) {
+    renderObject.hole = hole;
+  }
+}
+
+class _RenderHoled extends RenderProxyBox {
+  Rect? hole;
+
+  _RenderHoled(this.hole);
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    final cut = hole;
+    if (cut != null && cut.contains(localToGlobal(position))) return false;
+    return super.hitTest(result, position: position);
   }
 }

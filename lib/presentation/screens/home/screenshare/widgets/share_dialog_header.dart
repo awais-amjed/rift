@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../common/app_modal_header_button.dart';
+import '../../../../common/refresh_button.dart';
 import '../../../../theme/app_text.dart';
 import '../../../../theme/theme_context.dart';
 
@@ -9,7 +10,7 @@ import '../../../../theme/theme_context.dart';
 class ShareDialogHeader extends StatelessWidget {
   final String title;
   final VoidCallback? onBack;
-  final VoidCallback? onRefresh;
+  final Future<void> Function()? onRefresh;
   final VoidCallback? onClose;
 
   const ShareDialogHeader({
@@ -47,12 +48,7 @@ class ShareDialogHeader extends StatelessWidget {
             ),
           ),
         ),
-        if (refresh != null)
-          AppModalHeaderButton(
-            icon: Icons.refresh,
-            tooltip: 'Refresh the list',
-            onPressed: refresh,
-          ),
+        if (refresh != null) RefreshButton(onRefresh: refresh),
         if (close != null)
           AppModalHeaderButton(
             icon: Icons.close,

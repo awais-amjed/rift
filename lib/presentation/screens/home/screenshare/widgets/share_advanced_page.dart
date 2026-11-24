@@ -82,7 +82,9 @@ class ShareAdvancedPage extends StatelessWidget {
                     label: _soundLabel,
                     audioSources: audioSources,
                     selectedAudioSource: settings.selectedAudioSource,
-                    isLoading: loadingAudioSources,
+                    // Dots only the first time: a refresh keeps the list
+                    // up, and its button turns instead.
+                    isLoading: loadingAudioSources && audioSources == null,
                     onChanged: (source) => onChanged(
                       source == null
                           ? settings.copyWith(clearAudioSource: true)

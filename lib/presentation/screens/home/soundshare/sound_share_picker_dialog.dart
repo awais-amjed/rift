@@ -10,6 +10,7 @@ import '../../../../logic/services/screen_share_sources.dart';
 import '../../../../src/rust/api/screenshare/types.dart';
 import '../../../common/app_button.dart';
 import '../../../common/loading_dots.dart';
+import '../../../common/refresh_button.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
 import 'widgets/audio_source_row.dart';
@@ -127,15 +128,7 @@ class _SoundSharePickerDialogState extends State<SoundSharePickerDialog> {
             style: AppText.dialogTitle.copyWith(color: theme.textPrimary),
           ),
         ),
-        IconButton(
-          onPressed: _loading ? null : _load,
-          tooltip: 'Refresh',
-          icon: Icon(
-            Icons.refresh,
-            size: K.iconButton,
-            color: theme.textQuaternary,
-          ),
-        ),
+        RefreshButton(onRefresh: _load),
       ],
     );
   }

@@ -7,6 +7,7 @@ import 'context_menu/context_menu_item.dart';
 import 'context_menu/context_menu_overlay.dart';
 import 'context_menu/context_menu_panel.dart';
 import 'context_menu/context_menu_scope.dart';
+import 'refresh_button.dart';
 
 /// One choice in an [AppDropdown].
 class AppDropdownOption<T> {
@@ -49,6 +50,12 @@ class AppDropdown<T> extends StatefulWidget {
   /// Shown when [value] matches none of [options].
   final String hint;
 
+  /// Fetches [options] again, from a [RefreshButton] beside the field —
+  /// apps playing sound, which come and go while the list is open. It works
+  /// with the menu open too, and the open menu shows the new list where it
+  /// is: closing it made a refresh a click to reopen what you were reading.
+  final Future<void> Function()? onRefresh;
+
   const AppDropdown({
     super.key,
     required this.value,
@@ -56,6 +63,7 @@ class AppDropdown<T> extends StatefulWidget {
     required this.onChanged,
     this.icon,
     this.hint = 'Choose…',
+    this.onRefresh,
   });
 
   /// The most a menu grows before its rows scroll: a device list can be long.
@@ -67,6 +75,10 @@ class AppDropdown<T> extends StatefulWidget {
 
 class _AppDropdownState<T> extends State<AppDropdown<T>> {
   final ContextMenuOverlay _menu = ContextMenuOverlay();
+  final _refreshKey = GlobalKey();
+
+  /// The field's width when the menu opened, which the menu is drawn to.
+  double _menuWidth = 0;
 
   AppDropdownOption<T>? get _selected {
     for (final option in widget.options) {
@@ -78,17 +90,37 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
   bool get _enabled => widget.onChanged != null && widget.options.isNotEmpty;
 
   @override
+  void didUpdateWidget(AppDropdown<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_menu.isOpen) return;
+    // After this frame: the menu is another part of the tree, not to be
+    // marked dirty while this one builds.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _menu.replace(context, _buildMenu(_menuWidth));
+    });
+  }
+
+  @override
   void dispose() {
     _menu.dismiss();
     super.dispose();
   }
 
-  void _open() {
-    final box = context.findRenderObject() as RenderBox?;
+  void _open(BuildContext field) {
+    final box = field.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return;
     // Under the field, left edges together, the field's own width.
     final below = box.localToGlobal(Offset(0, box.size.height + 4));
-    _menu.show(context, _buildMenu(box.size.width), below);
+    _menuWidth = box.size.width;
+    final refresh = _refreshKey.currentContext?.findRenderObject();
+    _menu.show(
+      context,
+      _buildMenu(_menuWidth),
+      below,
+      passThrough: refresh is RenderBox && refresh.hasSize
+          ? refresh.localToGlobal(Offset.zero) & refresh.size
+          : null,
+    );
   }
 
   /// [menuContext] is the picked row's: the menu closes through the scope it
@@ -146,6 +178,18 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
 
   @override
   Widget build(BuildContext context) {
+    final refresh = widget.onRefresh;
+    if (refresh == null) return Builder(builder: _field);
+    return Row(
+      spacing: 4,
+      children: [
+        Expanded(child: Builder(builder: _field)),
+        RefreshButton(key: _refreshKey, onRefresh: refresh),
+      ],
+    );
+  }
+
+  Widget _field(BuildContext field) {
     final themeState = context.theme;
     final selected = _selected;
     final radius = BorderRadius.circular(K.radiusRow);
@@ -166,7 +210,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
             mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: radius,
             hoverColor: themeState.bgHover,
-            onTap: _enabled ? _open : null,
+            onTap: _enabled ? () => _open(field) : null,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(

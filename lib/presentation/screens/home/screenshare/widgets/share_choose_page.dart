@@ -21,7 +21,7 @@ class ShareChoosePage extends StatelessWidget {
   final List<CaptureSource>? sources;
   final Map<int, Uint8List> thumbnails;
   final ValueChanged<CaptureSource> onChanged;
-  final VoidCallback onRefresh;
+  final Future<void> Function() onRefresh;
   final VoidCallback onBack;
   final VoidCallback onClose;
   final VoidCallback onStart;
