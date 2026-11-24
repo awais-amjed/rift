@@ -15,12 +15,13 @@ import '../../../../../../common/row_delete_button.dart';
 import '../../../../../../theme/app_text.dart';
 import '../../../../../../theme/custom_colors.dart';
 import '../../../../../../theme/theme_context.dart';
+import 'soundboard_download_button.dart';
 
-/// Over the widget budget and one job: one clip and its three actions, one of
-/// which is an inline edit.
+/// Over the widget budget and one job: one clip and its actions, one of which
+/// is an inline edit.
 ///
-/// One clip in the manage list: what it is, and the three things that can be
-/// done to it.
+/// One clip in the manage list: what it is, and what can be done to it —
+/// played here, saved, renamed or removed.
 ///
 /// Preview plays it **here only**, through the same path a listener takes —
 /// nothing is sent to the room. Adding a clip without being able to hear it
@@ -197,6 +198,7 @@ class _SoundboardClipRowState extends State<SoundboardClipRow> {
             color: theme.textSecondary,
             onPressed: () => context.read<SoundboardCubit>().preview(sound),
           ),
+          SoundboardDownloadButton(sound: sound),
           IconButton(
             tooltip: 'Rename',
             icon: const Icon(Icons.edit_outlined, size: K.iconButton),

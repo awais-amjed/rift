@@ -90,6 +90,26 @@ class SoundboardCache {
     }
   }
 
+  /// The clip's bytes themselves, for somebody saving it: from the copy kept
+  /// here when there is one, fetched through [fetch] (and kept) when not.
+  Future<Uint8List?> bytes(
+    String origin,
+    String objectPath,
+    Future<Uint8List?> Function() fetch,
+  ) async {
+    final held = await source(origin, objectPath, fetch);
+    try {
+      return switch (held) {
+        BytesSource(:final bytes) => bytes,
+        DeviceFileSource(:final path) => await File(path).readAsBytes(),
+        _ => null,
+      };
+    } catch (_) {
+      // Swept away between the two lines: a fetch of its own.
+      return fetch();
+    }
+  }
+
   Future<Source?> _load(
     String key,
     String origin,

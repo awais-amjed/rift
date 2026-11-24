@@ -253,6 +253,20 @@ class SoundboardCubit extends Cubit<SoundboardState>
   Future<void> preview(SoundboardSound sound) =>
       _playLocally(sound, volume: _volumeFor(null));
 
+  /// [sound]'s bytes, for saving it from the manage page. The kept copy when
+  /// this device has one, so a clip already heard is not downloaded again.
+  /// Null when it cannot be fetched.
+  Future<Uint8List?> bytesOf(SoundboardSound sound) async {
+    final library = _library;
+    final origin = library?.origin;
+    if (library == null || origin == null) return null;
+    return SoundboardCache.instance.bytes(
+      origin,
+      sound.objectPath,
+      () => library.loadSound(sound.objectPath),
+    );
+  }
+
   /// Stop anything still playing — leaving a call, or being deafened
   /// part-way through somebody's airhorn.
   Future<void> silence() async {
