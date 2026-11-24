@@ -1210,8 +1210,11 @@ what was driven are in `TESTING.md`).
   them and assembles nothing until it asks for a keyframe 3 s later: a friend's H265
   share froze every few seconds at every viewer. The fork now offers RTX (its
   `RIFT.md`), which moves the padding to the resend stream. Verified Nov 24 2026 with
-  `live_gpu_watch_h265_recorded_stream` from a sender that delivered 30% of its packets
-  up to 3 places late: 10 s with no picture in 60 before, none after.
+  a recorded AMF H265 stream replayed through the Rust library to a local LiveKit, its
+  sender delivering 30% of its packets up to 3 places late: 10 s with no picture in 60
+  before, none after. Then live on the owner's server over mobile data (12–14% of
+  packets late), two shares side by side to one viewer: the old build froze it 3 times
+  in 3 minutes, the fixed one never.
 - **H265 from a still screen.** libwebrtc reads LiveKit's start hint from the answer,
   and the server repeats it for H264 but not for H265, so an H265 track started at
   libwebrtc's 300 kbps. On a still screen its estimate then fell to the floor with
