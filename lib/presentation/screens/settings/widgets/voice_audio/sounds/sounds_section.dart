@@ -15,10 +15,13 @@ class SoundsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Push-to-talk tones only exist where push-to-talk does.
+    // Push-to-talk tones only exist where push-to-talk does, and the clip
+    // sound where calls are clipped.
     final sounds = [
       for (final sound in AppSound.values)
-        if (sound != AppSound.pushToTalk || HostPlatform.hasPushToTalk) sound,
+        if ((sound != AppSound.pushToTalk || HostPlatform.hasPushToTalk) &&
+            (sound != AppSound.clip || HostPlatform.clipsCalls))
+          sound,
     ];
 
     return Column(

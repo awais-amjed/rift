@@ -61,6 +61,15 @@ enum AppSound {
     endAsset: 'audio/watch_stopped.mp3',
   ),
 
+  /// A shutter's two ticks and then A5 with E6 over it: a clip is something
+  /// taken, and its sound is the only one here that starts with a click, so
+  /// it is not mistaken for a stream starting, which it once shared.
+  clip(
+    label: 'Clips',
+    description: 'You clipping the call.',
+    startAsset: 'audio/clip.mp3',
+  ),
+
   /// Rising E5–A5 pairs, the brightest thing Rift plays: a call is the one
   /// sound that has to be heard from across the room. Loops until answered.
   ringtone(

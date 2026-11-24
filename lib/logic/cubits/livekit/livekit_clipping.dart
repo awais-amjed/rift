@@ -156,7 +156,7 @@ mixin _ClippingMixin on Cubit<LiveKitState> {
     // Rift may be behind a game: the sound says the press was heard, and
     // the system's notification what was kept, since the trim view waits
     // for Rift to be seen. One notification, each press replacing the last.
-    unawaited(SoundService.instance.play(AppSound.stream));
+    unawaited(SoundService.instance.play(AppSound.clip));
     if (!WindowFocusService.instance.isFocused) {
       unawaited(
         NotificationService.instance.showMessage(
