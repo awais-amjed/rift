@@ -1203,6 +1203,15 @@ what was driven are in `TESTING.md`).
   in a share. Auto sends it where the GPU encodes it, at 11 Mbps at 1080p60, unless
   sharpness was asked for, which stays on VP9. A viewer who cannot play it brings
   the share down (*Stepping a share down*, below).
+- **H265 over a line that reorders packets.** LiveKit's Rust SDK offered a published
+  video track without RTX, so libwebrtc sent its padding and probes on the video stream
+  itself. The server forwards the late ones emptied, and a viewer's H265 packet buffer
+  (libwebrtc's `H26xPacketBuffer`; H264 uses another) loses its place on enough of
+  them and assembles nothing until it asks for a keyframe 3 s later: a friend's H265
+  share froze every few seconds at every viewer. The fork now offers RTX (its
+  `RIFT.md`), which moves the padding to the resend stream. Verified Nov 24 2026 with
+  `live_gpu_watch_h265_recorded_stream` from a sender that delivered 30% of its packets
+  up to 3 places late: 10 s with no picture in 60 before, none after.
 - **H265 from a still screen.** libwebrtc reads LiveKit's start hint from the answer,
   and the server repeats it for H264 but not for H265, so an H265 track started at
   libwebrtc's 300 kbps. On a still screen its estimate then fell to the floor with
