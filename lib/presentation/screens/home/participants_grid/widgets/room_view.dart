@@ -62,11 +62,12 @@ class _RoomViewState extends State<RoomView> {
   bool _chromeVisible = true;
   Timer? _hideTimer;
 
-  /// A menu opened from the stage is up, or a phone's stream volume stands
-  /// open. A menu sits in the overlay, so the pointer on it reads as the
-  /// pointer gone idle, and the bar it hangs from would fade out from under
-  /// it.
-  bool _menuOpen = false;
+  /// How many menus opened from the stage are up: a tile's, a stream's
+  /// volume, or a panel from the bar (Clips, the soundboard). A menu sits in
+  /// the overlay, so the pointer on it reads as the pointer gone idle, and the
+  /// bar it hangs from would fade out from under it. A count, since one can
+  /// open over another and the first to close must not let the bar go.
+  int _menusOpen = 0;
 
   /// Whether one tile fills the stage. The context strip then floats over it
   /// instead of taking a row.
@@ -106,7 +107,7 @@ class _RoomViewState extends State<RoomView> {
   void _scheduleHide() {
     _hideTimer?.cancel();
     _hideTimer = Timer(_hideDelay, () {
-      if (!mounted || _menuOpen) return;
+      if (!mounted || _menusOpen > 0) return;
       setState(() => _chromeVisible = false);
       _reportStage();
     });
@@ -198,11 +199,11 @@ class _RoomViewState extends State<RoomView> {
               // chrome fading took it away between touches.
               child: ContextMenuWatcher(
                 onOpened: () {
-                  _menuOpen = true;
+                  _menusOpen++;
                   _showChrome();
                 },
                 onClosed: () {
-                  _menuOpen = false;
+                  if (_menusOpen > 0) _menusOpen--;
                   _scheduleHide();
                 },
                 child: Stack(

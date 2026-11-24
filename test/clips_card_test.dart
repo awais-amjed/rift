@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
@@ -13,7 +14,9 @@ import 'package:rift/logic/cubits/clip_history/clip_history_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
 import 'package:rift/logic/cubits/vault/vault_cubit.dart';
 import 'package:rift/logic/services/call_clip/clip_library.dart';
+import 'package:rift/presentation/common/context_menu/context_menu_watcher.dart';
 import 'package:rift/presentation/screens/home/call_clip/clips_card.dart';
+import 'package:rift/presentation/screens/home/controls/widgets/clips_button.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import 'support/memory_storage.dart';
@@ -165,5 +168,45 @@ void main() {
     await settle(tester);
     expect(find.text('One'), findsNothing);
     expect(find.text('No clips yet.'), findsOneWidget);
+  });
+
+  testWidgets('the open card keeps the call\'s controls up', (tester) async {
+    // A panel is a route over the stage: the pointer on it reads as the
+    // pointer gone idle, and the bar it hangs from faded out from under it.
+    var opened = 0;
+    var closed = 0;
+    final history = ClipHistoryCubit(library: library);
+    addTearDown(history.close);
+    await tester.pumpWidget(
+      MultiBlocProvider(
+        providers: [
+          BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
+          BlocProvider<AppCubit>(create: (_) => AppCubit()),
+          BlocProvider<VaultCubit>(create: (_) => _UnlockedVault()),
+          BlocProvider<ClipHistoryCubit>.value(value: history),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: ContextMenuWatcher(
+              onOpened: () => opened++,
+              onClosed: () => closed++,
+              child: const Align(
+                alignment: Alignment.bottomCenter,
+                child: ClipsButton(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byType(ClipsButton));
+    await tester.pumpAndSettle();
+    expect(find.byType(ClipsCard), findsOneWidget);
+    expect((opened, closed), (1, 0));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(ClipsCard), findsNothing);
+    expect((opened, closed), (1, 1));
   });
 }

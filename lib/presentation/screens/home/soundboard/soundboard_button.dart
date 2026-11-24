@@ -9,6 +9,7 @@ import '../../../../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../common/app_sheet.dart';
 import '../../../common/call_server_scope.dart';
+import '../../../common/context_menu/context_menu_watcher.dart';
 import '../../../common/server_scope.dart';
 import '../../../common/show_custom_dialog.dart';
 import '../../../responsive/shell_scope.dart';
@@ -70,6 +71,16 @@ class _CallSoundboardButtonState extends State<_CallSoundboardButton> {
   /// it, and the card heard neither Escape nor a right-click outside.
   Route<void>? _route;
   NavigatorState? _navigator;
+
+  /// The call's controls, told while the card is up, as they are told of a
+  /// menu: the pointer over the card is the pointer gone from the stage, and
+  /// the bar the card hangs from faded out from under it.
+  ContextMenuWatcher? _watcher;
+
+  void _release() {
+    _watcher?.onClosed();
+    _watcher = null;
+  }
 
   void _toggle() {
     if (_route != null) {
@@ -166,13 +177,18 @@ class _CallSoundboardButtonState extends State<_CallSoundboardButton> {
       _route = route;
       _navigator = navigator;
     });
+    _release();
+    _watcher = ContextMenuWatcher.maybeOf(context)?..onOpened();
     await navigator.push(route);
+    _release();
     if (mounted && _route == route) setState(() => _route = null);
   }
 
   void _dismiss() {
     final route = _route;
     _route = null;
+    // Taken away rather than popped, so the push above may never answer.
+    _release();
     if (route != null && route.isActive) _navigator?.removeRoute(route);
   }
 

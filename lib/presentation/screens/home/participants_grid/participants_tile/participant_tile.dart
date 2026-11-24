@@ -168,6 +168,9 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   void dispose() {
     widget.participant.removeListener(_onParticipantChanged);
     _hideTimer?.cancel();
+    while (_toldOuter.isNotEmpty) {
+      _toldOuter.removeLast().onClosed();
+    }
     super.dispose();
   }
 
@@ -417,21 +420,29 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
   }
 
   /// Passed on to the watcher above, the room's, which keeps the call's own
-  /// controls up for the same reason.
-  ContextMenuWatcher? get _outer => ContextMenuWatcher.maybeOf(context);
+  /// controls up for the same reason. Each open is told one close, kept from
+  /// the opening: a tile that goes with its menu up (its owner leaves) still
+  /// tells the room, which counts them, or the bar would never fade again.
+  final List<ContextMenuWatcher> _toldOuter = [];
 
   void _heldOpen() {
     _held = true;
     _hideTimer?.cancel();
     if (mounted && !_showOverlays) setState(() => _showOverlays = true);
-    if (mounted) _outer?.onOpened();
+    if (mounted) {
+      final outer = ContextMenuWatcher.maybeOf(context);
+      if (outer != null) {
+        _toldOuter.add(outer);
+        outer.onOpened();
+      }
+    }
   }
 
   void _heldClosed() {
     _held = false;
+    if (_toldOuter.isNotEmpty) _toldOuter.removeLast().onClosed();
     if (!mounted) return;
     _scheduleHide();
-    _outer?.onClosed();
   }
 
   /// The grid tile, which is the only layout that glows while its owner talks.
@@ -471,9 +482,7 @@ class _ParticipantTileWidgetState extends State<ParticipantTileWidget> {
           isPushToTalkIdle: VoiceAttributes.isPushToTalkIdle(
             widget.participant.attributes,
           ),
-          isClipping: VoiceAttributes.isClipping(
-            widget.participant.attributes,
-          ),
+          isClipping: VoiceAttributes.isClipping(widget.participant.attributes),
           isDeafened: isDeafened,
           isScreenshare: _isScreenshare,
           shareIdentity: _isScreenshare ? widget.participant.identity : null,

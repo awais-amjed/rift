@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
 import '../../../../../logic/services/host_platform.dart';
 import '../../../../common/anchored_panel.dart';
+import '../../../../common/context_menu/context_menu_watcher.dart';
 import '../../call_clip/clips_card.dart';
 import '../../call_clip/stored_clip_opener.dart';
 import 'control_button.dart';
@@ -27,6 +28,10 @@ class _ClipsButtonState extends State<ClipsButton> {
     final anchor = _buttonKey.currentContext;
     if (anchor == null || _open) return;
     setState(() => _open = true);
+    // The call's controls are told, as they are of a menu: the pointer on
+    // the card is the pointer gone from the stage, and the bar the card
+    // hangs from faded out from under it.
+    final watcher = ContextMenuWatcher.maybeOf(context)?..onOpened();
     await showAnchoredPanel<void>(
       anchor: anchor,
       width: ClipsCard.width,
@@ -38,6 +43,7 @@ class _ClipsButtonState extends State<ClipsButton> {
         },
       ),
     );
+    watcher?.onClosed();
     if (mounted) setState(() => _open = false);
   }
 
