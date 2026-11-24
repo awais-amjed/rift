@@ -53,11 +53,28 @@ class E2EEManager {
             // no need to setup frame cryptor
             return;
           }
-          final frameCryptor = await _addRtpSender(
-            sender: event.publication.track!.sender!,
-            identity: event.participant.identity,
-            sid: event.publication.sid,
-          );
+          // RIFT PATCH: see RIFT_PATCHES.md. The event comes a moment after
+          // the publish, and a track unpublished in between leaves a sender
+          // with no track, which libwebrtc read without checking: a segfault.
+          // Unpublishing drops the publication before it removes the track,
+          // so one still listed here still has its track when asked below.
+          final sender = event.publication.track?.sender;
+          if (sender == null ||
+              event.participant.trackPublications[event.publication.sid] != event.publication) {
+            logger.warning('E2EE: ${event.publication.sid} was unpublished before its frame cryptor');
+            return;
+          }
+          final FrameCryptor frameCryptor;
+          try {
+            frameCryptor = await _addRtpSender(
+              sender: sender,
+              identity: event.participant.identity,
+              sid: event.publication.sid,
+            );
+          } catch (e) {
+            logger.warning('E2EE: no frame cryptor for ${event.publication.sid}: $e');
+            return;
+          }
           if (kIsWeb && event.publication.track!.codec != null) {
             await frameCryptor.updateCodec(event.publication.track!.codec!);
           }

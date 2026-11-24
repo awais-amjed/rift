@@ -42,10 +42,22 @@ The Flutter WebRTC plugin, `flutter_webrtc` 1.6.3, as published on pub.dev
    day on Linux: a fresh build downloaded `.07`, and a wrong stamp made the next
    build extract again.
 
+6. **A frame cryptor is refused for a sender or receiver with no track**
+   (`common/cpp/src/flutter_frame_cryptor.cc`, marked `RIFT PATCH`). libwebrtc
+   reads the track's kind while it builds one and never asks whether there is a
+   track, and a sender whose track was removed is still listed by its
+   connection. So a track unpublished before LiveKit set up its encryption took
+   the whole app down with a segfault at address 0 (bug report, Nov 23 2026,
+   Linux, mid-call). The call now answers with an error, as for a sender it
+   cannot find; the receiver side also refuses a missing key provider, as the
+   sender side already did. Reproduced Nov 24 on Linux by removing the mic's
+   track just before the published event (the same trace as the report), and
+   gone with this patch: the client stayed in the call.
+
 Nothing else differs. The desktop builds take their libwebrtc from
 `third_party/libwebrtc_version.ini`, upstream's, and build the plugin's C++
 from `common/cpp`. Android and iOS take theirs from their own package managers,
-and the web uses the browser's, so patches 1, 4 and 5 change Linux and Windows
+and the web uses the browser's, so patches 1, 4, 5 and 6 change Linux and Windows
 only, and 2 and 3 Android only.
 
 ## libwebrtc and call keys
@@ -94,6 +106,7 @@ queues these priorities by default (the trial is due to end by April 2027), or
 when the plugin lets an app pass its own field trials. Patches 2 to 4 go when
 upstream does the same: a sized and a repeated screen capture on Android, and
 a `getStats` that checks for a closed connection; patch 5 when upstream caches
-libwebrtc by version. With all five gone, drop the
+libwebrtc by version; patch 6 when upstream or libwebrtc checks for a track
+before it builds a frame cryptor. With all six gone, drop the
 override and this folder. Whatever libwebrtc a new release brings, check a
 call's stderr for `raw_key` once more.

@@ -125,6 +125,15 @@ comes back (`RoomReconnectedEvent`) and when the server's socket does
 twice. A call the SDK gives up on is left through `disconnect`, the same way as
 pressing Leave. Verified on Linux on Nov 21 2026 (`TESTING.md`).
 
+A track unpublished while it was still being published leaves its sender with
+no track by the time LiveKit sets up the track's encryption, and libwebrtc,
+asked for a frame cryptor on that sender, read the missing track and crashed
+the app (a bug report from Linux, Nov 23 2026, mid-call; what unpublished it
+is not in the log). LiveKit's E2EE manager now passes over a publication that
+is no longer listed, and flutter_webrtc refuses a frame cryptor for a sender
+or receiver with no track (each copy's `RIFT_PATCHES.md`). Reproduced and
+fixed on Linux on Nov 24 2026 (`TESTING.md`).
+
 ## Hiding your voice from somebody — [Implemented October 2026]
 
 "Hide my voice from them" is the other direction from a mute for yourself:

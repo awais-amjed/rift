@@ -165,6 +165,15 @@ void FlutterFrameCryptor::FrameCryptorFactoryCreateFrameCryptor(
                     "sender is null");
       return;
     }
+    // RIFT PATCH: a sender whose track was removed is still listed, and
+    // libwebrtc reads the track's kind without asking whether there is one.
+    // A track unpublished before its published event was handled took the
+    // whole app down with a segfault (seen Nov 23, Linux).
+    if (nullptr == sender->track().get()) {
+      result->Error("FrameCryptorFactoryCreateFrameCryptorFailed",
+                    "sender has no track");
+      return;
+    }
     std::string uuid = base_->GenerateUUID();
     auto keyProvider = base_->key_providers_[keyProviderId];
     if (keyProvider == nullptr) {
@@ -197,8 +206,20 @@ void FlutterFrameCryptor::FrameCryptorFactoryCreateFrameCryptor(
                     "receiver is null");
       return;
     }
+    // RIFT PATCH: the same read of the track's kind as a sender's, above.
+    if (nullptr == receiver->track().get()) {
+      result->Error("FrameCryptorFactoryCreateFrameCryptorFailed",
+                    "receiver has no track");
+      return;
+    }
     std::string uuid = base_->GenerateUUID();
     auto keyProvider = base_->key_providers_[keyProviderId];
+    // RIFT PATCH: checked as a sender's is; libwebrtc uses it unasked.
+    if (keyProvider == nullptr) {
+      result->Error("FrameCryptorFactoryCreateFrameCryptorFailed",
+                    "keyProvider is null");
+      return;
+    }
     auto frameCryptor =
         libwebrtc::FrameCryptorFactory::frameCryptorFromRtpReceiver(
             base_->factory_, string(participantId), receiver,

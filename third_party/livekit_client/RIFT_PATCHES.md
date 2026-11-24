@@ -262,6 +262,22 @@ uncorrelated.
    Found Nov 23 2026 by review: the web app had never named the mic for a
    call, so nothing hit it until the pickers were made to reach the call.
 
+16. **A track unpublished before its encryption is set up is left alone**
+   (the `LocalTrackPublishedEvent` handler in `lib/src/e2ee/e2ee_manager.dart`).
+   The event reaches the E2EE manager a moment after the publish, and an
+   unpublish overlapping the publish has by then removed the sender's track.
+   Asking for a frame cryptor on that sender crashed the app on desktop (see
+   `flutter_webrtc` patch 6) and would on Android too. It now goes ahead only
+   while the publication is still listed: unpublishing drops it from the list
+   before it removes the track, so one still listed has its track when the
+   request goes out. A failed request is logged rather than thrown out of the
+   handler.
+
+   Found from a bug report, Nov 23 2026 (Linux, mid-call, a segfault in
+   `frameCryptorFromRtpSender`). Reproduced Nov 24 on Linux with an unpublish
+   finished just before the published event: the app crashed with the
+   report's trace without this patch and stayed in the call with it alone.
+
 ## When to remove it
 
 Patch 1 goes when a `livekit_client` release answers a stereo track with
@@ -271,6 +287,6 @@ unsubscribe without holding the track, patch 4 when a release can go back
 to letting visibility decide, patch 5 when a release keeps a disable
 through the server's bind, patch 6 when a release's web worker leaves no
 VP9 bytes in the clear, patch 7 when it passes H264 through the RBSP functions, patch 8 when a release subscribes
-whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival, patch 11 when Chrome stops playing a track that is off or a release handles it, patch 12 when a release stops a section as it unpublishes, patch 13 when a release goes on joining past a track it could not publish, patch 14 when a release stops capture groups without iterating the live map, patch 15 when a release keeps the processing beside a named web device. With all fifteen gone, bump, delete this
+whatever it holds, patch 9 when a release starts a track before announcing it, patch 10 when a release lets an app keep a remote track off from its arrival, patch 11 when Chrome stops playing a track that is off or a release handles it, patch 12 when a release stops a section as it unpublishes, patch 13 when a release goes on joining past a track it could not publish, patch 14 when a release stops capture groups without iterating the live map, patch 15 when a release keeps the processing beside a named web device, patch 16 when a release checks the publication before asking for a sender's frame cryptor. With all sixteen gone, bump, delete this
 folder and its `dependency_overrides` entry. Until then, a `livekit_client` upgrade needs this copy replaced with the
 new version and the changes put back.
