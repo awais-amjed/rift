@@ -2259,7 +2259,11 @@ waveform across the selection, stepped about 30 times a second
 (`ClipPlayLine`). A clip taken while Rift is hidden opens when Rift is next
 seen (`AppSeenListener.seenFrom`); up to five wait in turn
 (`LiveKitState.pendingClips`), and a short sound says the press was heard,
-since Rift may be behind a game.
+since Rift may be behind a game. With Rift not focused, a system notification
+says what was kept too, one that each press replaces (`clippedBackgroundText`,
+added Nov 24). **Delete**, beside Save, drops the clip from the ones kept on
+the device after a question; the trim view holds the sound, not the kept clip,
+so it finds it by the moment it was taken (`ClipLibrary.idAt`).
 
 The shortcut is not the only way: a scissors button in the call's control
 bar, beside the soundboard, opens a **Clips** card (`ClipsCard`) with "Clip

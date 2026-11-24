@@ -121,6 +121,14 @@ void main() {
       expect(clippedText('Sam', 30), 'Sam clipped the last 30 seconds');
       expect(clippedText('Sam', 1), 'Sam clipped the last second');
     });
+
+    test('your own clip, told while Rift is behind something', () {
+      expect(
+        clippedBackgroundText(60),
+        'Kept the last minute of the call. '
+        'It opens to trim when you come back to Rift.',
+      );
+    });
   });
 
   group('VoiceAttributes clipping', () {

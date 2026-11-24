@@ -60,6 +60,12 @@ String clippingOnText(List<String> names) {
 String clippedText(String name, int seconds) =>
     '$name clipped the last ${clipSpanText(seconds)}';
 
+/// The notification for your own clip, taken while Rift was in the
+/// background: what was kept, and where it is.
+String clippedBackgroundText(int seconds) =>
+    'Kept the last ${clipSpanText(seconds)} of the call. '
+    'It opens to trim when you come back to Rift.';
+
 /// [seconds] as it follows "the last": "minute", "2 minutes", "30 seconds".
 String clipSpanText(int seconds) => switch (seconds) {
   1 => 'second',

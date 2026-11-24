@@ -124,6 +124,8 @@ mixin _ClippingMixin on Cubit<LiveKitState> {
     }
   }
 
+  static final int _clippedNotificationId = stableNotificationId('clipped');
+
   String _clipNameOf(Participant p) =>
       p.name.trim().isNotEmpty ? p.name.trim() : 'Someone';
 
@@ -151,8 +153,20 @@ mixin _ClippingMixin on Cubit<LiveKitState> {
     // it was clipped from.
     unawaited(_keepClip(audio));
     unawaited(_tellCall(audio.seconds.clamp(1, ClipSignal.maxSeconds)));
-    // Rift may be behind a game: the sound says the press was heard.
+    // Rift may be behind a game: the sound says the press was heard, and
+    // the system's notification what was kept, since the trim view waits
+    // for Rift to be seen. One notification, each press replacing the last.
     unawaited(SoundService.instance.play(AppSound.stream));
+    if (!WindowFocusService.instance.isFocused) {
+      unawaited(
+        NotificationService.instance.showMessage(
+          id: _clippedNotificationId,
+          title: 'Clipped',
+          body: clippedBackgroundText(audio.seconds),
+          chime: false,
+        ),
+      );
+    }
     if (isClosed) return;
     emit(
       state.copyWith(
