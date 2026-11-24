@@ -247,4 +247,22 @@ void main() {
       expect(find.text('rift-clip-20261121-090507'), findsOneWidget);
     });
   });
+
+  group('ClipTrim.playRange', () {
+    ({double from, double to}) range(double head) =>
+        ClipTrim.playRange(head: head, start: 0.2, end: 0.6);
+
+    test('plays from the line to the end of the selection', () {
+      expect(range(0.3), (from: 0.3, to: 0.6));
+      expect(range(0.05), (from: 0.05, to: 0.6));
+    });
+
+    test('from past the selection, plays on to the end of the clip', () {
+      expect(range(0.8), (from: 0.8, to: 1.0));
+    });
+
+    test('from the very end, starts the selection again', () {
+      expect(range(1.0), (from: 0.2, to: 0.6));
+    });
+  });
 }

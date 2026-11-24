@@ -1,29 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../../../logic/services/call_clip/clip_trim.dart';
 import '../../../../theme/theme_context.dart';
 
-/// A line over the waveform at the point the preview has reached, while it
-/// plays ([played] is null otherwise). [start] and [end] are the selection,
-/// as fractions of the clip, and [length] how long it plays.
+/// A line over the waveform where Play plays from, and where the preview has
+/// reached while it plays: [head], a fraction of the clip (`ClipPreview`).
 ///
-/// Painted alone in a [RepaintBoundary] from [played], which
-/// `ClipPreviewButton` steps on a timer: each step repaints the line and
-/// nothing else, the bars under it included.
+/// Painted alone in a [RepaintBoundary] from [head], which the preview steps
+/// on a timer: each step repaints the line and nothing else, the bars under
+/// it included.
 class ClipPlayLine extends StatelessWidget {
-  final ValueListenable<Duration?> played;
-  final double start;
-  final double end;
-  final Duration length;
+  final ValueListenable<double> head;
 
-  const ClipPlayLine({
-    super.key,
-    required this.played,
-    required this.start,
-    required this.end,
-    required this.length,
-  });
+  const ClipPlayLine({super.key, required this.head});
 
   @override
   Widget build(BuildContext context) {
@@ -32,10 +21,7 @@ class ClipPlayLine extends StatelessWidget {
         child: CustomPaint(
           size: Size.infinite,
           painter: _PlayLinePainter(
-            played: played,
-            start: start,
-            end: end,
-            length: length,
+            head: head,
             color: context.theme.textPrimary,
           ),
         ),
@@ -45,32 +31,15 @@ class ClipPlayLine extends StatelessWidget {
 }
 
 class _PlayLinePainter extends CustomPainter {
-  final ValueListenable<Duration?> played;
-  final double start;
-  final double end;
-  final Duration length;
+  final ValueListenable<double> head;
   final Color color;
 
-  _PlayLinePainter({
-    required this.played,
-    required this.start,
-    required this.end,
-    required this.length,
-    required this.color,
-  }) : super(repaint: played);
+  _PlayLinePainter({required this.head, required this.color})
+    : super(repaint: head);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final elapsed = played.value;
-    if (elapsed == null) return;
-    final x =
-        ClipTrim.playhead(
-          start: start,
-          end: end,
-          elapsed: elapsed,
-          length: length,
-        ) *
-        size.width;
+    final x = head.value.clamp(0.0, 1.0) * size.width;
     canvas.drawLine(
       Offset(x, 0),
       Offset(x, size.height),
@@ -82,9 +51,5 @@ class _PlayLinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PlayLinePainter old) =>
-      old.played != played ||
-      old.start != start ||
-      old.end != end ||
-      old.length != length ||
-      old.color != color;
+      old.head != head || old.color != color;
 }

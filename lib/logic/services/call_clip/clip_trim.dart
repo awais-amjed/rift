@@ -70,6 +70,23 @@ abstract final class ClipTrim {
     return start + (end - start) * played.clamp(0.0, 1.0);
   }
 
+  /// What Play plays from [head], the point the line stands at, with the
+  /// selection from [start] to [end] (all fractions of the clip): on to the
+  /// end of the selection, or from a point past it on to the end of the clip,
+  /// so the part left out can be heard before a handle is moved over it. From
+  /// the very end of the clip it starts the selection again.
+  static ({double from, double to}) playRange({
+    required double head,
+    required double start,
+    required double end,
+  }) {
+    const least = 1e-4;
+    final from = head >= 1 - least ? start : head.clamp(0.0, 1.0);
+    final to = from < end - least ? end : 1.0;
+    if (to - from < least) return (from: start, to: end);
+    return (from: from, to: to);
+  }
+
   /// `m:ss.t`, for the ends of the selection.
   static String timeLabel(Duration d) {
     final tenths = d.inMilliseconds ~/ 100;

@@ -2254,12 +2254,18 @@ and **Save** it as a WAV file, or **Add to soundboard** as a 192 kbps stereo
 MP3 through the soundboard's own add form, with its 30 s and 5 MB refusals.
 Add is offered only with `manageSoundboard` on the server the clip was taken
 on, inside that server's scope (`CallClipDialog.offersAdd`), and never for a
-DM call, which has no soundboard. While Play runs, a line moves over the
-waveform across the selection, stepped about 30 times a second
-(`ClipPlayLine`). A clip taken while Rift is hidden opens when Rift is next
-seen (`AppSeenListener.seenFrom`); up to five wait in turn
-(`LiveKitState.pendingClips`), and a short sound says the press was heard,
-since Rift may be behind a game. With Rift not focused, a system notification
+DM call, which has no soundboard. A line over the waveform is where Play
+plays from (`ClipPreview`, `ClipPlayLine`): a click there moves it, a drag
+scrubs it, and only a drag that starts on a handle moves the selection. Play
+runs from the line to the end of the selection, or from past it to the end of
+the clip (`ClipTrim.playRange`), the line stepped about 30 times a second, and
+back where it started when it runs out. Pause keeps the point, and Space
+plays and pauses. The cue player can only start and stop a sound, so a seek
+while playing starts it again from the new point. A clip taken while Rift is
+hidden opens when Rift is next seen (`AppSeenListener.seenFrom`); up to five
+wait in turn (`LiveKitState.pendingClips`), and a sound of its own (Clips,
+under Settings → Sounds) says the press was heard, since Rift may be behind a
+game. With Rift not focused, a system notification
 says what was kept too, one that each press replaces (`clippedBackgroundText`,
 added Nov 24). **Delete**, beside Save, drops the clip from the ones kept on
 the device after a question; the trim view holds the sound, not the kept clip,

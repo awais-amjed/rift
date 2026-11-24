@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -11,6 +13,7 @@ import '../../../../logic/cubits/clip_history/clip_history_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../../../../logic/helper_methods.dart';
+import '../../../../logic/services/call_clip/clip_preview.dart';
 import '../../../../logic/services/call_clip/clip_trim.dart';
 import '../../../../logic/services/clock_time.dart';
 import '../../../../src/rust/api/call_clip.dart';
@@ -87,8 +90,11 @@ class _CallClipDialogState extends State<CallClipDialog> {
 
   late final List<double> _peaks;
 
-  /// How far the preview has played, for the line over the waveform.
-  final ValueNotifier<Duration?> _played = ValueNotifier(null);
+  /// Playing the clip from the line over the waveform, on the call's output.
+  late final ClipPreview _preview = ClipPreview(
+    clip: widget.clip,
+    outputId: () => context.read<AppCubit>().state.callOutputId,
+  );
   double _start = 0;
   double _end = 1;
   bool _saving = false;
@@ -114,12 +120,31 @@ class _CallClipDialogState extends State<CallClipDialog> {
   void initState() {
     super.initState();
     _peaks = ClipTrim.peaks(_clip.pcm, _clip.channels, _bars);
+    _preview.head.value = _start;
+    // Not a focus shortcut: the app's KeyboardDismisser clears focus on every
+    // click, which would leave Space dead after the first one.
+    HardwareKeyboard.instance.addHandler(_onKey);
   }
 
   @override
   void dispose() {
-    _played.dispose();
+    HardwareKeyboard.instance.removeHandler(_onKey);
+    _preview.dispose();
     super.dispose();
+  }
+
+  /// Space plays and pauses, while this view is the one on top: not under a
+  /// dialog it opened, and not on the soundboard's form, which is typed into.
+  bool _onKey(KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.space ||
+        !mounted ||
+        _forBoard != null ||
+        !(ModalRoute.of(context)?.isCurrent ?? false)) {
+      return false;
+    }
+    _preview.toggle();
+    return true;
   }
 
   Future<void> _save() async {
@@ -161,6 +186,7 @@ class _CallClipDialogState extends State<CallClipDialog> {
   }
 
   Future<void> _encodeForBoard() async {
+    _preview.pause();
     setState(() => _encoding = true);
     final length = _length;
     try {
@@ -214,9 +240,6 @@ class _CallClipDialogState extends State<CallClipDialog> {
               ?.can(ServerPermission.manageSoundboard) ??
           false,
     );
-    final outputId = context.select<AppCubit, String?>(
-      (cubit) => cubit.state.callOutputId,
-    );
     final full = context.select<SoundboardCubit, bool>(
       (cubit) => cubit.state.sounds.length >= SoundboardCubit.maxSounds,
     );
@@ -249,22 +272,23 @@ class _CallClipDialogState extends State<CallClipDialog> {
               fit: StackFit.expand,
               children: [
                 ClipWaveform(peaks: _peaks, start: _start, end: _end),
-                ClipPlayLine(
-                  played: _played,
-                  start: _start,
-                  end: _end,
-                  length: _length,
-                ),
+                ClipPlayLine(head: _preview.head),
                 ClipTrimHandles(
                   start: _start,
                   end: _end,
                   minGap: total > _shortest
                       ? _shortest.inMicroseconds / total.inMicroseconds
                       : 1,
-                  onChanged: (start, end) => setState(() {
-                    _start = start;
-                    _end = end;
-                  }),
+                  onChanged: (start, end) {
+                    _preview.select(start, end);
+                    setState(() {
+                      _start = start;
+                      _end = end;
+                    });
+                  },
+                  onSeek: _preview.seek,
+                  onScrubStart: _preview.beginScrub,
+                  onScrubEnd: _preview.endScrub,
                 ),
               ],
             ),
@@ -281,15 +305,7 @@ class _CallClipDialogState extends State<CallClipDialog> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipPreviewButton(
-                // A new selection is a new preview, and stops the old one.
-                key: ValueKey((_start, _end)),
-                selection: _selection,
-                rate: _clip.rate,
-                channels: _clip.channels,
-                outputId: outputId,
-                played: _played,
-              ),
+              ClipPreviewButton(preview: _preview),
               const SizedBox(width: 10),
               Expanded(
                 child: ClipActions(
