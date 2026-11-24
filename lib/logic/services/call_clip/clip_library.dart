@@ -64,12 +64,12 @@ class ClipLibrary {
     required bool fromDmCall,
   }) => _inTurn(() async {
     final dir = await _dir();
-    var micros = audio.at.toUtc().microsecondsSinceEpoch;
-    while (File('${dir.path}/$micros.meta').existsSync()) {
-      micros++;
+    var id = idAt(audio.at);
+    while (File('${dir.path}/$id.meta').existsSync()) {
+      id = '${int.parse(id) + 1}';
     }
     final clip = StoredClip(
-      id: '$micros',
+      id: id,
       at: audio.at.toUtc(),
       rate: audio.rate,
       channels: audio.channels,
@@ -169,6 +169,12 @@ class ClipLibrary {
           return null;
         }
       });
+
+  /// The id a clip taken at [at] is kept under: its moment in microseconds,
+  /// one later for each clip already there with the same one, which two
+  /// presses of the shortcut never are. So the trim view can delete a clip it
+  /// was handed as sound, fresh from a press or opened again, by its moment.
+  static String idAt(DateTime at) => '${at.toUtc().microsecondsSinceEpoch}';
 
   Future<void> delete(String id) => _inTurn(() async {
     _remove(await _dir(), id);

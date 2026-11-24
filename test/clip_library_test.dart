@@ -65,6 +65,19 @@ void main() {
     expect(clips.first.at, DateTime.utc(2026, 11, 21, 9, 0, 2));
   });
 
+  test('a clip is found again by the moment it was taken', () async {
+    // The trim view holds the sound, not the kept clip: a fresh press's,
+    // or one opened again, whose time is local. Either deletes it.
+    final kept = await add(4);
+    final opened = await library.load(seed, kept);
+    expect(ClipLibrary.idAt(opened!.at), kept.id);
+    expect(ClipLibrary.idAt(audio(4).at), kept.id);
+
+    await library.delete(ClipLibrary.idAt(audio(4).at));
+    expect(await library.list(seed), isEmpty);
+    expect(files(), isEmpty);
+  });
+
   test('opens a kept clip to the same samples', () async {
     final kept = await add(3);
     final opened = await library.load(seed, kept);

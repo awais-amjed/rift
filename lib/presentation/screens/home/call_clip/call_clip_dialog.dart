@@ -7,6 +7,7 @@ import '../../../../data/classes/call_clip_audio.dart';
 import '../../../../data/constants.dart';
 import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/app/app_cubit.dart';
+import '../../../../logic/cubits/clip_history/clip_history_cubit.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../logic/cubits/soundboard/soundboard_cubit.dart';
 import '../../../../logic/helper_methods.dart';
@@ -16,6 +17,7 @@ import '../../../../src/rust/api/call_clip.dart';
 import '../../../common/app_button.dart';
 import '../../../common/app_modal.dart';
 import '../../../common/chat/attachments/attachment_download.dart';
+import '../../../common/confirm_dialog.dart';
 import '../../../common/server_scope.dart';
 import '../../../theme/app_text.dart';
 import '../../../theme/theme_context.dart';
@@ -138,6 +140,26 @@ class _CallClipDialogState extends State<CallClipDialog> {
     }
   }
 
+  /// Drops the clip from the ones this device keeps, and closes the view: a
+  /// clip saved or put on a soundboard stays where it went.
+  Future<void> _delete() async {
+    final history = context.read<ClipHistoryCubit>();
+    final navigator = Navigator.of(context);
+    final sure = await showConfirmDialog(
+      context: context,
+      title: 'Delete this clip?',
+      message:
+          'It goes from the clips kept on this device. A copy you saved or '
+          'put on a soundboard stays.',
+      confirmLabel: 'Delete',
+      icon: Icons.delete_outline_rounded,
+      isDestructive: true,
+    );
+    if (!sure || !mounted) return;
+    await history.deleteTakenAt(_clip.at);
+    navigator.pop();
+  }
+
   Future<void> _encodeForBoard() async {
     setState(() => _encoding = true);
     final length = _length;
@@ -210,7 +232,8 @@ class _CallClipDialogState extends State<CallClipDialog> {
           'Clipped at ${formatClock(_clip.at)} · '
           '${ClipTrim.timeLabel(_length)} selected',
       titleIcon: const Icon(Icons.content_cut_rounded, size: K.iconButton),
-      maxWidth: 600,
+      // Room for Delete, Add and Save on one line beside Play.
+      maxWidth: 680,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -275,6 +298,7 @@ class _CallClipDialogState extends State<CallClipDialog> {
                   saving: _saving,
                   adding: _encoding,
                   onSave: _save,
+                  onDelete: _delete,
                   onAdd:
                       CallClipDialog.offersAdd(
                         fromDmCall: widget.fromDmCall,

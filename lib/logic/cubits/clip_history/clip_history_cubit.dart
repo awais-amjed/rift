@@ -49,6 +49,12 @@ class ClipHistoryCubit extends Cubit<ClipHistoryState> {
 
   Future<void> delete(String id) => _library.delete(id);
 
+  /// Deletes the clip taken at [at], from the trim view, which holds the
+  /// sound and not the kept clip. Queued behind the press's own keeping, so
+  /// a clip deleted the moment it opens is not kept after.
+  Future<void> deleteTakenAt(DateTime at) =>
+      _library.delete(ClipLibrary.idAt(at));
+
   Future<void> deleteAll() => _library.clear();
 
   Future<void> _read() async {

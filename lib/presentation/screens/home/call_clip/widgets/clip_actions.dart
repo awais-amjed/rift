@@ -8,6 +8,7 @@ import '../../../../common/app_button.dart';
 /// with the size it will come to. [onAdd] is null where this person may not
 /// add to the call's soundboard, or the call is a DM, and the button is not
 /// shown: there is nothing to explain, it is just not theirs to do.
+/// [onDelete] drops the clip from the ones this device keeps.
 class ClipActions extends StatelessWidget {
   final int wavBytes;
   final int mp3Bytes;
@@ -15,6 +16,7 @@ class ClipActions extends StatelessWidget {
   final bool adding;
   final VoidCallback? onSave;
   final VoidCallback? onAdd;
+  final VoidCallback? onDelete;
 
   const ClipActions({
     super.key,
@@ -24,6 +26,7 @@ class ClipActions extends StatelessWidget {
     required this.adding,
     required this.onSave,
     required this.onAdd,
+    required this.onDelete,
   });
 
   @override
@@ -34,6 +37,12 @@ class ClipActions extends StatelessWidget {
       spacing: 10,
       runSpacing: 10,
       children: [
+        AppButton(
+          label: 'Delete',
+          variant: AppButtonVariant.secondary,
+          icon: const Icon(Icons.delete_outline_rounded, size: K.iconButton),
+          onPressed: busy ? null : onDelete,
+        ),
         if (onAdd case final add?)
           AppButton(
             label: 'Add to soundboard · ${humanSize(mp3Bytes)}',
