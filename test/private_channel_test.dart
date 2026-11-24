@@ -198,6 +198,73 @@ void main() {
       expect(find.text('Zoe'), findsOneWidget);
       expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
     });
+
+    /// The names top to bottom, as drawn.
+    List<String> order(WidgetTester tester, List<String> names) =>
+        [...names]..sort(
+          (a, b) => tester
+              .getTopLeft(find.text(a))
+              .dy
+              .compareTo(tester.getTopLeft(find.text(b)).dy),
+        );
+
+    testWidgets('a tick leaves every row where it was', (tester) async {
+      // Ticking used to move the person up among the ones already in, so the
+      // row under the pointer changed with every click.
+      final names = ['Ada', 'Grace', 'Linus'];
+      await pump(
+        tester,
+        fixed([for (final (i, n) in names.indexed) _member('$i', n)]),
+      );
+
+      await tester.tap(find.text('Linus'));
+      await tester.pumpAndSettle();
+      expect(selection.ids, {'2'});
+      expect(order(tester, names), names);
+
+      await tester.tap(find.text('Grace'));
+      await tester.pumpAndSettle();
+      expect(order(tester, names), names);
+    });
+
+    testWidgets('an untick leaves somebody already in where they were', (
+      tester,
+    ) async {
+      // The other half: unticking somebody pinned at the top used to send
+      // them back down to their place in the alphabet.
+      await pump(
+        tester,
+        fixed([_member('1', 'Ada'), _member('2', 'Zoe')]),
+        initial: MemberSelection.of([_member('2', 'Zoe')]),
+      );
+      expect(order(tester, ['Ada', 'Zoe']), ['Zoe', 'Ada']);
+
+      await tester.tap(find.text('Zoe'));
+      await tester.pumpAndSettle();
+      expect(selection.ids, isEmpty);
+      expect(order(tester, ['Ada', 'Zoe']), ['Zoe', 'Ada']);
+    });
+
+    testWidgets('somebody ticked from a search stays once it is cleared', (
+      tester,
+    ) async {
+      // Not in the first page: without a pinned row they would vanish from
+      // the list they were just added to.
+      await pump(
+        tester,
+        (query) =>
+            query.isEmpty ? [_member('1', 'Ada')] : [_member('9', 'Zoe')],
+      );
+      await tester.enterText(find.byType(TextField), 'zo');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Zoe'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Zoe'), findsOneWidget);
+      expect(find.text('Ada'), findsOneWidget);
+    });
   });
 
   test('the private chip answers the question nobody asks out loud', () {

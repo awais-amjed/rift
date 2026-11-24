@@ -33,6 +33,11 @@ import 'member_pick_row.dart';
 /// are a thousand rows down the alphabet. While a query is being typed the list
 /// is the matches alone, because a pinned row that has nothing to do with what
 /// somebody is searching for is noise in the one moment they are looking hard.
+///
+/// **No row moves under the pointer.** Which rows are pinned is settled as the
+/// picker opens and only grows ([MemberPins]): a tick or an untick changes the
+/// mark and nothing else. Moving the ticked row up among the pinned ones made
+/// the list jump with every click.
 class ChannelMemberPicker extends StatefulWidget {
   /// Who is ticked, and the rows behind them. The picker never mutates it — it
   /// reports taps through [onToggle] and re-reads this.
@@ -69,6 +74,11 @@ class _ChannelMemberPickerState extends State<ChannelMemberPicker> {
   final TextEditingController _controller = TextEditingController();
   Timer? _timer;
   List<ServerMember> _results = const [];
+
+  /// The answer to an empty query, kept while a search is typed: what the
+  /// list goes back to the moment the field is cleared.
+  List<ServerMember>? _browse;
+  MemberPins _pins = MemberPins.empty;
   bool _searching = true;
 
   /// Guards a slow search landing after a newer one.
@@ -77,7 +87,14 @@ class _ChannelMemberPickerState extends State<ChannelMemberPicker> {
   @override
   void initState() {
     super.initState();
+    _pins = _pins.after(widget.selection, browsed: _browse);
     unawaited(_search(''));
+  }
+
+  @override
+  void didUpdateWidget(ChannelMemberPicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _pins = _pins.after(widget.selection, browsed: _browse);
   }
 
   @override
@@ -102,18 +119,15 @@ class _ChannelMemberPickerState extends State<ChannelMemberPicker> {
     if (!mounted || id != _requestId) return;
     setState(() {
       _results = results;
+      if (value.trim().isEmpty) _browse = results;
       _searching = false;
     });
   }
 
-  /// Pinned selections first, then matches that are not already pinned.
+  /// Pinned rows first, then the browse less what is pinned.
   List<ServerMember> get _visible {
     if (_controller.text.trim().isNotEmpty) return _results;
-    return [
-      ...widget.selection.members,
-      for (final member in _results)
-        if (!widget.selection.contains(member.id)) member,
-    ];
+    return _pins.over(_browse ?? const []);
   }
 
   @override

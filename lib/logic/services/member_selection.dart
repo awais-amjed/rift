@@ -54,3 +54,44 @@ class MemberSelection {
   bool differsFrom(Set<String> other) =>
       ids.length != other.length || !ids.containsAll(other);
 }
+
+/// The rows a member picker pins above its browse, in the order they were
+/// pinned. Only grows, so a tick or an untick never moves a row.
+///
+/// Whoever is in the selection before the first browse lands is pinned: the
+/// people already in the channel, shown first. After that a new pick is pinned
+/// only when the browse does not hold them (picked from a search), since a
+/// pick from the browse is already on screen where it was clicked.
+class MemberPins {
+  final List<ServerMember> members;
+
+  const MemberPins(this.members);
+
+  static const MemberPins empty = MemberPins([]);
+
+  /// These pins once [selection] is read; [browsed] is the browse's answer,
+  /// null until it lands. The same value when nothing new is pinned.
+  MemberPins after(
+    MemberSelection selection, {
+    required List<ServerMember>? browsed,
+  }) {
+    final pinned = {for (final member in members) member.id};
+    final inBrowse = {for (final member in browsed ?? const []) member.id};
+    final added = [
+      for (final member in selection.members)
+        if (!pinned.contains(member.id) && !inBrowse.contains(member.id))
+          member,
+    ];
+    return added.isEmpty ? this : MemberPins([...members, ...added]);
+  }
+
+  /// The pinned rows, then [browse] less them.
+  List<ServerMember> over(List<ServerMember> browse) {
+    final pinned = {for (final member in members) member.id};
+    return [
+      ...members,
+      for (final member in browse)
+        if (!pinned.contains(member.id)) member,
+    ];
+  }
+}
