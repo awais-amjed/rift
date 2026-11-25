@@ -310,6 +310,8 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     final generation = ++_openGeneration;
     // The same channel's feeds are joined again below, and a join must not
     // cross the leave of the one it replaces.
+    final lastLeave = _lastLeave;
+    _lastLeave = null;
     final rejoining = _rtChannelId == channelId;
     // The old channel's handlers are detached the moment this is called. The
     // server's goodbye is waited on only by a channel joining the same feeds
@@ -350,6 +352,10 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
       if (_isStale(generation)) return;
     } else {
       unawaited(released);
+    }
+    if (lastLeave != null && lastLeave.channelId == channelId) {
+      await lastLeave.released;
+      if (_isStale(generation)) return;
     }
     // The feeds first, so a message sent while the page below is on its way
     // is heard; what they ring is held until the page is on screen.
@@ -483,14 +489,27 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   @override
   void emit(ChannelChatState state) => super.emit(_withLive(state));
 
+  /// The state goes at once, and only the server's goodbye is waited on.
+  ///
+  /// Reset after the wait, a back out of one channel and a tap on the next
+  /// (the phone, where back closes the channel) had the late reset wipe the
+  /// channel just opened, which took its page with it; and a tap on the same
+  /// channel in that moment saw it still open and did nothing.
   Future<void> closeChannel() async {
     unawaited(_saved.flush(leaving: true));
     _openGeneration++;
     _openServerId = null;
-    await _teardownRealtime();
+    final leaving = _rtChannelId;
+    final released = _teardownRealtime();
     _keyring.clear();
     if (!isClosed) _resetTo(const ChannelChatState());
+    _lastLeave = (channelId: leaving, released: released);
+    await released;
   }
+
+  /// The last channel closed and its goodbye: opening it again straight away
+  /// joins its feeds once the leave is answered, as switching back to it does.
+  ({String? channelId, Future<void> released})? _lastLeave;
 
   /// Retry entry point for the waiting/error states (UI button + doorbell).
   @override
