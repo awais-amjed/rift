@@ -98,15 +98,23 @@ class ServerEventsCubit extends Cubit<int> {
   /// closed here: on a desktop the banned notice covers it, but on a phone it
   /// sits under the pushed chat page, which kept its old messages and a
   /// composer whose every send failed.
+  ///
+  /// It rings for a private channel's seat too, given or taken — leaving one,
+  /// or being removed by whoever runs it — and not on `channels`, which the
+  /// rest of the server does not need. So a channel we lost is left here as
+  /// a deleted one is: the chat closed and its call left, rather than a
+  /// composer whose every send fails and a call still heard.
   Future<void> _onMembershipChanged() async {
-    await _serverCubit.refreshServerDetails(serverId: _serverId);
+    final result = await _serverCubit.refreshServerDetails(serverId: _serverId);
     if (isClosed) return;
     final server = _session.serverById(_serverId);
     if ((server?.user?.isBanned ?? false) &&
         _chatCubit.openServerId == _serverId &&
         _chatCubit.state.channelId != null) {
       unawaited(_chatCubit.closeChannel());
+      return;
     }
+    if (result.success) _evictFromDeletedChannels();
   }
 
   Future<void> _onChannelsChanged() async {

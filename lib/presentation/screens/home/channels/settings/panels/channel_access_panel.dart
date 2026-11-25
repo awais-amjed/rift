@@ -47,11 +47,20 @@ class ChannelAccessPanel extends StatefulWidget {
 class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
   MemberSelection _selection = MemberSelection.empty;
 
-  /// Who was in the channel when the page loaded, so Save can tell a real
-  /// change from a tick-and-untick.
+  /// Who was ticked when the page loaded, so Save can tell a real change from
+  /// a tick-and-untick, and send only what changed.
   Set<String> _original = {};
 
+  /// Everybody seated when the page loaded, the caller included, whether or
+  /// not their name resolved: what a server from before
+  /// `change_channel_members` is handed, less and plus the change.
+  Set<String> _seated = {};
+
   bool _isLoading = true;
+
+  /// The read of who is in here failed. Drawn as that, with no Save: drawn as
+  /// nobody ticked, ticking one person and saving removed everybody else.
+  bool _loadFailed = false;
   bool _isSaving = false;
   String? _error;
 
@@ -79,6 +88,13 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
   }
 
   Future<void> _load() async {
+    // From initState it is already loading, and setState there would throw.
+    if (!_isLoading || _loadFailed) {
+      setState(() {
+        _isLoading = true;
+        _loadFailed = false;
+      });
+    }
     final session = ServerScope.read(context);
     final members = MembersApi(session);
     final me = _me;
@@ -90,20 +106,29 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
     // Resolved by id rather than picked out of a roster we no longer hold. A
     // member seated here may be anywhere in the alphabet, and the picker has
     // to draw them whether or not a search would have found them.
-    final seated = {...membership.memberIds}..remove(me);
-    final rows = await members.membersByIds(seated.toList());
+    final others = {...?membership?.memberIds}..remove(me);
+    final rows = membership == null
+        ? null
+        : await members.membersByIdsOrNull(others.toList());
     if (!mounted) return;
 
     setState(() {
-      _original = seated;
-      _selection = MemberSelection.of(rows);
       _isLoading = false;
+      if (membership == null || rows == null) {
+        _loadFailed = true;
+        return;
+      }
+      _seated = membership.memberIds;
+      _selection = MemberSelection.of(rows);
+      // Only who is drawn. A seat whose name did not resolve is not in the
+      // list, so it is never in a change either.
+      _original = _selection.ids.toSet();
     });
   }
 
   /// People who could be seated here — never bots, never the caller.
   ///
-  /// Bots are excluded by `set_channel_members` too; asking the database for
+  /// Bots are excluded by `change_channel_members` too; asking the database for
   /// people only is what stops the picker offering a row it would refuse.
   Future<List<ServerMember>> _search(String query) async {
     final me = _me;
@@ -122,26 +147,29 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
       _error = null;
     });
 
-    // The caller's own id goes back in, whatever the picker holds. The RPC
-    // replaces the membership with exactly what it is handed, and a private
-    // channel that loses its last member is deleted.
-    final me = _me;
+    // Only what was ticked or unticked here. The caller is never in either:
+    // removing yourself is leaving, and a private channel that loses its
+    // last member is deleted.
+    final selected = _selection.ids.toSet();
     final result = await ChannelAccessApi(ServerScope.read(context))
-        .setChannelMembers(
+        .changeChannelMembers(
           channelId: _channel.id,
-          userIds: {?me, ..._selection.ids}.toList(),
+          add: selected.difference(_original),
+          remove: _original.difference(selected),
+          seated: {..._seated, ?_me},
         );
     if (!mounted) return;
 
     setState(() {
       _isSaving = false;
-      if (result.success) {
-        _original = _selection.ids.toSet();
-      } else {
-        _error = result.error;
-      }
+      if (!result.success) _error = result.error;
     });
-    if (result.success) HelperMethods.showSuccess(message: 'Members saved');
+    if (result.success) {
+      HelperMethods.showSuccess(message: 'Members saved');
+      // Read again, so the list is who is in here now — somebody may have
+      // left while the page was open.
+      await _load();
+    }
   }
 
   /// No busy state of its own: the confirm is modal while it asks, and on
@@ -162,7 +190,9 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
           AppButton(
             label: _isSaving ? 'Saving...' : 'Save',
             isLoading: _isSaving,
-            onPressed: _changed && !_isSaving ? _save : null,
+            onPressed: _changed && !_isSaving && !_loadFailed && !_isLoading
+                ? _save
+                : null,
           ),
           AppButton(
             label: 'Open to everyone',
@@ -177,7 +207,21 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
         children: [
           if (_isLoading)
             const LoadingBlock(height: 200)
-          else ...[
+          else if (_loadFailed) ...[
+            const HintCard(
+              icon: Icons.cloud_off_outlined,
+              text: "Couldn't read who is in here.",
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: AppButton(
+                label: 'Try again',
+                variant: AppButtonVariant.secondary,
+                onPressed: _load,
+              ),
+            ),
+          ] else ...[
             if (!widget.canManage) ...[
               const HintCard(
                 icon: Icons.visibility_outlined,

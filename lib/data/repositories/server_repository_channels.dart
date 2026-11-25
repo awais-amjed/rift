@@ -2,16 +2,13 @@ part of 'server_repository.dart';
 
 /// Creating, renaming, deleting and closing channels on a self-hosted server.
 ///
-/// All direct table calls except the two that cannot be. `set_channel_members`
-/// and `set_channel_private` are RPCs because each does something an UPDATE
-/// cannot: the first replaces a membership in one statement, so there is no
-/// moment where a channel is private and everybody is still in it; the second
-/// leaves a rotation marker behind, because opening a room must not hand its
-/// private history to the next person who joins the server (ARCHITECTURE.md
-/// §4).
+/// Mostly direct table calls. `set_channel_private` is an RPC because it does
+/// something an UPDATE cannot: it leaves a rotation marker behind, because
+/// opening a room must not hand its private history to the next person who
+/// joins the server (ARCHITECTURE.md §4).
 ///
-/// `is_private` has no column grant at all, which is what makes that second one
-/// the only way in rather than the polite way in.
+/// `is_private` has no column grant at all, which is what makes that RPC the
+/// only way in rather than the polite way in.
 mixin _ChannelApiMixin {
   ServerDb get _db;
 
@@ -81,8 +78,8 @@ mixin _ChannelApiMixin {
 
   /// Replace a private channel's membership with exactly [userIds].
   ///
-  /// One call rather than add-then-remove: doing it in two leaves a window
-  /// where the channel is private and everybody is still in it.
+  /// For a server from before `change_channel_members` only: everybody the
+  /// list leaves out is removed, so a list read wrong empties the channel.
   Future<APIResponse> setChannelMembers(
     String supabaseUrl,
     String channelId, {
@@ -97,6 +94,38 @@ mixin _ChannelApiMixin {
         params: {'p_channel': channelId, 'p_users': userIds},
       );
     });
+  }
+
+  /// Seat [add] and remove [remove] in a private channel, touching nobody
+  /// else, through the edge function of that name: it also takes whoever was
+  /// removed out of a call running there, which needs the LiveKit secret.
+  /// The answer's `reason` is the `change_channel_members` RPC's.
+  Future<APIResponse> changeChannelMembers(
+    String supabaseUrl,
+    String channelId, {
+    String? bearerToken,
+    required List<String> add,
+    required List<String> remove,
+  }) {
+    return _post(supabaseUrl, 'change_channel_members', {
+      'channel_id': channelId,
+      'add': add,
+      'remove': remove,
+    }, bearerToken: bearerToken);
+  }
+
+  /// Leave a private channel through the same function, so a call there is
+  /// left on the server's side too. The answer's `reason` is
+  /// `leave_channel`'s.
+  Future<APIResponse> leaveChannelAndCall(
+    String supabaseUrl,
+    String channelId, {
+    String? bearerToken,
+  }) {
+    return _post(supabaseUrl, 'change_channel_members', {
+      'channel_id': channelId,
+      'leave': true,
+    }, bearerToken: bearerToken);
   }
 
   /// Open or close a channel.
@@ -229,18 +258,29 @@ mixin _ChannelApiMixin {
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      final rows = await db
-          .from('channel_members')
-          .select('user_id, can_manage')
-          .eq('channel_id', channelId);
+      // Page by page: a bare select stops at the server's row cap (1,000 by
+      // default) with no order, and a member list cut short is a list that
+      // says somebody is not in the channel when they are.
+      const page = 1000;
+      final rows = <Map<String, dynamic>>[];
+      while (true) {
+        final batch = await db
+            .from('channel_members')
+            .select('user_id, can_manage')
+            .eq('channel_id', channelId)
+            .order('user_id')
+            .range(rows.length, rows.length + page - 1);
+        rows.addAll(batch);
+        if (batch.length < page) break;
+      }
       return {'members': rows};
     });
   }
 
   /// Update a channel's settings (requires channel manager).
   ///
-  /// A plain update — the column grant covers only `name`, `retention_days`
-  /// and `history_cap`, and `channels_update_managers` decides who may.
+  /// A plain update — the column grant covers only `name`, `retention_days`,
+  /// `history_cap` and `livekit_node_id`, and `channels_update_managers` decides who may.
   /// Nothing else has to happen: a LiveKit room is named by the channel's
   /// **id**, so renaming a voice channel doesn't touch the call inside it.
   ///
@@ -294,6 +334,7 @@ mixin _ChannelApiMixin {
       if ((rows as List).isEmpty) {
         throw const PostgrestException(
           message: 'Channel not found, or not yours to change',
+          code: 'channel_not_found',
         );
       }
       return rows.first;

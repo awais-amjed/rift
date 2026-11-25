@@ -14,7 +14,7 @@ import 'member_pick_row.dart';
 ///
 /// Bots are absent by design rather than by oversight: a bot is keyed by an
 /// admin's explicit grant and nothing else (BOTS.md §6), so offering one here
-/// would be a second door into the same room — and `set_channel_members`
+/// would be a second door into the same room — and `change_channel_members`
 /// refuses them anyway.
 ///
 /// The person creating the channel is not listed either. They are always in it,

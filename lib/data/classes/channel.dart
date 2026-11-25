@@ -91,6 +91,10 @@ class Channel extends Equatable {
   /// settings mean anything for it.
   bool get hasMessages => channelType == ChannelType.text;
 
+  /// The channel as a sentence names it: `#general` for a text channel, the
+  /// bare name for a voice one, which has no `#` anywhere else either.
+  String get label => hasMessages ? '#$name' : name;
+
   factory Channel.fromJson(Map<String, dynamic> json) {
     return Channel(
       id: json['id'] as String,

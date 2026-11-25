@@ -51,6 +51,8 @@ class _KeyHolderListState extends State<KeyHolderList> {
     final membership = await ChannelAccessApi(
       session,
     ).channelMembers(widget.channel.id);
+    // Unread, nothing is drawn: a list of nobody would say nobody holds it.
+    if (membership == null) return;
     final rows = await members.membersByIds(membership.memberIds.toList());
     if (!mounted) return;
     setState(() => _seated = {for (final m in rows) m.id: m.displayName});

@@ -234,10 +234,16 @@ class MembersApi {
   static const int _idsPerCall = 100;
 
   /// Resolve ids the caller already holds — Realtime presence, a message's
-  /// sender, a voice room's participants.
-  Future<List<ServerMember>> membersByIds(List<String> ids) async {
+  /// sender, a voice room's participants. Empty when the read failed.
+  Future<List<ServerMember>> membersByIds(List<String> ids) async =>
+      await membersByIdsOrNull(ids) ?? const [];
+
+  /// [membersByIds], but null when the read failed, for a caller that must
+  /// not take "could not ask" for "nobody".
+  Future<List<ServerMember>?> membersByIdsOrNull(List<String> ids) async {
     final server = _target.server;
-    if (server == null || ids.isEmpty) return const [];
+    if (server == null) return null;
+    if (ids.isEmpty) return const [];
 
     final found = <ServerMember>[];
     for (var start = 0; start < ids.length; start += _idsPerCall) {
@@ -251,7 +257,7 @@ class MembersApi {
           ids: ids.sublist(start, end < ids.length ? end : ids.length),
         ),
       );
-      if (!response.success) return const [];
+      if (!response.success) return null;
       found.addAll(ServerMember.listFrom(response.data));
     }
     return _session.members.remember(server.id, found);

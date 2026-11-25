@@ -297,7 +297,9 @@ key is an hour old, so a busy server's bans share one change instead of paying
 50,000 seals each. The server stops serving the person the moment they are
 removed; what the change adds is that a server operator passing them ciphertext
 anyway gets nothing past it, and that now holds within the hour rather than at
-once. Additions are not held back — a bot's grant, a private channel opening —
+once. Somebody taken out of a private voice channel, or leaving it, is also
+taken out of a call running there at once (the `change_channel_members`
+function). Additions are not held back — a bot's grant, a private channel opening —
 since waiting only keeps somebody out longer. A job each minute
 (`app.ring_due_rotations`) rings the server when a held-back change falls due,
 so an online member makes it on time.

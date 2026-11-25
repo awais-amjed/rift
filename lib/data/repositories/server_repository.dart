@@ -208,6 +208,19 @@ class ServerRepository
         serverTime: serverTime,
       );
     }
+    // The edge runtime's own answer for a function this server does not
+    // have, which is not the `{success, data, error, code}` envelope.
+    final runtimeMessage = data['msg'];
+    if (!data.containsKey('success') &&
+        runtimeMessage is String &&
+        runtimeMessage.contains('could not find an appropriate entrypoint')) {
+      return APIResponse(
+        success: false,
+        error: 'This server needs an update for that',
+        errorCode: ErrorCode.functionMissing,
+        serverTime: serverTime,
+      );
+    }
     return APIResponse(
       success: false,
       error: data['error'] as String? ?? 'Unknown error',

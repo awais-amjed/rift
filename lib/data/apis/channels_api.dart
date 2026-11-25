@@ -1,5 +1,6 @@
 import '../classes/api_response.dart';
 import '../classes/server.dart';
+import '../enums/error_code.dart';
 import '../repositories/server_repository.dart';
 import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
@@ -52,7 +53,7 @@ class ChannelsApi {
     if (!response.success) {
       return (
         success: false,
-        error: response.error ?? 'Failed to create channel',
+        error: channelRefusal(response, 'Failed to create channel'),
       );
     }
 
@@ -150,11 +151,33 @@ class ChannelsApi {
 
   static String _createFailure(String? reason) => switch (reason) {
     'name_taken' => 'A channel already has that name',
-    'not_authorized' => 'You cannot create channels here',
-    'bad_name' => 'Give it a name',
     _ => 'Failed to create channel',
   };
 }
+
+/// What to tell the person about a channel write the server refused.
+///
+/// An RPC raises a bare token (`not_authorized`, `bad_name`), and a direct
+/// table write fails with Postgres' own text: a rename onto a taken name read
+/// `duplicate key value violates unique constraint …`. Those are put into
+/// words here; what an edge function or the connection said is already a
+/// sentence and is passed on; anything else is [failure].
+String channelRefusal(APIResponse response, String failure) =>
+    switch (response.errorCode) {
+      // `channels_server_id_name_key`, the only unique key a write here can
+      // hit.
+      '23505' => 'A channel already has that name',
+      'not_authorized' ||
+      '42501' ||
+      ErrorCode.permissionDenied => "You don't have permission to do that here",
+      ErrorCode.channelNotFound => 'That channel is gone',
+      'bad_name' => 'Give it a name',
+      'bad_type' => 'A channel is either text or voice',
+      ErrorCode.serverUnreachable ||
+      ErrorCode.serverTimeout ||
+      ErrorCode.functionMissing => response.error ?? failure,
+      _ => failure,
+    };
 
 /// Run a channel write on [target], then re-read the server so our
 /// own channel list holds the change before this answers. Shared with
@@ -173,7 +196,7 @@ Future<({bool success, String? error})> changeChannel(
     (token) => call(server, token),
   );
   if (!response.success) {
-    return (success: false, error: response.error ?? failure);
+    return (success: false, error: channelRefusal(response, failure));
   }
 
   await session.refreshDetails(server);

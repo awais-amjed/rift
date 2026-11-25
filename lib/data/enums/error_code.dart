@@ -154,6 +154,12 @@ class ErrorCode {
   static const String dbError = 'db_error';
   static const String unexpectedError = 'unexpected_error';
 
+  /// The server has no edge function by that name: one from before it was
+  /// added. Never sent by a function; the app reads it off the edge runtime's
+  /// own answer (`ServerRepository._fromSupabaseCF`), so a caller can fall
+  /// back on the older way.
+  static const String functionMissing = 'function_missing';
+
   // ── Helpers ───────────────────────────────────────────────────────────────────
 
   /// Returns true for any code that means the session token is no longer

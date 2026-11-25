@@ -1,3 +1,4 @@
+import '../enums/error_code.dart';
 import '../repositories/server_repository.dart';
 import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
@@ -23,31 +24,73 @@ class ChannelAccessApi {
 
   ServerRepository get _repository => _session.repository;
 
-  /// Replace a private channel's membership with exactly [userIds].
+  /// Seat [add] and remove [remove] in a private channel, and nobody else.
   ///
-  /// Removing the last member deletes the channel, and that is not an accident
-  /// to be guarded against here — nobody outside can see a private channel, so
+  /// By name rather than as the whole list, so a seat the caller never saw —
+  /// a read cut short, a name that did not resolve, somebody who left while
+  /// the page was open — is never removed or put back by accident. Removing
+  /// the last member deletes the channel, and that is not an accident to be
+  /// guarded against here: nobody outside can see a private channel, so
   /// nobody outside could be asked to tidy up an empty one.
-  Future<({bool success, String? error})> setChannelMembers({
+  ///
+  /// Through the `change_channel_members` function, which also takes whoever
+  /// was removed out of a call running there. A server from before it gets
+  /// the old whole-list write, built from [seated] — the read the change was
+  /// made against, which has to be complete for that to be safe.
+  Future<({bool success, String? error})> changeChannelMembers({
     required String channelId,
-    required List<String> userIds,
-  }) => changeChannel(
-    _target,
-    (server, token) => _repository.setChannelMembers(
-      server.supabaseUrl,
-      channelId,
-      anonKey: server.supabaseKey ?? '',
-      bearerToken: token,
-      userIds: userIds,
-    ),
-    failure: 'Failed to update who is in this channel',
-  );
+    required Set<String> add,
+    required Set<String> remove,
+    required Set<String> seated,
+  }) async {
+    final server = _target.server;
+    if (server == null) return (success: false, error: ServerSession.gone);
+    const failure = 'Failed to update who is in this channel';
+
+    var response = await _session.callFor(
+      server,
+      (token) => _repository.changeChannelMembers(
+        server.supabaseUrl,
+        channelId,
+        bearerToken: token,
+        add: add.toList(),
+        remove: remove.toList(),
+      ),
+    );
+    if (response.errorCode == ErrorCode.functionMissing) {
+      response = await _session.callFor(
+        server,
+        (token) => _repository.setChannelMembers(
+          server.supabaseUrl,
+          channelId,
+          anonKey: server.supabaseKey ?? '',
+          bearerToken: token,
+          userIds: {...seated.difference(remove), ...add}.toList(),
+        ),
+      );
+    }
+    if (!response.success) {
+      return (success: false, error: channelRefusal(response, failure));
+    }
+    final reason = (response.data as Map<String, dynamic>?)?['reason'];
+    if (reason != 'ok') {
+      return (
+        success: false,
+        error: reason == 'no_such_channel'
+            ? 'That channel is gone, or no longer private'
+            : failure,
+      );
+    }
+
+    await _session.refreshDetails(server);
+    return (success: true, error: null);
+  }
 
   /// Open a channel up, or close it.
   ///
   /// Closing seats everybody who is currently on the server, so the room does
   /// not empty out under the people already talking in it; narrowing it down is
-  /// a second call to [setChannelMembers]. Opening leaves a rotation behind, so
+  /// a second call to [changeChannelMembers]. Opening leaves a rotation behind, so
   /// the private history stays unreadable to whoever arrives next.
   Future<({bool success, String? error})> setChannelPrivate({
     required String channelId,
@@ -73,40 +116,78 @@ class ChannelAccessApi {
   Future<({bool success, String? error})> setChannelEncrypted({
     required String channelId,
     required bool encrypted,
-  }) => changeChannel(
-    _target,
-    (server, token) => _repository.setChannelEncrypted(
-      server.supabaseUrl,
-      channelId,
-      anonKey: server.supabaseKey ?? '',
-      bearerToken: token,
-      encrypted: encrypted,
-    ),
-    failure: encrypted
+  }) async {
+    final server = _target.server;
+    if (server == null) return (success: false, error: ServerSession.gone);
+    final failure = encrypted
         ? 'Failed to turn encryption back on'
-        : 'Failed to turn encryption off',
-  );
+        : 'Failed to turn encryption off';
+
+    final response = await _session.callFor(
+      server,
+      (token) => _repository.setChannelEncrypted(
+        server.supabaseUrl,
+        channelId,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: token,
+        encrypted: encrypted,
+      ),
+    );
+    if (!response.success) {
+      return (success: false, error: channelRefusal(response, failure));
+    }
+    // A refusal that is not an exception: the channel went private, or became
+    // a voice one, while the confirm was open.
+    final reason = (response.data as Map<String, dynamic>?)?['reason'];
+    if (reason != null && reason != 'ok') {
+      await _session.refreshDetails(server);
+      return (
+        success: false,
+        error: reason == 'not_public_text'
+            ? 'Only a public text channel can go unencrypted'
+            : failure,
+      );
+    }
+
+    await _session.refreshDetails(server);
+    return (success: true, error: null);
+  }
 
   /// Walk out of a private channel.
   ///
-  /// Not [setChannelMembers] with one name removed — that needs the manage bit,
+  /// Not [changeChannelMembers] removing your own name — that needs the manage bit,
   /// which is the right answer for who *else* is in a room and the wrong one
   /// for whether you are. Leaving needs nobody's permission.
   Future<({bool success, String? error})> leaveChannel(String channelId) async {
     final server = _target.server;
     if (server == null) return (success: false, error: ServerSession.gone);
 
-    final response = await _session.callFor(
+    // Through the function, so a call in the channel is left on the server's
+    // side too; straight to the RPC on a server from before it.
+    var response = await _session.callFor(
       server,
-      (token) => _repository.leaveChannel(
+      (token) => _repository.leaveChannelAndCall(
         server.supabaseUrl,
         channelId,
-        anonKey: server.supabaseKey ?? '',
         bearerToken: token,
       ),
     );
+    if (response.errorCode == ErrorCode.functionMissing) {
+      response = await _session.callFor(
+        server,
+        (token) => _repository.leaveChannel(
+          server.supabaseUrl,
+          channelId,
+          anonKey: server.supabaseKey ?? '',
+          bearerToken: token,
+        ),
+      );
+    }
     if (!response.success) {
-      return (success: false, error: response.error ?? 'Could not leave');
+      return (
+        success: false,
+        error: channelRefusal(response, 'Could not leave'),
+      );
     }
 
     final reason = (response.data as Map<String, dynamic>?)?['reason'];
@@ -127,7 +208,8 @@ class ChannelAccessApi {
     _ => 'Could not leave that channel',
   };
 
-  /// Who is in [channelId], and whether this device may change that.
+  /// Who is in [channelId], and whether this device may change that; null
+  /// when the read failed.
   ///
   /// Both answers come out of the same rows, which is the reason they are one
   /// call: `can_manage` is a property of *my* membership, and a private
@@ -135,12 +217,13 @@ class ChannelAccessApi {
   /// `MANAGE_CHANNELS` on the server — those people cannot see the room at all.
   ///
   /// Empty for a public channel, and for a private one the caller cannot see.
-  /// Those are the same answer on purpose.
-  Future<({Set<String> memberIds, bool canManage})> channelMembers(
+  /// Those are the same answer on purpose. A failed read is not: drawn as
+  /// nobody, it offered a Save that removed everybody.
+  Future<({Set<String> memberIds, bool canManage})?> channelMembers(
     String channelId,
   ) async {
     final server = _target.server;
-    if (server == null) return (memberIds: <String>{}, canManage: false);
+    if (server == null) return null;
 
     final response = await _session.callFor(
       server,
@@ -151,9 +234,7 @@ class ChannelAccessApi {
         bearerToken: token,
       ),
     );
-    if (!response.success) {
-      return (memberIds: <String>{}, canManage: false);
-    }
+    if (!response.success) return null;
 
     final rows =
         ((response.data as Map<String, dynamic>)['members'] as List? ??
