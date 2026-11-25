@@ -104,6 +104,13 @@ class MembersApi {
   Future<List<ServerMember>> listBots({String? channelId}) async =>
       (await _listWhole(channelId: channelId, bots: true)).members;
 
+  /// [listBots] for a picker, which must not draw a failed read as "no bots
+  /// on this server yet": null when a page failed.
+  Future<List<ServerMember>?> listBotsOrNull() async {
+    final read = await _listWhole(bots: true);
+    return read.failed ? null : read.members;
+  }
+
   /// Every banned member, people and bots — the Members page's, which is the
   /// one place a ban can be lifted. Read whole for the reason bots are: a ban
   /// is somebody's deliberate act on one person, so there are few. Null when

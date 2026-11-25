@@ -617,6 +617,13 @@ was minimised left it at 4 frames a second and about 20 kbit/s, against 38 and
 3.5–4 Mbit/s before patch 5, and the picture was back 255 ms after a restore.
 Not yet measured on a phone, where the background is paused.
 
+The stats stop with the picture. The call's connection line (`VoiceStatsCubit`)
+asked WebRTC for its stats every second and redrew the window on each new ping,
+and a watched stream's (`StreamStatsPoller`) did the same, whether or not
+anybody could see Rift. Since Nov 25 2026 neither polls while nobody can, and
+the stream's polls only while its stats card is open or the sharer has not said
+what it sends. Their part of the 3 frames a second above has not been measured.
+
 **On Linux, X11 has the lifecycle, and Wayland the runner.** Under X11 GTK
 reports a window minimised or hidden by Rift itself (the title bar's close, to
 the tray), and Flutter's Linux embedder turns that into `hidden`. Measured Oct

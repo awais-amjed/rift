@@ -59,7 +59,7 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
     final members = MembersApi(session);
     // Every bot, not a page of them: this is a picker, and one that silently
     // left a bot out would be the bug the paged roster exists to fix.
-    final bots = await members.listBots();
+    final bots = await members.listBotsOrNull();
     final listeners = await BotKeysApi(
       session,
     ).channelListenerIds(widget.channel.id);
@@ -67,11 +67,11 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
 
     setState(() {
       _bots = [
-        for (final bot in bots)
+        for (final bot in bots ?? const <ServerMember>[])
           if (!bot.isBanned) bot,
       ];
       _granted = listeners ?? {};
-      _loadFailed = listeners == null;
+      _loadFailed = bots == null || listeners == null;
       _isLoading = false;
     });
   }

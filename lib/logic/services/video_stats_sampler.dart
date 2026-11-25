@@ -90,7 +90,10 @@ class VideoStatsSampler {
       if (report.type != 'candidate-pair') continue;
       if (report.values['state'] != 'succeeded') continue;
       final rtt = report.values['currentRoundTripTime'] as num?;
-      return rtt == null ? null : rtt * 1000;
+      // A succeeded pair with no measurement is not an answer; another may
+      // have one, as the call's stats read it (`VoiceStatsCubit`).
+      if (rtt == null) continue;
+      return rtt * 1000;
     }
     return null;
   }

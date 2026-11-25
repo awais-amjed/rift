@@ -8,6 +8,7 @@ import '../../../../../data/classes/server_member.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
+import '../../../../../logic/helper_methods.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/hint_card.dart';
 import '../../../../common/loading_block.dart';
@@ -63,17 +64,17 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
     final voiceBots = VoiceBotsApi(session);
     // Every bot, not a page of them: this is a picker, and one that silently
     // left a bot out would be the bug the paged roster exists to fix.
-    final bots = await members.listBots();
+    final bots = await members.listBotsOrNull();
     final listening = await voiceBots.voiceListenerIds(widget.channel.id);
     if (!mounted) return;
 
     setState(() {
       _bots = [
-        for (final bot in bots)
+        for (final bot in bots ?? const <ServerMember>[])
           if (!bot.isBanned) bot,
       ];
       _granted = listening ?? {};
-      _loadFailed = listening == null;
+      _loadFailed = bots == null || listening == null;
       _isLoading = false;
     });
   }
@@ -100,6 +101,16 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
     // hear a channel it was just shut out of.
     if (result.success) await listeners.refresh();
     if (!mounted) return;
+    // Saved, but the voice server was not told: a bot already in the call
+    // keeps what its token said until it leaves.
+    if (result.stillConnected) {
+      HelperMethods.showToast(
+        title: 'Saved',
+        description: granting
+            ? '${bot.displayName} hears this call from its next join.'
+            : '${bot.displayName} still hears this call until it leaves.',
+      );
+    }
 
     setState(() {
       _busyId = null;

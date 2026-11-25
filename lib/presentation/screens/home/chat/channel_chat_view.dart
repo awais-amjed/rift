@@ -269,7 +269,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
   ) async {
     // Read at send time rather than watched: joining a call should not rebuild
     // the composer.
-    final inVoice = context.read<LiveKitCubit>().state.currentChannelId;
+    final inVoice = _callChannelHere(context);
     final voiceBots = context.read<VoiceListenersCubit>();
 
     // Read before the send and cleared after it: the composer is emptied by
@@ -292,9 +292,18 @@ class _ChannelChatViewState extends State<ChannelChatView>
     if (refused && answering != null) restoreReply(answering, pings: pings);
 
     if (inVoice != null && text.trimLeft().startsWith('/')) {
-      await voiceBots.refresh();
+      unawaited(voiceBots.refresh());
     }
     return refused;
+  }
+
+  /// The call's channel, for a `/` command to summon a bot into, when the
+  /// call is on this chat's server. One on another server is a channel this
+  /// server has never heard of, and it would only refuse the summon.
+  static String? _callChannelHere(BuildContext context) {
+    final call = context.read<LiveKitCubit>().state;
+    if (call.callServerId != ServerScope.readId(context)) return null;
+    return call.currentChannelId;
   }
 
   /// Carry a message somewhere else.
@@ -645,10 +654,7 @@ class _ChannelChatViewState extends State<ChannelChatView>
           onRetry: live
               ? (pendingId) => cubit.retrySend(
                   pendingId,
-                  inVoiceChannel: context
-                      .read<LiveKitCubit>()
-                      .state
-                      .currentChannelId,
+                  inVoiceChannel: _callChannelHere(context),
                 )
               : null,
           // Local only, so it needs no connection.

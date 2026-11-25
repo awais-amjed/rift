@@ -16,10 +16,16 @@ part 'voice_stats_state.dart';
 
 /// Polls the call's transport stats every second and tracks ping history for
 /// the last 5 minutes.
+///
+/// Not while nobody can see Rift ([setAppSeen]): only the dock's line and its
+/// popup read these, and each poll that finds a new ping redraws the window,
+/// minimised or behind a game as much as in front. The graph has a gap for
+/// that time, which is what it was.
 class VoiceStatsCubit extends Cubit<VoiceStatsState> {
   StreamSubscription<LiveKitState>? _lkSub;
   Timer? _timer;
   Room? _room;
+  bool _appSeen = true;
 
   VoiceStatsCubit({required LiveKitCubit livekitCubit})
     : super(const VoiceStatsState()) {
@@ -44,6 +50,15 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
     _poll();
   }
 
+  /// Rift can or cannot be seen now (`AppSeenListener`). Polling stops while
+  /// it cannot, and the first poll on its return is at once, so the line is
+  /// not a minute old when somebody looks.
+  void setAppSeen(bool seen) {
+    if (_appSeen == seen) return;
+    _appSeen = seen;
+    if (seen) unawaited(_poll());
+  }
+
   void _detachRoom() {
     _room = null;
     _timer?.cancel();
@@ -52,15 +67,20 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
   }
 
   Future<void> _poll() async {
-    if (isClosed) return;
+    if (isClosed || !_appSeen) return;
     final room = _room;
     if (room == null) return;
+
+    // Each await below can outlast the call: leaving resets the state and
+    // starts another room's, and a reading from this one landing afterwards
+    // put the old ping and a sample of it into the next call.
+    bool gone() => isClosed || _room != room;
 
     try {
       final senderStats = await _collectSenderStats(room);
       final receiverStats = await _collectReceiverStats(room);
 
-      if (isClosed) return;
+      if (gone()) return;
 
       final now = DateTime.now();
       final cutoff = now.subtract(const Duration(minutes: 5));
@@ -84,7 +104,7 @@ class VoiceStatsCubit extends Cubit<VoiceStatsState> {
       var rttMs =
           _iceRtt([senderStats, receiverStats]) ?? _rtcpRtt(senderStats);
       rttMs ??= _iceRtt([await _collectTransportStats(room)]);
-      if (isClosed) return;
+      if (gone()) return;
       final packetLossPercent = _readPacketLoss(senderStats);
 
       // Only record a genuinely new measurement. currentRoundTripTime is

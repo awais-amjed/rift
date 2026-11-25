@@ -60,7 +60,11 @@ class ParticipantBotSection extends StatelessWidget {
       await voiceBots.refresh();
       HelperMethods.showToast(
         title: 'Sent away',
-        description: '$name has left the call.',
+        // The server could not reach the voice server to drop it: it cannot
+        // come back, but plays on until it leaves by itself.
+        description: result.stillConnected
+            ? "$name can't rejoin, but is still connected for now."
+            : '$name has left the call.',
       );
       return;
     }

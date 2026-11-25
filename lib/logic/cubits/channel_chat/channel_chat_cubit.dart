@@ -250,6 +250,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   @visibleForTesting
   static const keyHealGrace = Duration(seconds: 3);
 
+  /// How long after a failed read of the channel's bot readers to ask again.
+  static const botListenerRetryGap = Duration(seconds: 5);
+
   /// Guards against a stale async continuation writing into a newer channel.
   int _openGeneration = 0;
 
@@ -399,7 +402,11 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
 
     final listeners = await listenersRead;
     if (_isStale(generation)) return;
-    emit(state.copyWith(botListeners: listeners));
+    if (listeners != null) {
+      emit(state.copyWith(botListeners: listeners));
+    } else {
+      unawaited(_retryBotListeners(channelId));
+    }
 
     final bots = await botsRead;
     if (_isStale(generation)) return;
@@ -623,11 +630,28 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   /// marker that is only correct at the moment a channel was opened is not a
   /// standing one. Granting or revoking from the dialog calls this, so the
   /// header stops saying a bot is reading a room it was just shut out of.
+  ///
+  /// A read that fails keeps the chip as it is.
   Future<void> refreshBotListeners() async {
     final channelId = state.channelId;
     if (channelId == null) return;
     final listeners = await _botKeys.channelListeners(channelId);
-    if (isClosed || state.channelId != channelId) return;
+    if (isClosed || state.channelId != channelId || listeners == null) return;
     emit(state.copyWith(botListeners: listeners));
+  }
+
+  /// The read made as the channel opened failed, so there is nothing to
+  /// keep: try again a few times rather than leave the chip off until the
+  /// next grant or revoke, however long the channel stays open.
+  Future<void> _retryBotListeners(String channelId, {int left = 3}) async {
+    await Future<void>.delayed(botListenerRetryGap);
+    if (isClosed || state.channelId != channelId) return;
+    final listeners = await _botKeys.channelListeners(channelId);
+    if (isClosed || state.channelId != channelId) return;
+    if (listeners != null) {
+      emit(state.copyWith(botListeners: listeners));
+    } else if (left > 1) {
+      unawaited(_retryBotListeners(channelId, left: left - 1));
+    }
   }
 }

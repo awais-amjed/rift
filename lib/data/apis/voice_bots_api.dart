@@ -32,13 +32,20 @@ class VoiceBotsApi {
   ServerRepository get _repository => _session.repository;
 
   /// Let [botId] hear [channelId], or stop it.
-  Future<({bool success, String? error})> setBotVoiceListen({
+  ///
+  /// [stillConnected] is a change saved that the voice server was not told:
+  /// a bot in the call keeps hearing (or not) on the token it holds until it
+  /// leaves, up to that token's hour.
+  Future<({bool success, String? error, bool stillConnected})>
+  setBotVoiceListen({
     required String channelId,
     required String botId,
     required bool listen,
   }) async {
     final server = _target.server;
-    if (server == null) return (success: false, error: 'No server');
+    if (server == null) {
+      return (success: false, error: 'No server', stillConnected: false);
+    }
 
     final response = await _session.callFor(
       server,
@@ -52,9 +59,17 @@ class VoiceBotsApi {
       ),
     );
     if (!response.success) {
-      return (success: false, error: response.error ?? 'Could not do that');
+      return (
+        success: false,
+        error: response.error ?? 'Could not do that',
+        stillConnected: false,
+      );
     }
-    return (success: true, error: null);
+    return (
+      success: true,
+      error: null,
+      stillConnected: _liveKitMissed(response.data),
+    );
   }
 
   /// Ask [botId] into [channelId], or send it away (`summon_bot_to_voice`).
@@ -69,14 +84,18 @@ class VoiceBotsApi {
   /// summon that did not land means the bot does not turn up, which is a thing
   /// somebody can see and try again, not a reason to fail the message that
   /// carried it.
-  Future<({bool success, String? error})> setBotVoiceSummon({
+  ///
+  /// [stillConnected] is a bot sent away that the voice server did not drop:
+  /// it cannot come back, but plays on until it leaves by itself.
+  Future<({bool success, String? error, bool stillConnected})>
+  setBotVoiceSummon({
     required String channelId,
     required String botId,
     required bool summon,
   }) async {
     final server = _target.server;
     if (server == null) {
-      return (success: false, error: ServerSession.gone);
+      return (success: false, error: ServerSession.gone, stillConnected: false);
     }
 
     final response = await _session.callFor(
@@ -91,9 +110,17 @@ class VoiceBotsApi {
       ),
     );
     if (!response.success) {
-      return (success: false, error: response.error ?? 'Could not do that');
+      return (
+        success: false,
+        error: response.error ?? 'Could not do that',
+        stillConnected: false,
+      );
     }
-    return (success: true, error: null);
+    return (
+      success: true,
+      error: null,
+      stillConnected: _liveKitMissed(response.data),
+    );
   }
 
   /// Seal one bot its media key for [channelId].
@@ -133,9 +160,12 @@ class VoiceBotsApi {
   ///
   /// The whole server in one call, because the sidebar draws every voice
   /// channel at once and a query per row would be a query per row.
-  Future<Map<String, List<({String id, String name})>>>
+  ///
+  /// Null when the read failed, which is not "nobody listens".
+  Future<Map<String, List<({String id, String name})>>?>
   voiceListenersByChannel() async {
-    final rows = await _voiceListenerRows(null) ?? const [];
+    final rows = await _voiceListenerRows(null);
+    if (rows == null) return null;
     final byChannel = <String, List<({String id, String name})>>{};
     for (final row in rows) {
       (byChannel[row['channel_id'] as String] ??= []).add((
@@ -152,10 +182,12 @@ class VoiceBotsApi {
   /// separate one: they answer different questions and a client draws them
   /// differently. A listener is somebody else hearing the room; a summon is a
   /// bot that was asked in and may not have arrived yet.
-  Future<Map<String, List<({String id, String name})>>>
+  ///
+  /// Null when the read failed.
+  Future<Map<String, List<({String id, String name})>>?>
   voiceSummonsByChannel() async {
     final server = _target.server;
-    if (server == null) return const {};
+    if (server == null) return null;
 
     final response = await _session.callFor(
       server,
@@ -165,7 +197,7 @@ class VoiceBotsApi {
         bearerToken: token,
       ),
     );
-    if (!response.success) return const {};
+    if (!response.success) return null;
 
     final rows =
         ((response.data as Map<String, dynamic>)['summons'] as List? ??
@@ -231,4 +263,9 @@ class VoiceBotsApi {
             const [])
         .cast<Map<String, dynamic>>();
   }
+
+  /// Whether the server saved the change but could not reach LiveKit to put
+  /// it on the live connection (`livekit_error` in its answer).
+  static bool _liveKitMissed(Object? data) =>
+      data is Map && data['livekit_error'] != null;
 }

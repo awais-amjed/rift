@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../../logic/services/rust_watch.dart';
 import '../../../../../logic/services/video_stats_sampler.dart';
 import '../../../../../logic/services/video_stream_stats.dart';
+import '../../../../../logic/visibility/app_seen_listener.dart';
 
 /// Polls a watched stream's receive stats once a second and hands them to
 /// [builder]. One poller feeds both the quality badge and the stats card, so
@@ -15,15 +16,25 @@ import '../../../../../logic/services/video_stream_stats.dart';
 /// connection holds, which has no track in the call, from Rust by its
 /// [rustShare] identity. With neither — a camera, your own share, a share not
 /// yet watched — nothing is polled and [builder] gets null.
+///
+/// Nor while nothing would show the numbers ([active] false: the stats card
+/// is off and the sharer says what it sends), or while nobody can see Rift.
+/// The picture is held then, not unsubscribed, so the track is still there,
+/// and a poll a second went on asking WebRTC and redrawing the stage for
+/// nobody.
 class StreamStatsPoller extends StatefulWidget {
   final VideoTrack? track;
   final String? rustShare;
+
+  /// Whether anything drawn from [builder] reads the stats.
+  final bool active;
   final Widget Function(BuildContext context, VideoStreamStats? stats) builder;
 
   const StreamStatsPoller({
     super.key,
     required this.track,
     this.rustShare,
+    this.active = true,
     required this.builder,
   });
 
@@ -38,9 +49,15 @@ class _StreamStatsPollerState extends State<StreamStatsPoller> {
   Timer? _timer;
   VideoStreamStats? _stats;
 
+  /// Whether anybody can see Rift, as last read; null before the first read.
+  bool? _seen;
+
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final seen = AppSeenListener.seenFrom(context);
+    if (seen == _seen) return;
+    _seen = seen;
     _restart();
   }
 
@@ -50,7 +67,8 @@ class _StreamStatsPollerState extends State<StreamStatsPoller> {
     // A sampler's rates are differences against its last poll, so a new
     // track starts from a new one.
     if (oldWidget.track != widget.track ||
-        oldWidget.rustShare != widget.rustShare) {
+        oldWidget.rustShare != widget.rustShare ||
+        oldWidget.active != widget.active) {
       _restart();
     }
   }
@@ -67,6 +85,7 @@ class _StreamStatsPollerState extends State<StreamStatsPoller> {
     _sampler = VideoStatsSampler();
     _stats = null;
     if (widget.track == null && widget.rustShare == null) return;
+    if (!widget.active || _seen != true) return;
     _timer = Timer.periodic(_pollInterval, (_) => _poll());
     _poll();
   }

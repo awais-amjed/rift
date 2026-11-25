@@ -183,6 +183,9 @@ class CollapsedParticipantTile extends StatelessWidget {
                       rustShare: isWatching && picture != null
                           ? shareIdentity
                           : null,
+                      // Only the badge reads them, and only when the
+                      // sharer does not say what it sends.
+                      active: sentQuality == null,
                       builder: (context, stats) => Row(
                         mainAxisSize: MainAxisSize.min,
                         spacing: 6,

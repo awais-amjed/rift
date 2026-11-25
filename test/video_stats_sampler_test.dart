@@ -130,6 +130,18 @@ void main() {
       expect(stats.jitterMs, closeTo(4, 0.001));
     });
 
+    test('reads the RTT from a later succeeded pair when one has none', () {
+      final stats = VideoStatsSampler().sample([
+        StatsReport('p1', 'candidate-pair', 0, {'state': 'succeeded'}),
+        StatsReport('p2', 'candidate-pair', 0, {
+          'state': 'succeeded',
+          'currentRoundTripTime': 0.031,
+        }),
+        inbound(at: 0),
+      ]);
+      expect(stats!.rttMs, closeTo(31, 0.001));
+    });
+
     test('loss is of the last poll, not since watching began', () {
       final sampler = VideoStatsSampler();
       // 40 lost early on, which the running count keeps for good.

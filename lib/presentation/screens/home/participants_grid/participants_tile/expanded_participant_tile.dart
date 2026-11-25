@@ -187,6 +187,8 @@ class ExpandedParticipantTile extends StatelessWidget {
           return StreamStatsPoller(
             track: isWatching ? videoTrack : null,
             rustShare: isWatching && picture != null ? shareIdentity : null,
+            // The card, or the badge when the sharer does not say.
+            active: showStats || sentQuality == null,
             builder: (context, stats) => _stage(
               context,
               stats,

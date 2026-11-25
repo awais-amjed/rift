@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/apis/voice_bots_api.dart';
@@ -8,28 +9,9 @@ import '../../../data/repositories/session_repository.dart';
 import '../../services/server_topic_watcher.dart';
 import '../../services/server_topics.dart';
 
-/// One bot summoned into a voice channel.
-typedef SummonedBot = ({String id, String name});
+part 'voice_listeners_state.dart';
 
-/// One bot that can hear a voice channel.
-typedef ListeningBot = ({String id, String name});
-
-/// What the sidebar knows about bots and voice channels.
-///
-/// Two lists rather than one because they are two different facts. A listener
-/// is somebody outside the room hearing it, which is a warning and is drawn as
-/// one. A summon is a bot that was asked in — it publishes and cannot hear —
-/// which is furniture, and is here mostly so one that never arrived can still
-/// be seen and sent away.
-class VoiceBotsState {
-  /// The bots that can hear each channel.
-  final Map<String, List<ListeningBot>> listeners;
-
-  /// Bots summoned into each channel, with the id needed to dismiss one.
-  final Map<String, List<SummonedBot>> summons;
-
-  const VoiceBotsState({this.listeners = const {}, this.summons = const {}});
-}
+// ── Cubit ────────────────────────────────────────────────────────────────────
 
 /// Which bots can hear which of one server's voice channels, and which have
 /// been called into one — for the markers in the sidebar.
@@ -48,6 +30,9 @@ class VoiceBotsState {
 class VoiceListenersCubit extends Cubit<VoiceBotsState> {
   final SessionRepository _session;
   late final ServerTopicWatcher _watcher;
+
+  /// Counts reads, so only the newest one lands ([refresh]).
+  int _reads = 0;
 
   VoiceListenersCubit({
     required SessionRepository session,
@@ -84,6 +69,7 @@ class VoiceListenersCubit extends Cubit<VoiceBotsState> {
     // Clear first. Carrying grants read under an old session across would
     // put a recording light on a channel that may no longer have one, which
     // is the one direction this marker must never be wrong in.
+    _reads++;
     emit(const VoiceBotsState());
     if (server != null) unawaited(refresh());
   }
@@ -95,16 +81,27 @@ class VoiceListenersCubit extends Cubit<VoiceBotsState> {
   /// Two round trips, started together: they are different tables and the
   /// sidebar wants them at the same moment, so serialising them would show a
   /// channel with its listeners and no summons for one frame.
+  ///
+  /// A read that fails keeps what is shown: an empty answer would take a
+  /// bot's "can hear" marker down while it still hears, and nothing reads
+  /// again until the next ring. Only the newest read lands, so one that was
+  /// slow cannot put back what a later one has already moved past.
   Future<void> refresh() async {
     final serverId = _watcher.serverId;
     if (serverId == null) return;
+    final read = ++_reads;
     final api = VoiceBotsApi(_session.on(serverId));
     final (listeners, summons) = await (
       api.voiceListenersByChannel(),
       api.voiceSummonsByChannel(),
     ).wait;
-    if (isClosed || _watcher.serverId != serverId) return;
-    emit(VoiceBotsState(listeners: listeners, summons: summons));
+    if (isClosed || _watcher.serverId != serverId || read != _reads) return;
+    emit(
+      VoiceBotsState(
+        listeners: listeners ?? state.listeners,
+        summons: summons ?? state.summons,
+      ),
+    );
   }
 
   @override

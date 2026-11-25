@@ -12,6 +12,7 @@ import 'package:rift/logic/cubits/screenshare/screenshare_cubit.dart';
 import 'package:rift/logic/cubits/server/server_cubit.dart';
 import 'package:rift/logic/cubits/soundboard/soundboard_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
+import 'package:rift/logic/cubits/voice_stats/voice_stats_cubit.dart';
 import 'package:rift/logic/visibility/app_seen_listener.dart';
 import 'package:rift/presentation/screens/home/call_clip/call_clip_dialog.dart';
 import 'package:rift/presentation/screens/home/call_clip/call_clip_opener.dart';
@@ -105,6 +106,7 @@ void main() {
           BlocProvider(create: (_) => AppCubit()),
           BlocProvider<ServerCubit>(create: (_) => _StubServerCubit()),
           BlocProvider<LiveKitCubit>.value(value: livekit),
+          BlocProvider(create: (_) => VoiceStatsCubit(livekitCubit: livekit)),
           BlocProvider<ScreenshareCubit>(
             create: (_) => _StubScreenshareCubit(),
           ),

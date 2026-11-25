@@ -143,8 +143,11 @@ class BotKeysApi {
   /// Read on channel open and shown in the header, not behind a menu: a
   /// standing marker is the point (BOTS.md §6, rule 4). A dialog somebody has
   /// to go looking for tells the people who already knew.
-  Future<List<String>> channelListeners(String channelId) async {
-    final rows = await _listeners(channelId) ?? const [];
+  ///
+  /// Null when the read failed, which is not "no bot reads this".
+  Future<List<String>?> channelListeners(String channelId) async {
+    final rows = await _listeners(channelId);
+    if (rows == null) return null;
     return [
       for (final r in rows)
         (r['display_name'] as String?) ?? (r['username'] as String? ?? 'a bot'),
