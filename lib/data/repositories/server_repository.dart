@@ -155,6 +155,7 @@ class ServerRepository
         body: jsonEncode(body),
       ).timeout(const Duration(seconds: 15));
       var response = await send();
+      if (_isMissingFunction(response)) return _missingFunction(response);
       if (_askAgain.contains(response.statusCode)) {
         APIResponse.log?.call(
           '$functionName: the gateway answered ${response.statusCode}; '
@@ -162,6 +163,7 @@ class ServerRepository
         );
         await Future<void>.delayed(askAgainAfter);
         response = await send();
+        if (_isMissingFunction(response)) return _missingFunction(response);
       }
       if (_gatewayTrouble.contains(response.statusCode)) {
         return APIResponse.error(
@@ -208,19 +210,6 @@ class ServerRepository
         serverTime: serverTime,
       );
     }
-    // The edge runtime's own answer for a function this server does not
-    // have, which is not the `{success, data, error, code}` envelope.
-    final runtimeMessage = data['msg'];
-    if (!data.containsKey('success') &&
-        runtimeMessage is String &&
-        runtimeMessage.contains('could not find an appropriate entrypoint')) {
-      return APIResponse(
-        success: false,
-        error: 'This server needs an update for that',
-        errorCode: ErrorCode.functionMissing,
-        serverTime: serverTime,
-      );
-    }
     return APIResponse(
       success: false,
       error: data['error'] as String? ?? 'Unknown error',
@@ -228,6 +217,31 @@ class ServerRepository
       serverTime: serverTime,
     );
   }
+
+  /// The edge runtime's own answer for a function this server does not have
+  /// — an older server, before the function came in: a 500 whose body is not
+  /// the `{success, data, error, code}` envelope. It is read before the 500
+  /// counts as trouble, or the caller's fallback to the older call never ran,
+  /// and before a second try, which could not find it either.
+  static bool _isMissingFunction(http.Response response) {
+    if (response.statusCode != 500) return false;
+    try {
+      final body = jsonDecode(response.body);
+      final message = body is Map<String, dynamic> ? body['msg'] : null;
+      return message is String &&
+          !body.containsKey('success') &&
+          message.contains('could not find an appropriate entrypoint');
+    } on FormatException {
+      return false;
+    }
+  }
+
+  static APIResponse _missingFunction(http.Response response) => APIResponse(
+    success: false,
+    error: 'This server needs an update for that',
+    errorCode: ErrorCode.functionMissing,
+    serverTime: _serverTime(response),
+  );
 
   static DateTime? _serverTime(http.Response response) {
     final date = response.headers['date'];

@@ -49,6 +49,31 @@ void main() {
     expect(server.asked, hasLength(2));
   });
 
+  test('a function this server does not have is said so, at once', () async {
+    // The edge runtime's own 500 for a function missing from an older
+    // server, which a caller falls back from — read as trouble, the fallback
+    // never ran and the person waited for a second try that could not work.
+    final asked = <int>[];
+    final repo = ServerRepository(
+      askAgainAfter: Duration.zero,
+      client: MockClient((request) async {
+        asked.add(500);
+        return http.Response(
+          jsonEncode({
+            'msg':
+                'InvalidWorkerCreation: worker boot error: failed to '
+                'bootstrap runtime: could not find an appropriate entrypoint',
+          }),
+          500,
+        );
+      }),
+    );
+    final response = await repo.getChannelToken('https://s', 'c');
+    expect(response.success, isFalse);
+    expect(response.errorCode, ErrorCode.functionMissing);
+    expect(asked, [500]);
+  });
+
   test('a call the gateway gave up waiting on is not sent again', () async {
     // The function may still be running, and a second one could write twice.
     final server = serverAnswering([504]);
