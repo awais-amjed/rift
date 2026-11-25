@@ -32,12 +32,25 @@ Future<T?> showAppSheet<T>(BuildContext context, Widget child) {
     useRootNavigator: true,
     isScrollControlled: true,
     useSafeArea: true,
-    backgroundColor: context.theme.bgSecondary,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(PopoverSurface.radius),
+    // Painted by the sheet's own build rather than read here once: a theme
+    // change while it is open (the system's, under System) moved the text and
+    // left the surface behind it the old colour.
+    backgroundColor: Colors.transparent,
+    shape: _shape,
+    clipBehavior: Clip.antiAlias,
+    builder: (sheetContext) => CompactOnly(
+      child: Material(
+        color: sheetContext.theme.bgSecondary,
+        shape: _shape,
+        clipBehavior: Clip.antiAlias,
+        child: SafeArea(top: false, child: sheet),
       ),
     ),
-    builder: (_) => CompactOnly(child: SafeArea(top: false, child: sheet)),
   );
 }
+
+const _shape = RoundedRectangleBorder(
+  borderRadius: BorderRadius.vertical(
+    top: Radius.circular(PopoverSurface.radius),
+  ),
+);

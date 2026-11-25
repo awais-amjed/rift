@@ -57,7 +57,11 @@ class _MobileShellState extends State<MobileShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final app = context.read<AppCubit>().state;
-      if (app.selectedChannelId != null) _open(MobilePage.call);
+      // A DM call has no channel selected, and is a call page all the same.
+      if (app.selectedChannelId != null ||
+          context.read<LiveKitCubit>().state.dmCall != null) {
+        _open(MobilePage.call);
+      }
       final open = [
         if (context.read<ChannelChatCubit>().state.channelId != null)
           MobilePage.channelChat,
