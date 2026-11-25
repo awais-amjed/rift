@@ -681,7 +681,8 @@ and on being able to see the channel.
 
 A bot is also never `roomAdmin`, which it could previously become by holding a
 moderator role for text reasons. Muting and removing people in a call is not
-something to acquire as a side effect.
+something to acquire as a side effect. Since server 1.9.1 nobody is: every
+moderation act goes through an edge function that asks the database first.
 
 ### Letting a bot listen is a key grant, like §6's
 

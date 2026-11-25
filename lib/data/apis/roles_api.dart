@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../logic/services/role_ladder.dart';
 import '../classes/api_response.dart';
 import '../classes/role.dart';
@@ -147,6 +149,8 @@ class RolesApi {
     bool clearColor = false,
   }) => _changeRole(
     refused: _outranked,
+    // A name, colour or place changes nothing a call holds.
+    affectsCalls: permissions != null,
     (server, token) => _repository.updateRole(
       server.supabaseUrl,
       roleId,
@@ -212,6 +216,7 @@ class RolesApi {
   Future<({bool success, String? error})> _changeRole(
     Future<APIResponse> Function(Server server, String token) call, {
     String? refused,
+    bool affectsCalls = true,
   }) async {
     final server = _target.server;
     if (server == null) {
@@ -228,6 +233,22 @@ class RolesApi {
     final rows = (response.data as Map?)?['rows'] as List?;
     if (refused != null && rows != null && rows.isEmpty) {
       return (success: false, error: refused);
+    }
+
+    // A running call heard none of it: a role is a database row, and a call
+    // is checked when somebody joins. Not waited on, since the change itself
+    // has landed, and a server from before `refresh_calls` answers with an
+    // error nobody needs to see.
+    if (affectsCalls) {
+      unawaited(
+        _session.callFor(
+          server,
+          (token) => _repository.refreshCalls(
+            server.supabaseUrl,
+            bearerToken: token,
+          ),
+        ),
+      );
     }
 
     await _session.refreshDetails(server);

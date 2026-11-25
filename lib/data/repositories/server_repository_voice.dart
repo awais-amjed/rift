@@ -92,6 +92,21 @@ mixin _VoiceApiMixin {
   /// this one needs the *Storage API*. `storage.protect_delete()` refuses a
   /// direct DELETE on `storage.objects`, so no database role can free a blob —
   /// only something holding the service key can finish the job.
+  /// Bring this server's running calls up to date after a role change
+  /// (`refresh_calls`): whoever the change shut out of a channel leaves its
+  /// call, and the rest speak and press clips as their roles now say. A role
+  /// is written straight to the database, which cannot reach LiveKit, and a
+  /// call is otherwise only checked when somebody joins it.
+  Future<APIResponse> refreshCalls(
+    String supabaseUrl, {
+    String? bearerToken,
+  }) => _post(
+    supabaseUrl,
+    'refresh_calls',
+    const {},
+    bearerToken: bearerToken,
+  );
+
   Future<APIResponse> sweepAttachments(
     String supabaseUrl, {
     String? bearerToken,
