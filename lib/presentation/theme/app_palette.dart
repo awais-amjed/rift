@@ -66,8 +66,6 @@ class PaletteColors {
   /// because they sit over lit content rather than the canvas.
   final Color borderElevated;
 
-  final Color sidebarBg;
-
   // ── Accent-derived active states (selected channel, selected cards) ────────
   final Color channelActiveBg;
   final Color channelActiveText;
@@ -93,7 +91,6 @@ class PaletteColors {
     required this.textQuaternary,
     required this.border,
     required this.borderElevated,
-    required this.sidebarBg,
     required this.channelActiveBg,
     required this.channelActiveText,
     required this.channelActiveBorder,
@@ -114,7 +111,8 @@ class PaletteColors {
 
   // ── Derived gradients ─────────────────────────────────────────────────────
 
-  /// Primary buttons and the composer's send control.
+  /// The play control on a voice message. Primary buttons and the send
+  /// control are solid accent (AGENTS.md, *Selection*).
   LinearGradient get actionGradient => LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,

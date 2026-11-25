@@ -31,20 +31,6 @@ class ThemeCubit extends HydratedCubit<ThemeState> {
     emit(state.copyWith(paletteId: paletteId));
   }
 
-  /// Flip to the other brightness, leaving [ThemeMode.system] behind.
-  ///
-  /// [showing] is the brightness on screen right now, which is the only thing
-  /// that knows what "the other one" means while the preference is System.
-  void switchTheme({Brightness showing = Brightness.dark}) {
-    emit(
-      state.copyWith(
-        themeMode: showing == Brightness.dark
-            ? ThemeMode.light
-            : ThemeMode.dark,
-      ),
-    );
-  }
-
   @override
   ThemeState? fromJson(Map<String, dynamic> json) {
     return ThemeState.fromJson(json);

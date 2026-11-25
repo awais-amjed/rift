@@ -136,9 +136,19 @@ class AppTheme {
     );
   }
 
-  static ThemeData dark(AppPalette palette) =>
-      fromPalette(palette, Brightness.dark);
+  /// One of each, built once. The app asks on every build of the root, which
+  /// is every frame of a window resize, and each is two seeded colour schemes
+  /// and a theme's worth of styles. The same object back also lets the
+  /// framework see nothing changed.
+  static final _built = <(String, Brightness), ThemeData>{};
 
-  static ThemeData light(AppPalette palette) =>
-      fromPalette(palette, Brightness.light);
+  static ThemeData dark(AppPalette palette) => _built.putIfAbsent((
+    palette.id,
+    Brightness.dark,
+  ), () => fromPalette(palette, Brightness.dark));
+
+  static ThemeData light(AppPalette palette) => _built.putIfAbsent((
+    palette.id,
+    Brightness.light,
+  ), () => fromPalette(palette, Brightness.light));
 }

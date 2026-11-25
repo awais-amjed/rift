@@ -34,8 +34,10 @@ class ThemeState extends ThemeExtension<ThemeState> with Equatable {
     return t < 0.5 ? this : other;
   }
 
-  bool get isLightTheme => themeMode == ThemeMode.light;
-
+  /// Dark only when chosen: [ThemeMode.system] reads as light here. The
+  /// state `context.theme` returns has the mode resolved, so a widget is
+  /// right to ask it; what reads the cubit's own state is asking about the
+  /// preference, and must say System for System.
   bool get isDarkTheme => themeMode == ThemeMode.dark;
 
   AppPalette get palette => AppPalette.byId(paletteId);
@@ -58,7 +60,7 @@ class ThemeState extends ThemeExtension<ThemeState> with Equatable {
 
   Color get gradientPartner => colors.gradientPartner;
 
-  /// Primary buttons and the composer's send control.
+  /// See `PaletteColors.actionGradient`.
   LinearGradient get actionGradient => colors.actionGradient;
 
   /// Server icons and the local user's avatar.
@@ -106,9 +108,6 @@ class ThemeState extends ThemeExtension<ThemeState> with Equatable {
   Color get channelActiveText => colors.channelActiveText;
 
   Color get channelActiveBorder => colors.channelActiveBorder;
-
-  // Sidebar
-  Color get sidebarBg => colors.sidebarBg;
 
   // Call
   /// A participant's tile on the stage. The chrome step in dark, where the
