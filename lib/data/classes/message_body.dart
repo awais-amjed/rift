@@ -84,6 +84,41 @@ class MessageBody extends Equatable {
     },
   );
 
+  /// This body with only the files stored under [scope], the folder of the
+  /// conversation it was read in (a channel's id, or `dm_<a>_<b>`).
+  ///
+  /// The server asks a channel's `ATTACH_FILES` of the folder an upload is
+  /// named for (`app.can_attach`), and cannot see which conversation a sealed
+  /// body names that file in. So a modified app could upload where files are
+  /// allowed and post the file where they are not. Every honest sender names
+  /// its files for the conversation they are sent in — a forward is uploaded
+  /// again into its destination — so a file from anywhere else is not drawn.
+  MessageBody keptTo(String scope) {
+    bool ours(Attachment a) =>
+        a.storagePath.startsWith('$scope/') &&
+        (a.poster == null || ours(a.poster!));
+    final preview = this.preview;
+    final forwarded = this.forwarded;
+    return MessageBody(
+      version: version,
+      text: text,
+      attachments: attachments.where(ours).toList(),
+      preview: preview?.image == null || ours(preview!.image!)
+          ? preview
+          : LinkPreview(
+              url: preview.url,
+              title: preview.title,
+              description: preview.description,
+              siteName: preview.siteName,
+            ),
+      replyToId: replyToId,
+      forwarded: forwarded?.withAttachments(
+        forwarded.attachments.where(ours).toList(),
+      ),
+      poll: poll,
+    );
+  }
+
   /// A forward with no words of its own is not empty — the thing being sent
   /// is what it carries.
   bool get isEmpty =>

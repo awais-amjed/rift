@@ -128,7 +128,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
           result.add(_lockedRow(row, localUserId));
           continue;
         }
-        final body = MessageBody.decode(opened.plaintext!);
+        final body = MessageBody.decode(opened.plaintext!).keptTo(channelId);
         result.add(
           ChatMessage(
             id: '${row['id']}',

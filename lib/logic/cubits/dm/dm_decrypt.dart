@@ -90,7 +90,9 @@ mixin _DmDecryptMixin on Cubit<DmState> {
         case SealedOutcome.opened:
       }
 
-      final body = MessageBody.decode(opened.plaintext!);
+      final body = MessageBody.decode(opened.plaintext!).keptTo(
+        DmCubit.conversationContext(localUserId, peerId).replaceAll(':', '_'),
+      );
       return ChatMessage(
         id: '${row['id']}',
         authorId: senderId,

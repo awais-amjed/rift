@@ -87,7 +87,9 @@ class PlainRows {
     // The same body a sealed message carries, when it came from a channel
     // whose encryption is off — files, a reply, a preview, a poll. A command
     // is bare text, which reads back as itself.
-    final body = MessageBody.decode(row['ciphertext'] as String? ?? '');
+    final body = MessageBody.decode(
+      row['ciphertext'] as String? ?? '',
+    ).keptTo(channelId);
     return ChatMessage(
       id: '${row['id']}',
       authorId: row['sender_id'] as String? ?? '',

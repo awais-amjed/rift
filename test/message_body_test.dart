@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/attachment.dart';
 import 'package:rift/data/classes/chat_message.dart';
 import 'package:rift/data/classes/forwarded_message.dart';
+import 'package:rift/data/classes/link_preview.dart';
 import 'package:rift/data/classes/message_body.dart';
 
 void main() {
@@ -17,6 +18,44 @@ void main() {
     width: 640,
     height: 480,
   );
+
+  group('MessageBody.keptTo', () {
+    Attachment at(String path, {Attachment? poster}) => Attachment(
+      id: path,
+      kind: AttachmentKind.image,
+      name: 'f',
+      mime: 'image/png',
+      size: 1,
+      storagePath: path,
+      keyB64: 'k',
+      nonceB64: 'n',
+      poster: poster,
+    );
+
+    test('draws only the files stored under its own conversation', () {
+      final body = MessageBody(
+        text: 'hi',
+        attachments: [
+          at('chan-1/a.bin'),
+          at('chan-2/b.bin'),
+          at('chan-1/c.bin', poster: at('chan-2/p.bin')),
+          // A prefix of the scope is not the scope.
+          at('chan-10/d.bin'),
+        ],
+        preview: LinkPreview(url: 'https://x.test', title: 'X', image: at('chan-2/i.bin')),
+        forwarded: ForwardedMessage(
+          text: 'fw',
+          attachments: [at('chan-1/e.bin'), at('dm_a_b/f.bin')],
+        ),
+      ).keptTo('chan-1');
+
+      expect(body.attachments.map((a) => a.storagePath), ['chan-1/a.bin']);
+      expect(body.preview?.title, 'X');
+      expect(body.preview?.image, isNull);
+      expect(body.forwarded?.attachments.map((a) => a.storagePath), ['chan-1/e.bin']);
+      expect(body.text, 'hi');
+    });
+  });
 
   group('MessageBody encode/decode', () {
     test('round-trips text + attachments', () {
