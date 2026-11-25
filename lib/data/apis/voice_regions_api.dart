@@ -99,6 +99,27 @@ class VoiceRegionsApi {
         failure: 'Failed to remove the region',
       );
 
+  /// The ids of the regions whose webhook has reached the server, so the
+  /// region list can say which never has: without it, calls there still work,
+  /// but nobody is told who left them, and a join with an old token is not
+  /// checked. Null when that cannot be told — a server from before console
+  /// 1.9.1, or a failed read — and then nothing is said.
+  Future<Set<String>?> heardRegions() async {
+    final server = _target.server;
+    if (server == null) return null;
+    final response = await _session.callFor(
+      server,
+      (token) => _repository.heardVoiceRegions(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: token,
+      ),
+    );
+    final ids = response.data;
+    if (!response.success || ids is! List) return null;
+    return {for (final id in ids) id as String};
+  }
+
   Future<({bool success, String? error})> _change(
     Future<APIResponse> Function(Server server, String token) call, {
     required String failure,

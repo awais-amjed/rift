@@ -123,4 +123,23 @@ mixin _VoiceRegionsMixin {
       return null;
     });
   }
+
+  /// The nodes whose webhook has reached the server at least once
+  /// (`livekit_nodes.webhook_heard_at`), by id. Read apart from the server's
+  /// details, by the one page that shows it. A server from before that column
+  /// answers with an error.
+  Future<APIResponse> heardVoiceRegions(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+  }) {
+    return ServerDb.run(() async {
+      final rows = await _db
+          .client(supabaseUrl, anonKey, bearerToken)
+          .from('livekit_nodes')
+          .select('id')
+          .not('webhook_heard_at', 'is', null);
+      return [for (final row in rows as List) row['id'] as String];
+    });
+  }
 }

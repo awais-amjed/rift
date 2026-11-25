@@ -48,6 +48,25 @@ class VoiceRegionsSection extends StatefulWidget {
 class _VoiceRegionsSectionState extends State<VoiceRegionsSection> {
   bool _busy = false;
 
+  /// The regions whose webhook has reached the server, read as the page
+  /// opens; null until then, or when the server cannot say. Held here, not
+  /// in the server's state: nothing else shows it, and it only needs to be
+  /// as fresh as the page.
+  Set<String>? _heard;
+
+  @override
+  void initState() {
+    super.initState();
+    _readHeard();
+  }
+
+  Future<void> _readHeard() async {
+    final heard = await VoiceRegionsApi(
+      ServerScope.read(context),
+    ).heardRegions();
+    if (mounted) setState(() => _heard = heard);
+  }
+
   /// Asks first, and says what it is about to take away.
   ///
   /// A channel pinned to this region is not blocked from losing it — the
@@ -109,6 +128,11 @@ class _VoiceRegionsSectionState extends State<VoiceRegionsSection> {
             enabled: changeable,
             onEdit: () => showVoiceRegionDialog(context, node: node),
             onRemove: node.isDefault ? null : () => _remove(node),
+            // The default is the server's own LiveKit, which the console's
+            // Health checks from its settings; one never heard from there
+            // is only a server that has held no call yet.
+            neverHeard:
+                !node.isDefault && _heard != null && !_heard!.contains(node.id),
           ),
           const SizedBox(height: 8),
         ],

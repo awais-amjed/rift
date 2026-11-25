@@ -5,6 +5,7 @@ import '../../../../../../data/constants.dart';
 import '../../../../../common/item_card.dart';
 import '../../../../../common/row_delete_button.dart';
 import '../../../../../theme/app_text.dart';
+import '../../../../../theme/custom_colors.dart';
 import '../../../../../theme/theme_context.dart';
 
 /// One LiveKit node in the region list: what it is called, where it is, and
@@ -28,12 +29,18 @@ class VoiceRegionRow extends StatelessWidget {
   /// Null for a region that cannot be removed — the default's.
   final VoidCallback? onRemove;
 
+  /// Its webhook has never reached the server: the region's `MAIN_SERVER`
+  /// is wrong, or nobody has held a call there yet, which nothing here can
+  /// tell apart.
+  final bool neverHeard;
+
   const VoiceRegionRow({
     super.key,
     required this.node,
     required this.enabled,
     required this.onEdit,
     required this.onRemove,
+    this.neverHeard = false,
   });
 
   /// The label, plus "(default)" when that is not what it already says: an
@@ -69,6 +76,16 @@ class VoiceRegionRow extends StatelessWidget {
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (neverHeard) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Not heard from yet. If calls have been held here, check '
+                    'MAIN_SERVER in its .env.',
+                    style: AppText.secondary.copyWith(
+                      color: theme.statusInk(CustomColors.warning),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
