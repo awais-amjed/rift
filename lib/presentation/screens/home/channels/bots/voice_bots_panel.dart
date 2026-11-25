@@ -1,20 +1,15 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../../../data/apis/members_api.dart';
 import '../../../../../data/apis/voice_bots_api.dart';
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
-import '../../../../../data/enums/server_permission.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
+import '../../../../../data/repositories/server_session.dart';
 import '../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/confirm_dialog.dart';
 import '../../../../common/hint_card.dart';
-import '../../../../common/loading_block.dart';
-import '../../../../common/server_scope.dart';
-import '../../servers/manage/widgets/manage_panel.dart';
-import 'widgets/channel_bot_row.dart';
+import 'widgets/bot_grant_panel.dart';
 
 /// Which bots can hear this call.
 ///
@@ -32,78 +27,49 @@ import 'widgets/channel_bot_row.dart';
 ///
 /// Nothing here is needed to *play* audio. A music bot publishes, which was
 /// never the half that had to be allowed.
-class VoiceBotsPanel extends StatefulWidget {
+class VoiceBotsPanel extends StatelessWidget {
   final Channel channel;
 
   const VoiceBotsPanel({super.key, required this.channel});
 
   @override
-  State<VoiceBotsPanel> createState() => _VoiceBotsPanelState();
-}
+  Widget build(BuildContext context) => BotGrantPanel(
+    subtitle: 'Bots that can hear calls here',
+    watchedVerb: 'hear this channel',
+    loadGranted: (session) =>
+        VoiceBotsApi(session).voiceListenerIds(channel.id),
+    confirmGrant: (bot) => _confirmGrant(context, bot),
+    setGranted: (session, bot, granting) =>
+        _setGranted(context, session, bot, granting),
+    hint: const HintCard(
+      icon: Icons.music_note_rounded,
+      // The first thing an admin opening this will be trying to do is
+      // usually the thing that needs nothing from them.
+      text:
+          'A bot does not need this to play music. Every bot can '
+          'already speak into a call; this is only about hearing one.',
+    ),
+    grantedNote: 'Hears everyone in this call.',
+    ungrantedNote: 'Can speak here, hears nothing.',
+  );
 
-class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
-  List<ServerMember> _bots = const [];
-  Set<String> _granted = {};
-  bool _isLoading = true;
-
-  /// The read of who holds access failed: drawn as that, not as every bot
-  /// switched off, which offered a revoke only after a "grant".
-  bool _loadFailed = false;
-  String? _busyId;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final session = ServerScope.read(context);
-    final members = MembersApi(session);
-    final voiceBots = VoiceBotsApi(session);
-    // Every bot, not a page of them: this is a picker, and one that silently
-    // left a bot out would be the bug the paged roster exists to fix.
-    final bots = await members.listBotsOrNull();
-    final listening = await voiceBots.voiceListenerIds(widget.channel.id);
-    if (!mounted) return;
-
-    setState(() {
-      _bots = [
-        for (final bot in bots ?? const <ServerMember>[])
-          if (!bot.isBanned) bot,
-      ];
-      _granted = listening ?? {};
-      _loadFailed = bots == null || listening == null;
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _toggle(ServerMember bot) async {
-    final granting = !_granted.contains(bot.id);
-    if (granting && !await _confirmGrant(bot)) return;
-    if (!mounted) return;
-
-    setState(() {
-      _busyId = bot.id;
-      _error = null;
-    });
-    final voiceBots = VoiceBotsApi(ServerScope.read(context));
+  Future<({bool success, String? error})> _setGranted(
+    BuildContext context,
+    ServerSession session,
+    ServerMember bot,
+    bool granting,
+  ) async {
     final listeners = context.read<VoiceListenersCubit>();
-
-    final result = await voiceBots.setBotVoiceListen(
-      channelId: widget.channel.id,
-      botId: bot.id,
-      listen: granting,
-    );
+    final result = await VoiceBotsApi(
+      session,
+    ).setBotVoiceListen(channelId: channel.id, botId: bot.id, listen: granting);
     // The badge on the sidebar tile is the standing marker everyone else reads.
     // It is loaded once per server, so without this it keeps saying a bot can
     // hear a channel it was just shut out of.
     if (result.success) await listeners.refresh();
-    if (!mounted) return;
     // Saved, but the voice server was not told: a bot already in the call
     // keeps what its token said until it leaves.
-    if (result.stillConnected) {
+    if (result.stillConnected && context.mounted) {
       HelperMethods.showToast(
         title: 'Saved',
         description: granting
@@ -111,22 +77,15 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
             : '${bot.displayName} still hears this call until it leaves.',
       );
     }
-
-    setState(() {
-      _busyId = null;
-      if (result.success) {
-        granting ? _granted.add(bot.id) : _granted.remove(bot.id);
-      } else {
-        _error = result.error;
-      }
-    });
+    return (success: result.success, error: result.error);
   }
 
-  /// Only granting asks. Taking it back is the safe direction, and a speed bump
-  /// in front of that would be a speed bump in front of the fix.
-  Future<bool> _confirmGrant(ServerMember bot) => showConfirmDialog(
+  Future<bool> _confirmGrant(
+    BuildContext context,
+    ServerMember bot,
+  ) => showConfirmDialog(
     context: context,
-    title: 'Let ${bot.displayName} hear ${widget.channel.name}?',
+    title: 'Let ${bot.displayName} hear ${channel.name}?',
     message:
         'It will receive everyone’s audio in this channel, including yours, '
         'for as long as it is in the call. Everyone in the channel is told '
@@ -136,75 +95,4 @@ class _VoiceBotsPanelState extends State<VoiceBotsPanel> {
     icon: Icons.hearing_rounded,
     isDestructive: true,
   );
-
-  @override
-  Widget build(BuildContext context) {
-    final serverId = ServerScope.idOf(context);
-    // Selected, so being given or losing the permission while the page is
-    // open moves the switches; and `can`, which answers on a server from
-    // before the bits.
-    final mayManage = context.select<ServerCubit, bool>(
-      (c) =>
-          c.state.permissionsOn(serverId)?.can(ServerPermission.manageBots) ??
-          false,
-    );
-    return ManagePanel(
-      title: 'Bots',
-      subtitle: 'Bots that can hear calls here',
-      error: _error,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_isLoading)
-            const LoadingBlock(height: 140)
-          else if (_loadFailed)
-            const HintCard(
-              icon: Icons.cloud_off_outlined,
-              text:
-                  'Couldn\'t read which bots have access here. Close this '
-                  'and try again.',
-            )
-          else if (_bots.isEmpty)
-            const HintCard(
-              icon: Icons.smart_toy_outlined,
-              text:
-                  'No bots on this server yet. A bot joins through an invite '
-                  'created from “Invite people” with Bot chosen.',
-            )
-          else ...[
-            const HintCard(
-              icon: Icons.music_note_rounded,
-              // The first thing an admin opening this will be trying to do is
-              // usually the thing that needs nothing from them.
-              text:
-                  'A bot does not need this to play music. Every bot can '
-                  'already speak into a call; this is only about hearing one.',
-            ),
-            const SizedBox(height: 12),
-            if (!mayManage) ...[
-              const HintCard(
-                icon: Icons.visibility_outlined,
-                text:
-                    'You can see which bots hear this channel. Changing it '
-                    'needs the manage-bots permission.',
-              ),
-              const SizedBox(height: 12),
-            ],
-            for (final bot in _bots)
-              ChannelBotRow(
-                bot: bot,
-                granted: _granted.contains(bot.id),
-                busy: _busyId == bot.id,
-                grantedNote: 'Hears everyone in this call.',
-                ungrantedNote: 'Can speak here, hears nothing.',
-                onChanged: mayManage && _busyId == null
-                    ? () => _toggle(bot)
-                    : null,
-              ),
-          ],
-        ],
-      ),
-    );
-  }
 }

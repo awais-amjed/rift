@@ -17,21 +17,21 @@ import 'show_custom_dialog.dart';
 /// [width] is what the panel asks for; a window narrower than that gets the
 /// window less a margin. Its height is whatever [child] needs, up to what fits
 /// below the anchor — or above it, with [above], for a button at the foot of
-/// the window, such as one in the call's control bar.
+/// the window, such as one in the call's control bar. [alignLeft] lines up
+/// the left edges instead, for an anchor near the window's left side, where
+/// a panel right-aligned to it would be pushed against the edge.
+///
+/// The anchor is measured again whenever the window changes size, so a panel
+/// hanging over the dock stays on its button rather than where the button was.
 Future<T?> showAnchoredPanel<T>({
   required BuildContext anchor,
   required double width,
   required Widget child,
   bool above = false,
+  bool alignLeft = false,
 }) {
-  final box = anchor.findRenderObject() as RenderBox?;
-  final overlay =
-      Overlay.of(anchor, rootOverlay: true).context.findRenderObject()
-          as RenderBox?;
-  if (box == null || overlay == null || !box.hasSize) {
-    return Future.value();
-  }
-  final rect = box.localToGlobal(Offset.zero, ancestor: overlay) & box.size;
+  final rect = _rectOf(anchor);
+  if (rect == null) return Future.value();
   final panel = ServerScope.carry(anchor, child);
 
   return showGeneralDialog<T>(
@@ -45,9 +45,18 @@ Future<T?> showAnchoredPanel<T>({
     pageBuilder: (context, _, _) => FocusScope(
       autofocus: true,
       onKeyEvent: (_, event) => closeOnEscape(context, event),
-      child: CustomSingleChildLayout(
-        delegate: _ByAnchor(anchor: rect, width: width, above: above),
-        child: panel,
+      child: _Placement(
+        anchor: anchor,
+        first: rect,
+        builder: (rect) => CustomSingleChildLayout(
+          delegate: _ByAnchor(
+            anchor: rect,
+            width: width,
+            above: above,
+            alignLeft: alignLeft,
+          ),
+          child: panel,
+        ),
       ),
     ),
     transitionBuilder: (context, animation, _, child) {
@@ -69,12 +78,74 @@ Future<T?> showAnchoredPanel<T>({
   );
 }
 
-/// Under the anchor (or over it, [above]), right edges aligned, kept inside
-/// the window.
+/// Where [anchor] is in the root overlay, or null once it is gone.
+Rect? _rectOf(BuildContext anchor) {
+  if (!anchor.mounted) return null;
+  final box = anchor.findRenderObject() as RenderBox?;
+  final overlay =
+      Overlay.maybeOf(anchor, rootOverlay: true)?.context.findRenderObject()
+          as RenderBox?;
+  if (box == null || overlay == null || !box.hasSize || !box.attached) {
+    return null;
+  }
+  return box.localToGlobal(Offset.zero, ancestor: overlay) & box.size;
+}
+
+/// The anchor's place, measured again after each change of the window's size.
+///
+/// After the frame, since the anchor is laid out in the same frame the panel
+/// is built in, and measured during it would still be where it was. An anchor
+/// gone by then leaves the panel where it last was.
+class _Placement extends StatefulWidget {
+  final BuildContext anchor;
+  final Rect first;
+  final Widget Function(Rect anchor) builder;
+
+  const _Placement({
+    required this.anchor,
+    required this.first,
+    required this.builder,
+  });
+
+  @override
+  State<_Placement> createState() => _PlacementState();
+}
+
+class _PlacementState extends State<_Placement> {
+  late Rect _rect;
+  Size? _window;
+
+  @override
+  void initState() {
+    super.initState();
+    _rect = widget.first;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final window = MediaQuery.sizeOf(context);
+    if (_window != null && _window != window) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final rect = _rectOf(widget.anchor);
+        if (rect != null && rect != _rect) setState(() => _rect = rect);
+      });
+    }
+    _window = window;
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(_rect);
+}
+
+/// Under the anchor (or over it, [above]), right edges aligned ([alignLeft]:
+/// left ones), kept inside the window.
 class _ByAnchor extends SingleChildLayoutDelegate {
   final Rect anchor;
   final double width;
   final bool above;
+  final bool alignLeft;
 
   /// Between the anchor and the panel, and between the panel and the window.
   static const double _gap = 6;
@@ -87,6 +158,7 @@ class _ByAnchor extends SingleChildLayoutDelegate {
     required this.anchor,
     required this.width,
     required this.above,
+    required this.alignLeft,
   });
 
   @override
@@ -104,7 +176,7 @@ class _ByAnchor extends SingleChildLayoutDelegate {
 
   @override
   Offset getPositionForChild(Size size, Size childSize) {
-    final left = (anchor.right - childSize.width)
+    final left = (alignLeft ? anchor.left : anchor.right - childSize.width)
         .clamp(
           _margin,
           math.max(_margin, size.width - childSize.width - _margin),
@@ -121,5 +193,8 @@ class _ByAnchor extends SingleChildLayoutDelegate {
 
   @override
   bool shouldRelayout(_ByAnchor old) =>
-      old.anchor != anchor || old.width != width || old.above != above;
+      old.anchor != anchor ||
+      old.width != width ||
+      old.above != above ||
+      old.alignLeft != alignLeft;
 }

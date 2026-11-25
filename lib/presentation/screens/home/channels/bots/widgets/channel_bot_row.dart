@@ -23,10 +23,11 @@ class ChannelBotRow extends StatelessWidget {
   final bool busy;
   final VoidCallback? onChanged;
 
-  /// What this bot can do here, said plainly. Overridden for a voice channel,
-  /// where the grant is about hearing rather than reading.
-  final String grantedNote;
-  final String ungrantedNote;
+  /// What this bot can do here, said plainly. Given for a voice channel, where
+  /// the grant is about hearing rather than reading; null says a text
+  /// channel's.
+  final String? grantedNote;
+  final String? ungrantedNote;
 
   const ChannelBotRow({
     super.key,
@@ -34,14 +35,16 @@ class ChannelBotRow extends StatelessWidget {
     required this.granted,
     required this.busy,
     this.onChanged,
-    this.grantedNote = 'Reads every message sent here.',
-    this.ungrantedNote = 'Only sees what it is sent.',
+    this.grantedNote,
+    this.ungrantedNote,
   });
 
   String? get _note {
     final declared = bot.manifest.dataUse;
     if (declared != null && declared.trim().isNotEmpty) return declared;
-    return granted ? grantedNote : ungrantedNote;
+    return granted
+        ? grantedNote ?? 'Reads every message sent here.'
+        : ungrantedNote ?? 'Only sees what it is sent.';
   }
 
   @override

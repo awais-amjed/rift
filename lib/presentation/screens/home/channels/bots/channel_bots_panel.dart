@@ -4,18 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/apis/bot_keys_api.dart';
-import '../../../../../data/apis/members_api.dart';
 import '../../../../../data/classes/channel.dart';
 import '../../../../../data/classes/server_member.dart';
-import '../../../../../data/enums/server_permission.dart';
+import '../../../../../data/repositories/server_session.dart';
 import '../../../../../logic/cubits/channel_chat/channel_chat_cubit.dart';
-import '../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../common/confirm_dialog.dart';
-import '../../../../common/hint_card.dart';
-import '../../../../common/loading_block.dart';
-import '../../../../common/server_scope.dart';
-import '../../servers/manage/widgets/manage_panel.dart';
-import 'widgets/channel_bot_row.dart';
+import 'widgets/bot_grant_panel.dart';
 
 /// Which bots hold the key to this channel.
 ///
@@ -28,80 +22,31 @@ import 'widgets/channel_bot_row.dart';
 /// So the confirm says that in as many words, and it is shown on the way *in*
 /// rather than after. The header chip and the system message the grant leaves
 /// behind are for everybody else in the room; this is for the person deciding.
-class ChannelBotsPanel extends StatefulWidget {
+class ChannelBotsPanel extends StatelessWidget {
   final Channel channel;
 
   const ChannelBotsPanel({super.key, required this.channel});
 
   @override
-  State<ChannelBotsPanel> createState() => _ChannelBotsPanelState();
-}
+  Widget build(BuildContext context) => BotGrantPanel(
+    subtitle: 'Bots that can read this channel',
+    watchedVerb: 'read this channel',
+    loadGranted: (session) =>
+        BotKeysApi(session).channelListenerIds(channel.id),
+    confirmGrant: (bot) => _confirmGrant(context, bot),
+    setGranted: (session, bot, granting) =>
+        _setGranted(context, session, bot, granting),
+  );
 
-class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
-  List<ServerMember> _bots = const [];
-  Set<String> _granted = {};
-  bool _isLoading = true;
-
-  /// The read of who holds access failed: drawn as that, not as every bot
-  /// switched off, which offered a revoke only after a "grant".
-  bool _loadFailed = false;
-  String? _busyId;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final session = ServerScope.read(context);
-    final members = MembersApi(session);
-    // Every bot, not a page of them: this is a picker, and one that silently
-    // left a bot out would be the bug the paged roster exists to fix.
-    final bots = await members.listBotsOrNull();
-    final listeners = await BotKeysApi(
+  Future<({bool success, String? error})> _setGranted(
+    BuildContext context,
+    ServerSession session,
+    ServerMember bot,
+    bool granting,
+  ) async {
+    final result = await BotKeysApi(
       session,
-    ).channelListenerIds(widget.channel.id);
-    if (!mounted) return;
-
-    setState(() {
-      _bots = [
-        for (final bot in bots ?? const <ServerMember>[])
-          if (!bot.isBanned) bot,
-      ];
-      _granted = listeners ?? {};
-      _loadFailed = bots == null || listeners == null;
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _toggle(ServerMember bot) async {
-    final granting = !_granted.contains(bot.id);
-    if (granting && !await _confirmGrant(bot)) return;
-    if (!mounted) return;
-
-    setState(() {
-      _busyId = bot.id;
-      _error = null;
-    });
-    final keys = BotKeysApi(ServerScope.read(context));
-    final result = await keys.setBotChannelKey(
-      channelId: widget.channel.id,
-      botId: bot.id,
-      granted: granting,
-    );
-    if (!mounted) return;
-
-    setState(() {
-      _busyId = null;
-      if (result.success) {
-        granting ? _granted.add(bot.id) : _granted.remove(bot.id);
-      } else {
-        _error = result.error;
-      }
-    });
-
+    ).setBotChannelKey(channelId: channel.id, botId: bot.id, granted: granting);
     // The header's chip is the standing marker every member in the room reads.
     // It is loaded when a channel opens, so without this it keeps saying a bot
     // is reading a channel it was just shut out of — for as long as the channel
@@ -109,80 +54,20 @@ class _ChannelBotsPanelState extends State<ChannelBotsPanel> {
     if (result.success && context.mounted) {
       unawaited(context.read<ChannelChatCubit>().refreshBotListeners());
     }
+    return (success: result.success, error: result.error);
   }
 
-  /// Only granting asks. Taking access away is the safe direction, and a speed
-  /// bump in front of it would be a speed bump in front of the fix.
-  Future<bool> _confirmGrant(ServerMember bot) => showConfirmDialog(
-    context: context,
-    title: 'Let ${bot.displayName} read #${widget.channel.name}?',
-    message:
-        'It gets this channel’s encryption key and can read every message '
-        'sent here from now on — including yours. It cannot read anything '
-        'said before. Everyone in the channel is told, and taking it back '
-        'later does not unread what it has already seen.',
-    confirmLabel: 'Give it the key',
-    icon: Icons.hearing_rounded,
-    isDestructive: true,
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    final serverId = ServerScope.idOf(context);
-    // Selected, so being given or losing the permission while the page is
-    // open moves the switches; and `can`, which answers on a server from
-    // before the bits.
-    final mayManage = context.select<ServerCubit, bool>(
-      (c) =>
-          c.state.permissionsOn(serverId)?.can(ServerPermission.manageBots) ??
-          false,
-    );
-    return ManagePanel(
-      title: 'Bots',
-      subtitle: 'Bots that can read this channel',
-      error: _error,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_isLoading)
-            const LoadingBlock(height: 140)
-          else if (_loadFailed)
-            const HintCard(
-              icon: Icons.cloud_off_outlined,
-              text:
-                  'Couldn\'t read which bots have access here. Close this '
-                  'and try again.',
-            )
-          else if (_bots.isEmpty)
-            const HintCard(
-              icon: Icons.smart_toy_outlined,
-              text:
-                  'No bots on this server yet. A bot joins through an invite '
-                  'created from “Invite people” with Bot chosen.',
-            )
-          else ...[
-            if (!mayManage) ...[
-              const HintCard(
-                icon: Icons.visibility_outlined,
-                text:
-                    'You can see which bots read this channel. Changing it '
-                    'needs the manage-bots permission.',
-              ),
-              const SizedBox(height: 12),
-            ],
-            for (final bot in _bots)
-              ChannelBotRow(
-                bot: bot,
-                granted: _granted.contains(bot.id),
-                busy: _busyId == bot.id,
-                onChanged: mayManage && _busyId == null
-                    ? () => _toggle(bot)
-                    : null,
-              ),
-          ],
-        ],
-      ),
-    );
-  }
+  Future<bool> _confirmGrant(BuildContext context, ServerMember bot) =>
+      showConfirmDialog(
+        context: context,
+        title: 'Let ${bot.displayName} read #${channel.name}?',
+        message:
+            'It gets this channel’s encryption key and can read every message '
+            'sent here from now on — including yours. It cannot read anything '
+            'said before. Everyone in the channel is told, and taking it back '
+            'later does not unread what it has already seen.',
+        confirmLabel: 'Give it the key',
+        icon: Icons.hearing_rounded,
+        isDestructive: true,
+      );
 }

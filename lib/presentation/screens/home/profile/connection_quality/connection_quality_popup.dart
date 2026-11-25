@@ -15,7 +15,7 @@ import 'ping_graph.dart';
 /// Over the widget budget and one job: the call's connection stats and their
 /// history graph.
 ///
-/// Popup panel shown above the connection quality indicator.
+/// Panel shown above the connection quality indicator, or a phone's sheet.
 ///
 /// Ping, average ping, packet loss, a 5-minute ping history graph — and which
 /// **region** the call is on, when the server has more than one. Without it a
@@ -32,7 +32,24 @@ class ConnectionQualityPopup extends StatelessWidget {
   /// from and read as a smudge across it.
   final bool sheet;
 
+  /// What the panel asks for beside the dock.
+  static const double width = 248;
+
   const ConnectionQualityPopup({super.key, this.sheet = false});
+
+  /// Closes the panel or sheet once the call is over: the line it opened from
+  /// is gone with the call, and a sheet left up read "Connecting…" for a call
+  /// nobody was in any more.
+  static void _closeWith(BuildContext context) {
+    final route = ModalRoute.of(context);
+    if (route == null || !route.isActive) return;
+    final navigator = Navigator.of(context);
+    if (route.isCurrent) {
+      navigator.pop();
+    } else {
+      navigator.removeRoute(route);
+    }
+  }
 
   /// The name of the region this call is on, or null when the server has
   /// only one — where naming it would be answering a question nobody has.
@@ -56,7 +73,7 @@ class ConnectionQualityPopup extends StatelessWidget {
     final themeState = context.theme;
     final borderColor = themeState.borderPrimary;
 
-    return BlocBuilder<VoiceStatsCubit, VoiceStatsState>(
+    final popup = BlocBuilder<VoiceStatsCubit, VoiceStatsState>(
       builder: (context, stats) {
         // Whether there is a reading at all. Being the only one here is no
         // longer a reason not to have one — the connection to the server
@@ -163,18 +180,21 @@ class ConnectionQualityPopup extends StatelessWidget {
             ),
           );
         }
-        // The shared surface, not a hand-rolled copy of it: this is opened
-        // into the Overlay, so it needs the Material that carries with it,
-        // and it now picks up the popover radius and shadow everything
-        // else floating uses.
-        return SizedBox(
-          width: 248,
-          child: PopoverSurface(
-            padding: const EdgeInsets.all(14),
-            child: content,
-          ),
+        // The shared surface, with the popover radius and shadow everything
+        // else floating uses. Its width is the anchored panel's.
+        return PopoverSurface(
+          padding: const EdgeInsets.all(14),
+          child: content,
         );
       },
+    );
+    return BlocListener<LiveKitCubit, LiveKitState>(
+      listenWhen: (prev, curr) =>
+          prev.connectionState != curr.connectionState &&
+          (curr.connectionState == LiveKitConnectionState.disconnected ||
+              curr.connectionState == LiveKitConnectionState.error),
+      listener: (context, _) => _closeWith(context),
+      child: popup,
     );
   }
 }

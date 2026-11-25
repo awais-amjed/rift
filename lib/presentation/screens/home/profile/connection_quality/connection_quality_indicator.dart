@@ -3,8 +3,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/constants.dart';
 import '../../../../../logic/cubits/livekit/livekit_cubit.dart';
-import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/cubits/voice_stats/voice_stats_cubit.dart';
+import '../../../../common/anchored_panel.dart';
 import '../../../../common/app_sheet.dart';
 import '../../../../responsive/shell_scope.dart';
 import '../../../../theme/app_text.dart';
@@ -29,86 +29,22 @@ class _ConnectionQualityIndicatorState
   static const double _inset = 4;
 
   final _buttonKey = GlobalKey();
-  OverlayEntry? _entry;
 
-  void _toggle() {
+  void _open() {
     // A phone's sheet, as every other popover is there.
     if (context.layoutMode.isCompact) {
-      showAppSheet<void>(
-        context,
-        BlocProvider.value(
-          value: context.read<VoiceStatsCubit>(),
-          child: const ConnectionQualityPopup(sheet: true),
-        ),
-      );
+      showAppSheet<void>(context, const ConnectionQualityPopup(sheet: true));
       return;
     }
-    if (_entry != null) {
-      _dismiss();
-    } else {
-      _show();
-    }
-  }
-
-  void _show() {
-    final renderBox =
-        _buttonKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-
-    final offset = renderBox.localToGlobal(Offset.zero);
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    // Popup width — clamp so it doesn't bleed off screen
-    const popupWidth = 248.0;
-    final left = (offset.dx + popupWidth > screenWidth)
-        ? screenWidth - popupWidth - 8
-        : offset.dx;
-
-    // Anchor the popup bottom just above the indicator bar
-    final bottomOffset = MediaQuery.of(context).size.height - offset.dy + 4;
-
-    // Capture blocs from current context before entering overlay
-    final voiceStatsCubit = context.read<VoiceStatsCubit>();
-    final themeCubit = context.read<ThemeCubit>();
-
-    _entry = OverlayEntry(
-      builder: (overlayCtx) => Stack(
-        children: [
-          // Full-screen dismiss barrier
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: _dismiss,
-            ),
-          ),
-          // Popup anchored above the indicator
-          Positioned(
-            left: left,
-            bottom: bottomOffset,
-            child: MultiBlocProvider(
-              providers: [
-                BlocProvider.value(value: voiceStatsCubit),
-                BlocProvider.value(value: themeCubit),
-              ],
-              child: const ConnectionQualityPopup(),
-            ),
-          ),
-        ],
-      ),
+    final anchor = _buttonKey.currentContext;
+    if (anchor == null) return;
+    showAnchoredPanel<void>(
+      anchor: anchor,
+      width: ConnectionQualityPopup.width,
+      above: true,
+      alignLeft: true,
+      child: const ConnectionQualityPopup(),
     );
-
-    Overlay.of(context).insert(_entry!);
-  }
-
-  void _dismiss() {
-    _entry?.remove();
-    _entry = null;
-  }
-
-  @override
-  void dispose() {
-    _dismiss();
-    super.dispose();
   }
 
   @override
@@ -152,7 +88,7 @@ class _ConnectionQualityIndicatorState
                   mouseCursor: WidgetStateMouseCursor.clickable,
                   borderRadius: BorderRadius.circular(K.radiusRow),
                   hoverColor: themeState.bgHover,
-                  onTap: measured ? _toggle : null,
+                  onTap: measured ? _open : null,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: _inset,
