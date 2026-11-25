@@ -98,6 +98,22 @@ class _HomeScreenState extends State<HomeScreen> {
     await offerAppMenuEntry(context);
   }
 
+  /// The drawer belongs to a medium window. One widened past it lost the
+  /// drawer but kept its scrim, dimming the window and swallowing clicks; one
+  /// narrowed to a phone kept the title bar inked for a scrim that was gone.
+  /// The build reads the window's width, so a resize lands here first.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_membersOverlayOpen && context.layoutMode != LayoutMode.medium) {
+      _membersOverlayOpen = false;
+      // Not from here: a listener of the dim rebuilds inside this frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_membersOverlayOpen) WindowDim.overlay.value = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     InviteLinkListener.instance.detach();
@@ -244,12 +260,17 @@ class _HomeScreenState extends State<HomeScreen> {
           listener: (context, state) => _saveOffScreen(state.surface),
         ),
         // A server DM a central one pushed aside opens again on the way back.
+        // Not on a phone: there an open conversation is a page, and the
+        // Direct tab pushed one nobody asked for over the list it was
+        // tapped for. Back is how a phone returns to what it left.
         BlocListener<AppCubit, AppState>(
           listenWhen: (prev, curr) =>
               prev.surface != curr.surface &&
               curr.surface == HomeSurface.serverDms,
-          listener: (context, _) =>
-              unawaited(context.read<DmCubit>().resumeSetAside()),
+          listener: (context, _) {
+            if (context.layoutMode.isCompact) return;
+            unawaited(context.read<DmCubit>().resumeSetAside());
+          },
         ),
         BlocListener<ChannelChatCubit, ChannelChatState>(
           listenWhen: (prev, curr) => prev.channelId != curr.channelId,
