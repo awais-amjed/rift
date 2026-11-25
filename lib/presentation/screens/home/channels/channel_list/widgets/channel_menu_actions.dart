@@ -14,7 +14,6 @@ import '../../../../../../logic/cubits/voice_listeners/voice_listeners_cubit.dar
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_modal.dart';
 import '../../../../../common/confirm_dialog.dart';
-import '../../../../../common/context_menu/context_menu_scope.dart';
 import '../../../../../common/server_scope.dart';
 import '../../settings/channel_settings_dialog.dart';
 import '../../settings/channel_settings_tab.dart';
@@ -41,7 +40,7 @@ Future<bool> makeChannelPrivate(BuildContext context, Channel channel) async {
 
   final confirmed = await showConfirmDialog(
     context: context,
-    title: 'Make #${channel.name} private?',
+    title: 'Make ${channel.label} private?',
     message:
         'Everyone here now stays in it, and you choose who to remove next. '
         'Anybody you remove keeps what they have already read — that cannot '
@@ -67,19 +66,40 @@ Future<bool> makeChannelPrivate(BuildContext context, Channel channel) async {
 ///
 /// The confirm says the two things that are true and unobvious: what you have
 /// already read stays read, because nobody can take back a decrypted message,
-/// and there is no way back in on your own.
+/// and there is no way back in on your own. Unless you are the last one in
+/// it: then leaving deletes it (`reassign_or_close_channel`), and the confirm
+/// says that instead, so the member list is read first.
+///
+/// Nothing dismisses a menu here: [showConfirmDialog] does that on the way
+/// in, and on a phone a second dismiss pops the page under the sheet.
 Future<void> leaveChannel(BuildContext context, Channel channel) async {
-  ContextMenuScope.of(context)?.call();
   final access = ChannelAccessApi(ServerScope.read(context));
+  final me = context
+      .read<ServerCubit>()
+      .state
+      .meOn(ServerScope.readId(context))
+      ?.id;
+
+  final members = await access.channelMembers(channel.id);
+  if (!context.mounted) return;
+  final last =
+      members != null &&
+      members.memberIds.length == 1 &&
+      members.memberIds.contains(me);
 
   final confirmed = await showConfirmDialog(
     context: context,
-    title: 'Leave #${channel.name}?',
-    message:
-        'You will stop seeing anything new in here, and only somebody already '
-        'in it can add you back. What you have already read stays readable.',
-    confirmLabel: 'Leave channel',
-    icon: Icons.logout_rounded,
+    title: last
+        ? 'Leave and delete ${channel.label}?'
+        : 'Leave ${channel.label}?',
+    message: last
+        ? 'You are the last one in here, so leaving deletes the channel and '
+              'everything in it, for good.'
+        : 'You will stop seeing anything new in here, and only somebody '
+              'already in it can add you back. What you have already read '
+              'stays readable.',
+    confirmLabel: last ? 'Leave and delete' : 'Leave channel',
+    icon: last ? Icons.delete_outline_rounded : Icons.logout_rounded,
     isDestructive: true,
   );
   if (!confirmed) return;
@@ -96,7 +116,7 @@ Future<bool> openChannelUp(BuildContext context, Channel channel) async {
 
   final confirmed = await showConfirmDialog(
     context: context,
-    title: 'Open #${channel.name} to everyone?',
+    title: 'Open ${channel.label} to everyone?',
     message:
         'Everybody on the server will see it from now on. What was said '
         'while it was private stays unreadable to them — they are given a '
@@ -133,8 +153,8 @@ Future<bool> setChannelEncryption(
   final confirmed = await showConfirmDialog(
     context: context,
     title: encrypted
-        ? 'Turn encryption back on in #${channel.name}?'
-        : 'Turn off encryption in #${channel.name}?',
+        ? 'Turn encryption back on in ${channel.label}?'
+        : 'Turn off encryption in ${channel.label}?',
     message: encrypted
         ? 'New messages will be end-to-end encrypted again. What was sent '
               'while it was off stays readable to the server.'
@@ -173,7 +193,7 @@ Future<bool> deleteChannel(
 
   final confirmed = await showConfirmDialog(
     context: context,
-    title: 'Delete #${channel.name}?',
+    title: 'Delete ${channel.label}?',
     message: isVoice
         ? 'Anyone in this call will be disconnected. The channel and its '
               'history are gone for everyone, and this cannot be undone.'

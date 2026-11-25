@@ -68,6 +68,10 @@ class _ChannelOverviewPanelState extends State<ChannelOverviewPanel> {
   bool _isLoading = false;
   String? _error;
 
+  /// The region saved but moving the call already running failed, and the
+  /// server's details may not say where that call is.
+  bool _moveFailed = false;
+
   String get _name => _nameCtrl.text.trim();
   int? get _retention => LimitInput.parse(_retentionCtrl.text);
   int? get _cap => LimitInput.parse(_capCtrl.text);
@@ -92,11 +96,56 @@ class _ChannelOverviewPanelState extends State<ChannelOverviewPanel> {
       widget.channel.voiceNodeId == null ||
       widget.channel.voiceNodeId != _nodeId;
 
+  bool get _fieldsChanged =>
+      _nameChanged || _retentionChanged || _capChanged || _nodeChanged;
+
+  /// The pinned region is saved but a call is still running elsewhere: what
+  /// the region field's "Saving moves it" line promises, so Save stays on
+  /// for it and sends only the move. A move that failed left exactly this,
+  /// with the pin no longer a change to save.
+  bool get _moveOwed =>
+      !_nodeChanged &&
+      _nodeId != null &&
+      (_moveFailed ||
+          (widget.channel.voiceNodeId != null &&
+              widget.channel.voiceNodeId != _nodeId));
+
   bool get _canSubmit =>
       _name.isNotEmpty &&
       _retention != LimitInput.invalid &&
       _cap != LimitInput.invalid &&
-      (_nameChanged || _retentionChanged || _capChanged || _nodeChanged);
+      (_fieldsChanged || _moveOwed);
+
+  /// Another manager's change, or our own read back, lands as a new row. A
+  /// field still holding what the old row said follows the new one; one the
+  /// person has edited keeps their edit. Seeded once, a field nobody touched
+  /// held the old value and read as a change, so the next Save wrote it
+  /// back over the other manager's.
+  @override
+  void didUpdateWidget(ChannelOverviewPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final was = oldWidget.channel;
+    final now = widget.channel;
+    void follow(TextEditingController ctrl, String before, String after) {
+      if (before != after && ctrl.text.trim() == before) ctrl.text = after;
+    }
+
+    follow(_nameCtrl, was.name, now.name);
+    follow(
+      _retentionCtrl,
+      was.retentionDays?.toString() ?? '',
+      now.retentionDays?.toString() ?? '',
+    );
+    follow(
+      _capCtrl,
+      was.historyCap?.toString() ?? '',
+      now.historyCap?.toString() ?? '',
+    );
+    if (was.livekitNodeId != now.livekitNodeId &&
+        _nodeId == was.livekitNodeId) {
+      _nodeId = now.livekitNodeId;
+    }
+  }
 
   ServerLimits get _serverLimits =>
       context
@@ -134,26 +183,31 @@ class _ChannelOverviewPanelState extends State<ChannelOverviewPanel> {
     final retention = _retention;
     final cap = _cap;
     final nodeChanged = _nodeChanged;
+    final moveOwed = _moveOwed;
     final moveLiveCall = _shouldMoveLiveCall;
     final nodeId = _nodeId;
-    final result = await ChannelsApi(ServerScope.read(context)).updateChannel(
-      channelId: widget.channel.id,
-      name: _nameChanged ? _name : null,
-      retentionDays: _retentionChanged ? retention : null,
-      clearRetentionDays: _retentionChanged && retention == null,
-      historyCap: _capChanged ? cap : null,
-      clearHistoryCap: _capChanged && cap == null,
-      livekitNodeId: nodeChanged ? nodeId : null,
-      clearLivekitNodeId: nodeChanged && nodeId == null,
-    );
-    if (!mounted) return;
+    // Nothing but the owed move: no row to write, and an empty write is
+    // refused.
+    if (_fieldsChanged) {
+      final result = await ChannelsApi(ServerScope.read(context)).updateChannel(
+        channelId: widget.channel.id,
+        name: _nameChanged ? _name : null,
+        retentionDays: _retentionChanged ? retention : null,
+        clearRetentionDays: _retentionChanged && retention == null,
+        historyCap: _capChanged ? cap : null,
+        clearHistoryCap: _capChanged && cap == null,
+        livekitNodeId: nodeChanged ? nodeId : null,
+        clearLivekitNodeId: nodeChanged && nodeId == null,
+      );
+      if (!mounted) return;
 
-    if (!result.success) {
-      setState(() {
-        _isLoading = false;
-        _error = result.error;
-      });
-      return;
+      if (!result.success) {
+        setState(() {
+          _isLoading = false;
+          _error = result.error;
+        });
+        return;
+      }
     }
 
     // A call that is already up does not follow the setting on its own — a
@@ -164,7 +218,7 @@ class _ChannelOverviewPanelState extends State<ChannelOverviewPanel> {
     // Asked on every explicit region change, because only the server knows
     // whether a call is up: see [_shouldMoveLiveCall]. With nothing running
     // this costs one request that answers `no_call`.
-    if (nodeChanged && nodeId != null && moveLiveCall) {
+    if (nodeId != null && ((nodeChanged && moveLiveCall) || moveOwed)) {
       final voice = VoiceApi(ServerScope.read(context));
       final moved = await voice.moveCall(
         channelId: widget.channel.id,
@@ -176,15 +230,29 @@ class _ChannelOverviewPanelState extends State<ChannelOverviewPanel> {
         // the next call landing correctly reads as the error fixing itself.
         setState(() {
           _isLoading = false;
+          _moveFailed = true;
           _error =
               '${moved.error ?? 'Could not move the call that is running.'} '
-              'The region is saved and the next call will use it.';
+              'The region is saved and the next call will use it. Save '
+              'again to try moving the call.';
         });
         return;
       }
+      // `move_call` re-points `voice_rooms`; read it back, so the field says
+      // where the call is now and no move is owed.
+      final serverId = ServerScope.readId(context);
+      if (serverId != null) {
+        await context.read<ServerCubit>().refreshServerDetails(
+          serverId: serverId,
+        );
+        if (!mounted) return;
+      }
     }
 
-    setState(() => _isLoading = false);
+    setState(() {
+      _isLoading = false;
+      _moveFailed = false;
+    });
     HelperMethods.showSuccess(message: 'Channel saved');
   }
 
@@ -266,6 +334,7 @@ class _ChannelOverviewPanelState extends State<ChannelOverviewPanel> {
               enabled: !_isLoading,
               onChanged: (value) => setState(() {
                 _nodeId = value;
+                _moveFailed = false;
                 _error = null;
               }),
             ),

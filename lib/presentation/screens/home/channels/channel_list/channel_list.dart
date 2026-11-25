@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/classes/channel.dart';
+import '../../../../../data/classes/server_user.dart';
 import '../../../../../data/enums/channel_type.dart';
 import '../../../../../data/enums/server_permission.dart';
 import '../../../../../logic/cubits/app/app_cubit.dart';
@@ -39,11 +40,13 @@ class ChannelList extends StatelessWidget {
         .where((c) => c.channelType == ChannelType.voice)
         .toList();
 
-    final me = context
-        .watch<ServerCubit>()
-        .state
-        .serverOn(ServerScope.idOf(context))
-        ?.user;
+    // Selected, not watched: only this server's own member row decides
+    // anything here, and a watch rebuilt the whole list for any server's
+    // change.
+    final serverId = ServerScope.idOf(context);
+    final me = context.select<ServerCubit, ServerUser?>(
+      (c) => c.state.meOn(serverId),
+    );
     // Selected, not watched: presence moves several times a second in a busy
     // call, and this list only needs to know when the first answer is in.
     final voiceKnown = context.select(
@@ -60,9 +63,10 @@ class ChannelList extends StatelessWidget {
     final banned = me?.isBanned ?? false;
 
     // Channel managers get the "+", and so does anybody who may make a private
-    // one — which on a default server is everybody. A private
-    // channel is how a handful of people talk without asking permission, so
-    // gating the button on `MANAGE_CHANNELS` would have meant asking.
+    // one, which a server can give a role without `MANAGE_CHANNELS` (a fresh
+    // server gives both to Moderator only). A private channel is how a
+    // handful of people talk without asking permission, so gating the button
+    // on `MANAGE_CHANNELS` would have meant asking.
     final permissions = me?.permissions;
     final canCreate =
         !banned &&

@@ -4,7 +4,6 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../data/apis/channels_api.dart';
 import '../../../../data/apis/members_api.dart';
 import '../../../../data/classes/server_member.dart';
-import '../../../../data/classes/user_permissions.dart';
 import '../../../../data/enums/channel_type.dart';
 import '../../../../data/enums/server_permission.dart';
 import '../../../../logic/cubits/server/server_cubit.dart';
@@ -38,13 +37,10 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   final _nameCtrl = TextEditingController();
 
   late ChannelType _type = widget.initialType;
-  bool _isPrivate = false;
 
-  /// Somebody who may only make private channels gets one, with the switch
-  /// held down rather than hidden — a control that is missing reads as a bug,
-  /// and one that is fixed with a reason reads as a rule.
-  late final bool _mayMakePublic =
-      _permissions?.can(ServerPermission.manageChannels) ?? false;
+  /// The switch as the person left it. What is created also depends on what
+  /// they may make, read live in [build] — see [_effectivelyPrivate].
+  bool _wantsPrivate = false;
   bool _isLoading = false;
   String? _error;
 
@@ -52,17 +48,26 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
   /// [ChannelMemberPicker] for why neither belongs in the list.
   MemberSelection _selection = MemberSelection.empty;
 
-  UserPermissions? get _permissions => context
-      .read<ServerCubit>()
-      .state
-      .permissionsOn(ServerScope.readId(context));
-
   bool get _canSubmit => _nameCtrl.text.trim().isNotEmpty;
 
-  @override
-  void initState() {
-    super.initState();
-    _isPrivate = !_mayMakePublic;
+  /// Somebody who may only make one kind gets that kind, with the switch held
+  /// rather than hidden — a control that is missing reads as a bug, and one
+  /// that is fixed with a reason reads as a rule. `create_channel` asks
+  /// `MANAGE_CHANNELS` for a public channel and `CREATE_PRIVATE_CHANNEL` for
+  /// a private one, which a custom role can hold apart.
+  bool _effectivelyPrivate(({bool public, bool private}) may) =>
+      may.public && may.private ? _wantsPrivate : !may.public;
+
+  ({bool public, bool private}) _mayMake(BuildContext context) {
+    final serverId = ServerScope.idOf(context);
+    return context.select<ServerCubit, ({bool public, bool private})>((c) {
+      final permissions = c.state.permissionsOn(serverId);
+      return (
+        public: permissions?.can(ServerPermission.manageChannels) ?? false,
+        private:
+            permissions?.can(ServerPermission.createPrivateChannel) ?? false,
+      );
+    });
   }
 
   @override
@@ -94,8 +99,8 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
     ];
   }
 
-  Future<void> _submit() async {
-    if (!_canSubmit) return;
+  Future<void> _submit(bool isPrivate) async {
+    if (!_canSubmit || _isLoading) return;
 
     setState(() {
       _isLoading = true;
@@ -105,8 +110,8 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
     final result = await ChannelsApi(ServerScope.read(context)).createChannel(
       name: _nameCtrl.text.trim(),
       channelType: _type.name,
-      isPrivate: _isPrivate,
-      memberIds: _isPrivate ? _selection.ids.toList() : const [],
+      isPrivate: isPrivate,
+      memberIds: isPrivate ? _selection.ids.toList() : const [],
     );
 
     if (!mounted) return;
@@ -131,76 +136,89 @@ class _CreateChannelDialogState extends State<CreateChannelDialog> {
         .state
         .serverOn(ServerScope.readId(context))
         ?.name;
-    return AppModal(
-      title: 'Create channel',
-      // Which server it lands in, as the other dialogs that act on one say.
-      subtitle: serverName == null ? null : 'In $serverName',
-      error: _error,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppTextField(
-            controller: _nameCtrl,
-            label: 'Channel name',
-            hint: 'general',
-            enabled: !_isLoading,
-            autofocus: true,
-            onChanged: (_) => setState(() => _error = null),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'CHANNEL TYPE',
-            style: AppText.sectionLabel.copyWith(
-              color: themeState.textTertiary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ChannelTypeToggle(
-            value: _type,
-            onChanged: _isLoading ? null : (t) => setState(() => _type = t),
-          ),
-          const SizedBox(height: 16),
-          // The description says what actually differs, and says the part
-          // people get wrong: an admin is outside this too, because an
-          // admin holds no key to it either (ARCHITECTURE.md §4).
-          SettingToggleRow(
-            title: 'Private channel',
-            description: _mayMakePublic
-                ? 'Only the people you pick can see it — server admins '
-                      'included. You can add or remove people later.'
-                : 'Only the people you pick can see it. Making a channel '
-                      'the whole server can see needs the manage-channels '
-                      'permission.',
-            value: _isPrivate,
-            onChanged: _isLoading || !_mayMakePublic
-                ? null
-                : (v) => setState(() => _isPrivate = v),
-          ),
-          if (_isPrivate) ...[
-            const SizedBox(height: 16),
-            ChannelMemberPicker(
-              selection: _selection,
-              onSearch: _searchMembers,
+    final may = _mayMake(context);
+    final isPrivate = _effectivelyPrivate(may);
+    // Closing mid-write would never show its refusal: the dialog was gone.
+    return PopScope(
+      canPop: !_isLoading,
+      child: AppModal(
+        title: 'Create channel',
+        // Which server it lands in, as the other dialogs that act on one say.
+        subtitle: serverName == null ? null : 'In $serverName',
+        closable: !_isLoading,
+        error: _error,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppTextField(
+              controller: _nameCtrl,
+              label: 'Channel name',
+              hint: 'general',
               enabled: !_isLoading,
-              onToggle: (member) =>
-                  setState(() => _selection = _selection.toggled(member)),
+              autofocus: true,
+              onChanged: (_) => setState(() => _error = null),
+              onSubmitted: (_) => _submit(isPrivate),
             ),
+            const SizedBox(height: 16),
+            Text(
+              'CHANNEL TYPE',
+              style: AppText.sectionLabel.copyWith(
+                color: themeState.textTertiary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ChannelTypeToggle(
+              value: _type,
+              onChanged: _isLoading ? null : (t) => setState(() => _type = t),
+            ),
+            const SizedBox(height: 16),
+            // The description says what actually differs, and says the part
+            // people get wrong: an admin is outside this too, because an
+            // admin holds no key to it either (ARCHITECTURE.md §4).
+            SettingToggleRow(
+              title: 'Private channel',
+              description: !may.private
+                  ? 'Only the people you pick can see a private channel. Making '
+                        'one needs the create-private-channels permission.'
+                  : may.public
+                  ? 'Only the people you pick can see it — server admins '
+                        'included. You can add or remove people later.'
+                  : 'Only the people you pick can see it. Making a channel '
+                        'the whole server can see needs the manage-channels '
+                        'permission.',
+              value: isPrivate,
+              onChanged: _isLoading || !may.public || !may.private
+                  ? null
+                  : (v) => setState(() => _wantsPrivate = v),
+            ),
+            if (isPrivate) ...[
+              const SizedBox(height: 16),
+              ChannelMemberPicker(
+                selection: _selection,
+                onSearch: _searchMembers,
+                enabled: !_isLoading,
+                onToggle: (member) =>
+                    setState(() => _selection = _selection.toggled(member)),
+              ),
+            ],
           ],
+        ),
+        actions: [
+          AppButton(
+            label: 'Cancel',
+            variant: AppButtonVariant.secondary,
+            onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+          ),
+          AppButton(
+            label: _isLoading ? 'Creating...' : 'Create channel',
+            isLoading: _isLoading,
+            onPressed: _canSubmit && !_isLoading
+                ? () => _submit(isPrivate)
+                : null,
+          ),
         ],
       ),
-      actions: [
-        AppButton(
-          label: 'Cancel',
-          variant: AppButtonVariant.secondary,
-          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-        ),
-        AppButton(
-          label: _isLoading ? 'Creating...' : 'Create channel',
-          isLoading: _isLoading,
-          onPressed: _canSubmit && !_isLoading ? _submit : null,
-        ),
-      ],
     );
   }
 }

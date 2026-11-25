@@ -38,6 +38,7 @@ class ChannelSettingsGear extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: 'Channel settings',
+      waitDuration: K.tooltipDelay,
       child: InkWell(
         mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: BorderRadius.circular(K.radiusRow),

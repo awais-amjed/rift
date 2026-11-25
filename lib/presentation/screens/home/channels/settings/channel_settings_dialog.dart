@@ -48,16 +48,34 @@ class ChannelSettingsDialog extends StatefulWidget {
 
 class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
   ChannelSettingsTab? _active;
+
+  /// On a phone, whether the person has gone back to the page list, after
+  /// which [ChannelSettingsDialog.initial] no longer chooses the page.
+  bool _leftInitial = false;
   bool _closing = false;
 
   /// Gone from the server — deleted here, or by somebody else meanwhile.
+  ///
+  /// This dialog's own route, wherever it is: a pop takes whatever is on top,
+  /// which with a confirm or a bot's dialog open over this one closed that
+  /// and left this as an empty scrim; and on a phone the page's back guard
+  /// turned the pop into "back to the list".
   void _closeOnce() {
     if (_closing) return;
     _closing = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) Navigator.of(context).maybePop();
+      if (!mounted) return;
+      final route = ModalRoute.of(context);
+      if (route != null && route.isActive) {
+        Navigator.of(context).removeRoute(route);
+      }
     });
   }
+
+  void _backToList() => setState(() {
+    _active = null;
+    _leftInitial = true;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +102,7 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
       canManageWebhooks: canManageWebhooks,
     );
     final title = canManage ? 'Channel settings' : 'Who can see this';
-    final subtitle = channel.hasMessages ? '#${channel.name}' : channel.name;
+    final subtitle = channel.label;
 
     if (tabs.isEmpty) {
       return AppModal(
@@ -157,6 +175,10 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
         ? tabs.single
         : tabs.contains(_active)
         ? _active
+        // Opened for one page — "Who can see this" — so that page first, as
+        // on a desktop; back still leads to the list.
+        : !_leftInitial && tabs.contains(widget.initial)
+        ? widget.initial
         : null;
     if (open == null) {
       return AppModal(
@@ -179,7 +201,7 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
       title: tabs.length == 1 ? title : open.label,
       subtitle: tabs.length == 1 ? subtitle : '$title · $subtitle',
       pageOnPhone: true,
-      onBack: tabs.length == 1 ? null : () => setState(() => _active = null),
+      onBack: tabs.length == 1 ? null : _backToList,
       body: ColoredBox(
         color: themeState.bgSecondary,
         child: ManageHeadingAbove(child: _page(open, channel, canManage)),
@@ -189,7 +211,7 @@ class _ChannelSettingsDialogState extends State<ChannelSettingsDialog> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) setState(() => _active = null);
+        if (!didPop) _backToList();
       },
       child: body,
     );

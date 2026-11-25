@@ -26,7 +26,11 @@ class _ChannelDeletePanelState extends State<ChannelDeletePanel> {
     final deleted = await deleteChannel(
       context,
       widget.channel,
-      onConfirmed: () => setState(() => _isBusy = true),
+      // The page can be gone by now — the Delete tab lost with the manage
+      // bit while the confirm was open — and the delete still goes ahead.
+      onConfirmed: () {
+        if (mounted) setState(() => _isBusy = true);
+      },
     );
     if (!mounted) return;
     // Gone: the dialog notices the channel leaving the server and closes.

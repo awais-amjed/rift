@@ -41,11 +41,6 @@ class ChannelContextMenu extends StatelessWidget {
     child: child,
   );
 
-  Future<void> _delete(BuildContext context) async {
-    ContextMenuScope.of(context)?.call();
-    await deleteChannel(context, channel);
-  }
-
   void _setLevel(BuildContext context, NotificationLevel level) {
     final serverId = ServerScope.readId(context);
     final notifications = context.read<ServerNotificationsCubit>();
@@ -116,7 +111,9 @@ class ChannelContextMenu extends StatelessWidget {
             icon: Icons.delete_outline_rounded,
             label: 'Delete channel',
             isDangerous: true,
-            onTap: () => _delete(context),
+            // Nothing dismisses here — the confirm does it on the way in, and
+            // on a phone a second dismiss pops the page under the sheet.
+            onTap: () => deleteChannel(context, channel),
           ),
       ],
     );

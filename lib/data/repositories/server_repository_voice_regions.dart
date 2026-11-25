@@ -106,11 +106,20 @@ mixin _VoiceRegionsMixin {
     String? bearerToken,
   }) {
     return ServerDb.run(() async {
-      await _db
+      final rows = await _db
           .client(supabaseUrl, anonKey, bearerToken)
           .from('livekit_nodes')
           .delete()
-          .eq('id', nodeId);
+          .eq('id', nodeId)
+          // The policy turns "not yours" into "no row", which without the
+          // rows back read as removed.
+          .select('id');
+      if ((rows as List).isEmpty) {
+        throw const PostgrestException(
+          message: 'That region is gone, or not yours to remove',
+          code: 'not_authorized',
+        );
+      }
       return null;
     });
   }
