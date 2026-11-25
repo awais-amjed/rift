@@ -213,7 +213,15 @@ mixin _ChatReadApiMixin {
     });
   }
 
-  /// Page through the DM conversation with [peerId].
+  /// Page through the DM conversation with [peerId]. Pass [beforeId] for
+  /// history (newest-first) or [afterId] for live catch-up (oldest-first).
+  ///
+  /// `dm_messages_page` reads the conversation off its own index. Asked as
+  /// "sent by me to them, or by them to me", the server gathered every
+  /// message the caller had ever sent or received to find it: a page of a
+  /// 100,000-message conversation took 80 ms that way and 0.2 ms this way
+  /// (Nov 26 2026). A server from before it (self-host 051) answers
+  /// `PGRST202` and is asked the old way.
   Future<APIResponse> listDms(
     String supabaseUrl, {
     required String anonKey,
@@ -227,21 +235,37 @@ mixin _ChatReadApiMixin {
     return _readRows((columns) async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       final pageSize = limit ?? ChatMessageOps.pageSize;
-      var query = db
-          .from('dm_messages')
-          .select(columns.dms)
-          .or(
-            'and(sender_id.eq.$userId,recipient_id.eq.$peerId),'
-            'and(sender_id.eq.$peerId,recipient_id.eq.$userId)',
-          );
-      if (afterId != null) query = query.gt('id', afterId);
-      if (beforeId != null) query = query.lt('id', beforeId);
-      // One row past the page — see Paging.split.
-      final rows = await query
-          .order('id', ascending: afterId != null)
-          .limit(pageSize + 1);
+      List<dynamic> rows;
+      try {
+        rows = await db
+            .rpc(
+              'dm_messages_page',
+              params: {
+                'p_peer': peerId,
+                'p_before': beforeId,
+                'p_after': afterId,
+                // One row past the page — see Paging.split.
+                'p_limit': pageSize + 1,
+              },
+            )
+            .select(columns.dms);
+      } on PostgrestException catch (e) {
+        if (e.code != 'PGRST202') rethrow;
+        var query = db
+            .from('dm_messages')
+            .select(columns.dms)
+            .or(
+              'and(sender_id.eq.$userId,recipient_id.eq.$peerId),'
+              'and(sender_id.eq.$peerId,recipient_id.eq.$userId)',
+            );
+        if (afterId != null) query = query.gt('id', afterId);
+        if (beforeId != null) query = query.lt('id', beforeId);
+        rows = await query
+            .order('id', ascending: afterId != null)
+            .limit(pageSize + 1);
+      }
       final page = Paging.split(
-        (rows as List).cast<Map<String, dynamic>>(),
+        rows.cast<Map<String, dynamic>>(),
         limit: pageSize,
       );
       return {
