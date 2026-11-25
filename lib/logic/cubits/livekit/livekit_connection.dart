@@ -10,7 +10,6 @@ part of 'livekit_cubit.dart';
 /// cleanup reads as an unexpected drop and clears the new channel.
 mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   AppCubit get _appCubit;
-  TokenCubit get _tokenCubit;
   VoiceApi? _voiceOn(String serverId);
 
   /// Implemented by the cubit and its other mixins.
@@ -64,7 +63,6 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// another channel is a leave followed by a join.
   Future<void> disconnect();
   Future<void> _cleanupRoom();
-  void forgetChannelToken(String? channelId);
   bool _shouldTransmitMic({bool? micEnabled});
   // ignore: unused_element_parameter
   bool _shouldCaptureMic({bool? micEnabled});
@@ -152,8 +150,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
         state.connectionState == LiveKitConnectionState.connecting;
 
     // The channel this switch is leaving, read before the emit below renames
-    // it. Its token names a node and is dropped for the same reason leaving
-    // drops one — see [forgetChannelToken].
+    // it.
     final leaving = state.currentChannelId;
     // The streams being watched, waited for through a rejoin of the same
     // call — a region change, or the connection giving out. Each sharer's
@@ -193,7 +190,6 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
         turn,
         channelId: channelId,
         serverId: serverId,
-        leaving: leaving,
         cleanUp: hadCall,
       ),
     );
@@ -207,14 +203,12 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     int turn, {
     required String channelId,
     required String serverId,
-    required String? leaving,
     required bool cleanUp,
   }) async {
     bool current() => _callSteps.isCurrent(turn);
     if (!current()) return;
 
     if (cleanUp || state.room != null) await _cleanupRoom();
-    if (leaving != channelId) forgetChannelToken(leaving);
     // A DM call's key goes with the call, here as on a full leave: switched
     // to a channel, it stayed in memory until the next one.
     _forgetDmMediaKey();
@@ -223,28 +217,20 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     emit(state.copyWith(clearRoom: true));
 
     final server = _session?.serverById(serverId);
-    if (server == null) {
-      _failJoin(const ConnectionFailure.noServer());
-      return;
-    }
-    // A cached token belongs to the account it was minted for, and this
-    // device may have been signed into more than one. Without the user in the
-    // lookup, signing in as someone else reuses the previous account's token
-    // and joins the room as them.
-    final userId = server.user?.id;
-    if (userId == null) {
+    if (server == null || server.user == null) {
       _failJoin(const ConnectionFailure.noServer());
       return;
     }
 
-    final cached = _tokenCubit.getValidToken(
-      server.supabaseUrl,
-      channelId,
-      userId,
-    );
-
-    final bool mintAgain;
     try {
+      // Every join mints its own token, and is told by the mint which LiveKit
+      // the call is on. A token kept from an earlier join named the node the
+      // call was on then: the call could since have ended and started again
+      // on another node, or moved, and a client reusing it opened a second
+      // room of the same name there and sat in it alone. It could also carry
+      // a grant the member has since lost, which `livekit_webhook` takes back
+      // only on a node whose webhook reaches this server.
+      //
       // The token and the key at once, since neither needs the other: asked
       // for one after the other, each added a round trip to the wait for the
       // room. Both are waited for before either answer counts, so that a
@@ -254,10 +240,8 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       // work, and be readable by the server — the single thing this is here
       // to stop — so there is no unencrypted fallback path to take by
       // accident.
-      final (minted, e2ee) = await (
-        cached != null
-            ? Future<APIResponse?>.value()
-            : _voiceOn(server.id)!.getChannelToken(channelId),
+      final (response, e2ee) = await (
+        _voiceOn(server.id)!.getChannelToken(channelId),
         _prepareE2EE(channelId, server),
       ).wait;
       if (!current()) {
@@ -265,39 +249,23 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
         return;
       }
 
-      String livekitToken;
-      // Where the mint said to take it. Null from a server too old to say,
-      // and then the server row answers — see [CachedToken.livekitUrl].
-      String? mintedUrl;
-      if (cached != null) {
-        livekitToken = cached.token;
-        mintedUrl = cached.livekitUrl;
-      } else {
-        final response = minted!;
-        if (!response.success) {
-          HelperMethods.printDebug(
-            '[LiveKit] Failed to get channel token: ${response.error}',
-          );
-          _clearE2EE();
-          _failJoin(ConnectionFailure.tokenRefused(response));
-          return;
-        }
-        livekitToken = response.data['token'] as String;
-        mintedUrl = response.data['livekit_url'] as String?;
-        _tokenCubit.saveToken(
-          server.supabaseUrl,
-          channelId,
-          userId,
-          livekitToken,
-          livekitUrl: mintedUrl,
+      if (!response.success) {
+        HelperMethods.printDebug(
+          '[LiveKit] Failed to get channel token: ${response.error}',
         );
+        _clearE2EE();
+        _failJoin(ConnectionFailure.tokenRefused(response));
+        return;
       }
+      final livekitToken = response.data['token'] as String;
 
-      // The address the token was minted for, then the server's own. Checked
-      // here rather than before the token, because the token is what names
-      // it: a channel able to live on a different LiveKit than its server's
-      // default has to be told so by the thing that decided it.
-      final livekitUrl = mintedUrl ?? server.livekitUrl;
+      // The address the token was minted for, then the server's own: null
+      // from a server too old to say. Checked here rather than before the
+      // token, because the token is what names it: a channel able to live on
+      // a different LiveKit than its server's default has to be told so by
+      // the thing that decided it.
+      final livekitUrl =
+          response.data['livekit_url'] as String? ?? server.livekitUrl;
       if (livekitUrl == null) {
         _clearE2EE();
         _failJoin(const ConnectionFailure.noLiveKitUrl());
@@ -310,11 +278,10 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
         return;
       }
 
-      mintAgain = await _joinRoom(
+      await _joinRoom(
         livekitUrl: livekitUrl,
         livekitToken: livekitToken,
         e2ee: options,
-        tokenWasCached: cached != null,
         callName: _channelName(server.channels, channelId),
         serverName: server.name,
         isCurrent: current,
@@ -328,17 +295,6 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       HelperMethods.printDebug('[LiveKit] join gave out before the room: $e');
       _clearE2EE();
       if (current()) _failJoin(ConnectionFailure.from(e));
-      return;
-    }
-    if (mintAgain && current()) {
-      _tokenCubit.invalidateToken(channelId);
-      await _joinChannel(
-        turn,
-        channelId: channelId,
-        serverId: server.id,
-        leaving: channelId,
-        cleanUp: false,
-      );
     }
   }
 
@@ -358,16 +314,12 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
   /// The half of a join that is the same whatever the call is: a room, keyed
   /// and connected, with the devices, the notification and the roster set up
   /// behind it. A channel and a DM call differ only in how they got here —
-  /// which token, which address, which key.
-  ///
-  /// Answers whether the join should be tried once more with a freshly minted
-  /// token, which is only ever true for a cached token the server refused. Any
-  /// other failure has already been put in the state by the time this returns.
-  Future<bool> _joinRoom({
+  /// which token, which address, which key. A failure is in the state by the
+  /// time this returns.
+  Future<void> _joinRoom({
     required String livekitUrl,
     required String livekitToken,
     required E2EEOptions e2ee,
-    required bool tokenWasCached,
     required String callName,
     required String? serverName,
     required bool Function() isCurrent,
@@ -434,7 +386,7 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       if (!isCurrent()) {
         _clearE2EE();
         await _dropUnjoinedRoom(room, listener);
-        return false;
+        return;
       }
       _applyVoicePrivacy(room);
       onConnected?.call();
@@ -496,25 +448,16 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
       unawaited(_followShares());
       // Those already here with clipping on, said once for the call.
       _noticeClippers();
-      return false;
     } catch (e) {
       HelperMethods.printDebug('[LiveKit] room.connect() threw: $e');
-      // A cached token the server refuses is most often one minted before the
-      // voice credentials were replaced, and a freshly minted one gets straight
-      // in — so that case is tried once more before anyone sees an error. The
-      // second attempt has no cached token to reach for, so it cannot loop.
-      // See [VoiceRejoin].
-      final mintAgain =
-          isCurrent() && tokenWasCached && VoiceRejoin.refusedCachedToken(e);
       // A join nobody is waiting for any more fails without a word.
-      if (!mintAgain && isCurrent()) _failJoin(ConnectionFailure.from(e));
+      if (isCurrent()) _failJoin(ConnectionFailure.from(e));
       // The key material, and the doorbell subscription [_prepareE2EE] may
       // have opened to ask for it, both belong to a call that is not
       // happening. Nothing used to be held this early, so nothing had to be
       // let go here.
       _clearE2EE();
       await _dropUnjoinedRoom(room, listener);
-      return mintAgain;
     }
   }
 
@@ -573,23 +516,13 @@ mixin _LiveKitConnectionMixin on Cubit<LiveKitState>, _E2EEMixin {
     return 'Voice';
   }
 
-  /// Runs the failed join again, against the channel that failed.
-  ///
-  /// Drops the cached channel token first. A token the server has just refused
-  /// — expired, or minted before the member's access changed — is one of the
-  /// likelier reasons a join fails, and [connectToChannel] prefers the cache,
-  /// so retrying without evicting it would fail identically forever. That is
-  /// what made leaving for another channel and coming back the only cure: it
-  /// was never the round trip that helped, only the fresh token at the end of
-  /// it. Re-minting one costs a single edge-function call when the cause was
-  /// something else, which is worth it to make the button always mean
-  /// something.
+  /// Runs the failed join again, against the channel that failed, with a
+  /// token of its own like any join.
   Future<void> retryConnection() async {
     if (state.dmCall != null) return rejoinDmCall();
     final channelId = state.currentChannelId;
     final serverId = state.currentServerId;
     if (channelId == null || serverId == null) return;
-    _tokenCubit.invalidateToken(channelId);
     await connectToChannel(channelId: channelId, serverId: serverId);
   }
 }

@@ -16,7 +16,6 @@ import '../cubits/server/server_cubit.dart';
 import '../cubits/server_events/server_events_cubit.dart';
 import '../cubits/server_members/server_members_cubit.dart';
 import '../cubits/soundboard/soundboard_cubit.dart';
-import '../cubits/token/token_cubit.dart';
 import '../cubits/vault/vault_cubit.dart';
 import '../cubits/voice_listeners/voice_listeners_cubit.dart';
 
@@ -63,7 +62,6 @@ class ServerContext {
     required SessionRepository session,
     required AppCubit appCubit,
     required VaultCubit vaultCubit,
-    required TokenCubit tokenCubit,
     required ServerCubit serverCubit,
     required LiveKitCubit livekitCubit,
     required ChannelChatCubit chatCubit,
@@ -74,13 +72,6 @@ class ServerContext {
       serverId: serverId,
     );
     final members = ServerMembersCubit(session: session, serverId: serverId);
-    // A cached LiveKit token still grants what it was minted with, so being
-    // muted here has to throw this server's away — otherwise rejoining
-    // restores the old permissions until it expires.
-    members.setOnSelfModerationChanged(() {
-      final url = session.serverById(serverId)?.supabaseUrl;
-      if (url != null) tokenCubit.invalidateServerTokens(url);
-    });
     // Presence reports ids; with the roster paged, an id is routinely somebody
     // no page has reached. Resolving them is what keeps the sidebar's Online
     // group from being "the online people who sort early in the alphabet".

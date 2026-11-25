@@ -15,9 +15,16 @@ abstract final class HydratedKeys {
   static const app = 'AppCubit';
   static const server = 'ServerCubit';
   static const theme = 'ThemeCubit';
-  static const token = 'TokenCubit';
 
-  static const all = [app, server, theme, token];
+  static const all = [app, server, theme];
+
+  /// Names nothing saves under any more, whose records are deleted as the
+  /// store opens.
+  ///
+  /// `TokenCubit` kept a LiveKit token per channel for 55 minutes, and a
+  /// token is an identity in a call: left on disk, it is still good for the
+  /// rest of its hour. Every join mints its own now.
+  static const retired = ['TokenCubit'];
 }
 
 /// Finds the state a build from before [HydratedKeys] saved under a
@@ -40,9 +47,15 @@ abstract final class HydratedKeyRecovery {
       return HydratedKeys.app;
     }
     if (has('themeMode') && has('paletteId')) return HydratedKeys.theme;
-    if (has('tokens') && record.length == 1) return HydratedKeys.token;
     return null;
   }
+
+  /// Whether [record], under [key], is state nothing reads any more: a name
+  /// in [HydratedKeys.retired], or the call token cache under a scrambled
+  /// name from before the fixed ones.
+  static bool isRetired(String key, Object? record) =>
+      HydratedKeys.retired.contains(key) ||
+      (record is Map && record.length == 1 && record.containsKey('tokens'));
 
   /// For each fixed name with nothing under it in [records], the key of the
   /// record to copy there.

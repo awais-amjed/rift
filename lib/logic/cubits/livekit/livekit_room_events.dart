@@ -7,7 +7,6 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
   Map<String, Set<String>> get _watchingSeen;
   WatchResume get _watchResume;
   SoundboardCubit? get _soundboardCubit;
-  TokenCubit get _tokenCubit;
   ScreenshareCubit? get _screenshareCubit;
   void _syncParticipants({bool speakingOnly});
   Future<void> _publishSelfState();
@@ -296,9 +295,8 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         }
 
         // The call itself has moved to another LiveKit. The channel is the
-        // one we are already in, so nothing about the sidebar changes — but
-        // the cached token names the node we are leaving, so it goes first or
-        // the rejoin lands us straight back where we were.
+        // one we are already in, so nothing about the sidebar changes: the
+        // rejoin mints a token, which names the node the call is on now.
         if (VoiceSignal.isRejoin(
           data: e.data,
           topic: e.topic,
@@ -307,7 +305,6 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
           final here = state.currentChannelId;
           final serverId = state.currentServerId;
           if (here != null && serverId != null) {
-            _tokenCubit.invalidateToken(here);
             unawaited(connectToChannel(channelId: here, serverId: serverId));
           }
           return;
@@ -347,13 +344,13 @@ mixin _RoomEventsMixin on Cubit<LiveKitState>, _E2EEMixin, _ParticipantMixin {
         // The connection gave out rather than somebody ending the call, so
         // join the same channel again with a fresh token instead of leaving
         // the user outside it without a word. The token the SDK spent its
-        // retries on is the likeliest reason those retries failed.
+        // retries on is the likeliest reason those retries failed, and every
+        // join mints its own.
         final channelId = state.currentChannelId;
         final serverId = state.currentServerId;
         if (channelId != null &&
             serverId != null &&
             VoiceRejoin.rejoinsAfter(e.reason)) {
-          _tokenCubit.invalidateToken(channelId);
           unawaited(connectToChannel(channelId: channelId, serverId: serverId));
           return;
         }

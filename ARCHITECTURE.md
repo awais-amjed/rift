@@ -994,7 +994,10 @@ channel there to override them (before 1.9.0 it gave every DM call connection da
 was minted, so every join is checked again against the rules as they are now
 (`livekit_webhook`): an app that kept an old token and rejoined with it is pushed back
 to muted, Listen-only or without the soundboard, or removed if the server would no
-longer let it in at all. Blocking files is only as strong as the file's name: the
+longer let it in at all. The app itself keeps no token: every join, rejoin and Retry mints
+one (`LiveKitCubit`, since Nov 25 2026), because the mint is also what names the node a
+call is on, and a kept token could open a second room of the same name on a node the
+call had left. Blocking files is only as strong as the file's name: the
 server checks the channel an upload is named for, but the message linking it is
 sealed, so a file uploaded under another channel can still be linked here. The
 editor shows a file, a poll, `@all`, sharing or the soundboard blocked while what it

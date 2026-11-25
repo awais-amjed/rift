@@ -59,13 +59,6 @@ class ServerMembersCubit extends Cubit<ServerMembersState>
 
   final List<StreamSubscription<void>> _idSubs = [];
 
-  void Function()? _onSelfModerationChanged;
-
-  /// Called when the local user's own mute/deafen state changes — see
-  /// [_notifySelfModeration].
-  void setOnSelfModerationChanged(void Function() callback) =>
-      _onSelfModerationChanged = callback;
-
   /// Keep the online members nameable, whoever they are.
   ///
   /// Presence reports *ids*, and with the roster paged an id is routinely
@@ -326,36 +319,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState>
   bool _stale(int loadId, String serverId) =>
       isClosed || loadId != _loadId || serverId != _watcher.serverId;
 
-  /// Emit [next], and tell whoever is listening if our own moderation moved.
-  void _emitLoaded(ServerMembersState next) {
-    final previous = state;
-    emit(next);
-    _notifySelfModeration(previous, next);
-  }
-
-  /// A member's own mute/deafen state is baked into the LiveKit token they
-  /// hold, which outlives the change by the best part of an hour. When ours
-  /// moves, whoever is listening has to drop that token — otherwise a muted
-  /// member gets their old permissions back just by rejoining.
-  void _notifySelfModeration(
-    ServerMembersState previous,
-    ServerMembersState next,
-  ) {
-    final serverId = _watcher.serverId;
-    if (serverId == null) return;
-    final myId = _session.serverById(serverId)?.user?.id;
-    if (myId == null) return;
-
-    // No prior row means this is the first load for the server, not a change.
-    final before = previous.byId[myId];
-    final after = next.byId[myId];
-    if (before == null || after == null) return;
-
-    if (before.isMuted != after.isMuted ||
-        before.isDeafened != after.isDeafened) {
-      _onSelfModerationChanged?.call();
-    }
-  }
+  void _emitLoaded(ServerMembersState next) => emit(next);
 
   @override
   Future<void> close() async {

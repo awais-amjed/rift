@@ -6,7 +6,6 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/server/server_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
-import 'package:rift/logic/cubits/token/token_cubit.dart';
 import 'package:rift/logic/services/hydrated_keys.dart';
 
 import 'helpers/memory_storage.dart';
@@ -41,7 +40,6 @@ void main() {
     test('are fixed, and the class names Linux builds have used', () {
       expect(AppCubit().storagePrefix, 'AppCubit');
       expect(ThemeCubit().storagePrefix, 'ThemeCubit');
-      expect(TokenCubit().storagePrefix, 'TokenCubit');
       expect(HydratedKeys.server, 'ServerCubit');
     });
   });
@@ -60,16 +58,35 @@ void main() {
         HydratedKeyRecovery.kindOf(ThemeState().toJson()),
         HydratedKeys.theme,
       );
-      expect(
-        HydratedKeyRecovery.kindOf(TokenCubit().toJson(const TokenState())),
-        HydratedKeys.token,
-      );
     });
 
     test('ignores anything else', () {
       expect(HydratedKeyRecovery.kindOf(null), isNull);
       expect(HydratedKeyRecovery.kindOf('servers'), isNull);
       expect(HydratedKeyRecovery.kindOf({'tokens': {}, 'x': 1}), isNull);
+      // The call token cache, retired: nothing is carried over into it.
+      expect(HydratedKeyRecovery.kindOf({'tokens': {}}), isNull);
+    });
+  });
+
+  group('the retired call token cache', () {
+    // A saved LiveKit token is an identity in a call for the rest of its
+    // hour, so it is deleted rather than left on disk.
+    test('is found under its own name and under a scrambled one', () {
+      expect(HydratedKeyRecovery.isRetired('TokenCubit', null), isTrue);
+      expect(HydratedKeyRecovery.isRetired('Abc', {'tokens': {}}), isTrue);
+    });
+
+    test('and nothing else is', () {
+      expect(HydratedKeyRecovery.isRetired('AppCubit', {'x': 1}), isFalse);
+      expect(
+        HydratedKeyRecovery.isRetired('Abc', {'tokens': {}, 'x': 1}),
+        isFalse,
+      );
+      expect(
+        HydratedKeyRecovery.isRetired('Sjb', {'servers': [], 'orderClock': 1}),
+        isFalse,
+      );
     });
   });
 
@@ -89,7 +106,7 @@ void main() {
         },
         ['Ujb', 'Abc', 'Sjb'],
       );
-      expect(plan, {HydratedKeys.server: 'Sjb', HydratedKeys.token: 'Abc'});
+      expect(plan, {HydratedKeys.server: 'Sjb'});
     });
 
     test('leaves a name alone once something is saved under it', () {

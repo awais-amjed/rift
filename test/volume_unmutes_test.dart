@@ -6,7 +6,6 @@ import 'package:rift/data/participant_identity.dart';
 import 'package:rift/logic/cubits/app/app_cubit.dart';
 import 'package:rift/logic/cubits/livekit/livekit_cubit.dart';
 import 'package:rift/logic/cubits/theme/theme_cubit.dart';
-import 'package:rift/logic/cubits/token/token_cubit.dart';
 import 'package:rift/logic/cubits/vault/vault_cubit.dart';
 import 'package:rift/presentation/common/volume_slider.dart';
 import 'package:rift/presentation/screens/home/sidebar/widgets/participant_volume_slider.dart';
@@ -23,11 +22,7 @@ void main() {
     final app = AppCubit();
     return (
       app: app,
-      livekit: LiveKitCubit(
-        appCubit: app,
-        tokenCubit: TokenCubit(),
-        vaultCubit: VaultCubit(),
-      ),
+      livekit: LiveKitCubit(appCubit: app, vaultCubit: VaultCubit()),
     );
   }
 

@@ -26,7 +26,6 @@ import '../logic/cubits/settings_place/settings_place_cubit.dart';
 import '../logic/cubits/sound_share/sound_share_cubit.dart';
 import '../logic/cubits/supabase_backup/supabase_backup_cubit.dart';
 import '../logic/cubits/theme/theme_cubit.dart';
-import '../logic/cubits/token/token_cubit.dart';
 import '../logic/cubits/update/update_cubit.dart';
 import '../logic/cubits/vault/vault_cubit.dart';
 import '../logic/cubits/voice_stats/voice_stats_cubit.dart';
@@ -78,12 +77,10 @@ class AppProviders extends StatelessWidget {
         BlocProvider(create: (_) => ServerReachCubit.of(session)),
         BlocProvider.value(value: appCubit),
         BlocProvider.value(value: vaultCubit),
-        BlocProvider(create: (_) => TokenCubit()),
         BlocProvider(create: (_) => ClipHistoryCubit()),
         BlocProvider(
           create: (context) => LiveKitCubit(
             appCubit: context.read<AppCubit>(),
-            tokenCubit: context.read<TokenCubit>(),
             // Calls are end-to-end encrypted with the channel's own key, and
             // the vault is where the identity that unwraps it lives.
             vaultCubit: vaultCubit,
@@ -220,7 +217,6 @@ class AppProviders extends StatelessWidget {
   ServerHub _createServerHub(BuildContext context) {
     final livekit = context.read<LiveKitCubit>();
     final serverCubit = context.read<ServerCubit>();
-    final tokenCubit = context.read<TokenCubit>();
     final chatCubit = context.read<ChannelChatCubit>();
     final dmCubit = context.read<DmCubit>();
     final hub = ServerHub(
@@ -230,7 +226,6 @@ class AppProviders extends StatelessWidget {
         session: session,
         appCubit: appCubit,
         vaultCubit: vaultCubit,
-        tokenCubit: tokenCubit,
         serverCubit: serverCubit,
         livekitCubit: livekit,
         chatCubit: chatCubit,

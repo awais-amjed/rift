@@ -18,12 +18,10 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
 
   /// Implemented by the other parts.
   Future<void> _cleanupRoom();
-  void forgetChannelToken(String? channelId);
-  Future<bool> _joinRoom({
+  Future<void> _joinRoom({
     required String livekitUrl,
     required String livekitToken,
     required E2EEOptions e2ee,
-    required bool tokenWasCached,
     required String callName,
     required String? serverName,
     required bool Function() isCurrent,
@@ -53,7 +51,6 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
     final hadCall =
         state.room != null ||
         state.connectionState == LiveKitConnectionState.connecting;
-    final leaving = state.currentChannelId;
     if (state.dmCall?.callId != place.callId) _appCubit.setParticipants([]);
 
     emit(
@@ -75,7 +72,6 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
       if (!current()) return;
 
       if (hadCall || state.room != null) await _cleanupRoom();
-      forgetChannelToken(leaving);
       _clearE2EE();
       _keyring?.clear();
       emit(state.copyWith(clearRoom: true));
@@ -107,7 +103,6 @@ mixin _DmCallConnectMixin on Cubit<LiveKitState>, _E2EEMixin {
           livekitUrl: livekitUrl,
           livekitToken: data['token'] as String,
           e2ee: await _prepareFixedKey(mediaKey),
-          tokenWasCached: false,
           callName: place.peerName,
           serverName: server.name,
           isCurrent: current,

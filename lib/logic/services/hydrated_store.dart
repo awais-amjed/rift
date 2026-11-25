@@ -40,6 +40,11 @@ Future<void> _recover(
     for (final key in box.keys)
       if (key is String) key: box.get(key),
   };
+  for (final MapEntry(:key, :value) in records.entries.toList()) {
+    if (!HydratedKeyRecovery.isRetired(key, value)) continue;
+    await storage.delete(key);
+    records.remove(key);
+  }
   if (HydratedKeys.all.every(records.containsKey)) return;
 
   var writeOrder = const <String>[];

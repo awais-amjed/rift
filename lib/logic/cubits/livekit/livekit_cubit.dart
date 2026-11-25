@@ -78,7 +78,6 @@ import '../app/app_cubit.dart';
 import '../screenshare/screenshare_cubit.dart';
 import '../sound_share/sound_share_cubit.dart';
 import '../soundboard/soundboard_cubit.dart';
-import '../token/token_cubit.dart';
 import '../vault/vault_cubit.dart';
 
 part 'livekit_audio_reception.dart';
@@ -133,8 +132,6 @@ class LiveKitCubit extends Cubit<LiveKitState>
   final ClipNoticeRules _clipRules = ClipNoticeRules();
   @override
   final ClipLibrary _clipLibrary;
-  @override
-  final TokenCubit _tokenCubit;
   @override
   final SessionRepository? _session;
 
@@ -199,7 +196,6 @@ class LiveKitCubit extends Cubit<LiveKitState>
 
   LiveKitCubit({
     required AppCubit appCubit,
-    required TokenCubit tokenCubit,
     required VaultCubit vaultCubit,
     SessionRepository? session,
     ScreenshareCubit? screenshareCubit,
@@ -209,7 +205,6 @@ class LiveKitCubit extends Cubit<LiveKitState>
        _clipLibrary = clipLibrary ?? ClipLibrary.instance,
        _session = session,
        _vaultCubit = vaultCubit,
-       _tokenCubit = tokenCubit,
        _screenshareCubit = screenshareCubit,
        _crypto = crypto ?? CryptoRepository(),
        _lastAppState = appCubit.state,
