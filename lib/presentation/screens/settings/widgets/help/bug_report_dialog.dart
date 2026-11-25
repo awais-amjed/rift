@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../../data/classes/api_response.dart';
 import '../../../../../data/repositories/bug_report_repository.dart';
+import '../../../../../logic/cubits/theme/theme_cubit.dart';
 import '../../../../../logic/helper_methods.dart';
 import '../../../../common/app_button.dart';
 import '../../../../common/app_modal.dart';
@@ -78,10 +79,18 @@ class _BugReportDialogState extends State<BugReportDialog> {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final note = AppText.meta.copyWith(color: theme.textTertiary);
+    // Escape and a click outside answer to this; the X to `closable`.
+    return PopScope(canPop: !_sending, child: _modal(theme, note));
+  }
+
+  Widget _modal(ThemeState theme, TextStyle note) {
     return AppModal(
       title: 'Report a bug',
       subtitle: 'Tell the Rift team what went wrong',
       error: _error,
+      // Closed mid-send, the answer had nowhere to land, and a report that
+      // failed read as sent.
+      closable: !_sending,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,

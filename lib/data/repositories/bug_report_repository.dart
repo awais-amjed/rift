@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../logic/services/app_log.dart';
+import '../central_failure.dart';
 import '../classes/api_response.dart';
 
 /// Sending a bug report to Rift's team — central's `submit_bug_report`, then
@@ -44,13 +45,14 @@ class BugReportRepository {
               )
               as String;
     } on PostgrestException catch (e) {
+      if (CentralFailure.isUnreachable(e)) return CentralFailure.response(e);
       final identifier = e.message.trim();
       return APIResponse.error(
         _messages[identifier] ?? e.message,
         errorCode: identifier,
       );
     } catch (e) {
-      return APIResponse.error(e);
+      return CentralFailure.response(e);
     }
 
     final uid = _client.auth.currentUser?.id;
