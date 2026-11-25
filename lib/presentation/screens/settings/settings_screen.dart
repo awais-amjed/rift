@@ -68,6 +68,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// How far down the open tab is scrolled.
   late double _offset;
 
+  /// The section this screen was sent to, until you go anywhere else in it.
+  /// Kept for its whole life, the section was scrolled to and lit again on
+  /// every return to its tab, over the place you had left it.
+  SettingsSection? _focus;
+
   @override
   void initState() {
     super.initState();
@@ -78,6 +83,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _activeTab = target?.tab ?? left.tab;
     _detailOpen = target != null || left.detailOpen;
     _offset = target == null ? left.offset : 0;
+    _focus = target?.section;
   }
 
   @override
@@ -117,6 +123,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // The same tab again keeps its scroll view, and where it is in it.
       if (tab != _activeTab) _offset = 0;
       _activeTab = tab;
+      _focus = null;
       if (compact) _detailOpen = true;
     });
   }
@@ -136,7 +143,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           if (showBack)
             BackChevronButton(
               tooltip: 'All settings',
-              onPressed: () => setState(() => _detailOpen = false),
+              onPressed: () => setState(() {
+                _detailOpen = false;
+                _focus = null;
+              }),
             ),
           // The tab's own mark, so the content panel says which section you
           // are in as loudly as the nav row you clicked to get here.
@@ -179,7 +189,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // returns to the list before it leaves settings.
       canPop: !(context.layoutMode.isCompact && _detailOpen),
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) setState(() => _detailOpen = false);
+        if (!didPop) {
+          setState(() {
+            _detailOpen = false;
+            _focus = null;
+          });
+        }
       },
       child: Scaffold(
         body: BlocBuilder<AppCubit, AppState>(
@@ -281,9 +296,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                           SettingsTab.general =>
                                             const GeneralContent(),
                                           SettingsTab.voiceAndAudio =>
-                                            VoiceAudioContent(
-                                              focus: widget.target?.section,
-                                            ),
+                                            VoiceAudioContent(focus: _focus),
                                           SettingsTab.clips =>
                                             const ClipsContent(),
                                           SettingsTab.keybinds =>

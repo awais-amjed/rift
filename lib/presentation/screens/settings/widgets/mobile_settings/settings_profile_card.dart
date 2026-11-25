@@ -23,8 +23,9 @@ class SettingsProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final server = context.watch<ServerCubit>().state.serverOn(
-      ServerScope.idOf(context),
+    final serverId = ServerScope.idOf(context);
+    final server = context.select(
+      (ServerCubit c) => c.state.serverOn(serverId),
     );
     final user = server?.user;
     if (user == null) return const SizedBox.shrink();

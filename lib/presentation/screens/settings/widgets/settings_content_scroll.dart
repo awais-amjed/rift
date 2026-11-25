@@ -36,6 +36,10 @@ class _SettingsContentScrollState extends State<SettingsContentScroll> {
   /// took over.
   double? _restoring;
 
+  /// Set round this widget's own jump, so the scroll it starts is not read
+  /// as somebody taking over.
+  bool _jumping = false;
+
   @override
   void initState() {
     super.initState();
@@ -61,19 +65,31 @@ class _SettingsContentScrollState extends State<SettingsContentScroll> {
     }
     final reach = math.min(target, note.metrics.maxScrollExtent);
     if (reach >= target) _restoring = null;
-    if (_controller.offset != reach) _controller.jumpTo(reach);
+    if (_controller.offset != reach) {
+      _jumping = true;
+      _controller.jumpTo(reach);
+      _jumping = false;
+    }
     return false;
   }
 
-  bool _onUserScroll(UserScrollNotification note) {
-    if (note.depth == 0) _restoring = null;
+  /// Any scroll but its own ends the restore: a drag, the wheel, a key or a
+  /// click on the track. Only a drag used to, and a saved point past the
+  /// page's end — a taller window, a shorter page — kept pulling the page
+  /// back to the bottom on every change of size after a keyboard scroll.
+  bool _onScrollStart(ScrollStartNotification note) {
+    if (note.depth == 0 && !_jumping && _restoring != null) {
+      _restoring = null;
+      // The move was reported before it was heard as one, as the old target.
+      _report();
+    }
     return false;
   }
 
   @override
   Widget build(BuildContext context) {
-    return NotificationListener<UserScrollNotification>(
-      onNotification: _onUserScroll,
+    return NotificationListener<ScrollStartNotification>(
+      onNotification: _onScrollStart,
       child: NotificationListener<ScrollMetricsNotification>(
         onNotification: _onMetrics,
         child: SingleChildScrollView(

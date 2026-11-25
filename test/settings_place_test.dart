@@ -82,6 +82,26 @@ void main() {
     expect(reported.last, mine);
   });
 
+  // A key or a click on the track scrolls without a drag. Only a drag used
+  // to end the restore, and the page went back to its foot on the next
+  // change of size.
+  testWidgets('scrolling by key or track stops the way back too', (
+    tester,
+  ) async {
+    final height = await open(tester, offset: 1200, height: 1000);
+    final position = tester
+        .state<ScrollableState>(find.byType(Scrollable))
+        .position;
+    position.jumpTo(100);
+    await tester.pumpAndSettle();
+    expect(reported.last, 100);
+
+    height.value = 3000;
+    await tester.pumpAndSettle();
+    expect(offsetOf(tester), 100);
+    expect(reported.last, 100);
+  });
+
   testWidgets('a tab opened fresh starts at its top', (tester) async {
     await open(tester, offset: 0, height: 3000);
     expect(offsetOf(tester), 0);

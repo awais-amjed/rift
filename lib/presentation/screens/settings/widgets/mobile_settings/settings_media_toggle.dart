@@ -30,7 +30,7 @@ class SettingsMediaToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final radius = BorderRadius.circular(K.radiusCard);
-    final ink = isOff ? CustomColors.error : theme.textPrimary;
+    final ink = isOff ? theme.statusInk(CustomColors.error) : theme.textPrimary;
     return Material(
       color: isOff ? CustomColors.error.withValues(alpha: 0.07) : theme.bgHover,
       borderRadius: radius,

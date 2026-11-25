@@ -41,10 +41,19 @@ class MobileSettingsList extends StatelessWidget {
     final hasServer = context.select<ServerCubit, bool>(
       (c) => c.state.meOn(serverId) != null,
     );
-    final call = context.watch<LiveKitCubit>().state;
+    final micOn = context.select((LiveKitCubit c) => c.state.isMicOn);
+    final deafened = context.select(
+      (LiveKitCubit c) => c.state.isDeafenedEffective,
+    );
+    // The preference, so System says System rather than whichever of the two
+    // it is not literally set to.
     final palette = context.select<ThemeCubit, String>(
       (c) =>
-          '${c.state.palette.name} · ${c.state.isDarkTheme ? 'Dark' : 'Light'}',
+          '${c.state.palette.name} · ${switch (c.state.themeMode) {
+            ThemeMode.system => 'System',
+            ThemeMode.dark => 'Dark',
+            ThemeMode.light => 'Light',
+          }}',
     );
     final backup = context.select<SupabaseBackupCubit, String?>(
       (c) => c.state.isSignedIn ? 'Signed in — backed up to the cloud' : null,
@@ -87,24 +96,20 @@ class MobileSettingsList extends StatelessWidget {
                 children: [
                   Expanded(
                     child: SettingsMediaToggle(
-                      icon: call.isMicOn
-                          ? Icons.mic_none_rounded
-                          : Icons.mic_off,
-                      label: call.isMicOn ? 'Mic on' : 'Mic off',
-                      isOff: !call.isMicOn,
+                      icon: micOn ? Icons.mic_none_rounded : Icons.mic_off,
+                      label: micOn ? 'Mic on' : 'Mic off',
+                      isOff: !micOn,
                       onTap: () =>
                           context.read<LiveKitCubit>().toggleMicrophone(),
                     ),
                   ),
                   Expanded(
                     child: SettingsMediaToggle(
-                      icon: call.isDeafenedEffective
+                      icon: deafened
                           ? Icons.headset_off_rounded
                           : Icons.headset_rounded,
-                      label: call.isDeafenedEffective
-                          ? 'Audio off'
-                          : 'Audio on',
-                      isOff: call.isDeafenedEffective,
+                      label: deafened ? 'Audio off' : 'Audio on',
+                      isOff: deafened,
                       onTap: () => context.read<LiveKitCubit>().toggleDeafen(),
                     ),
                   ),
