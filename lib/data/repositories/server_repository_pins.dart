@@ -44,13 +44,11 @@ mixin _PinApiMixin {
     String? bearerToken,
     required String channelId,
   }) {
-    return ServerDb.run(() async {
+    return _ChatReadApiMixin._readRows((columns) async {
       final rows = await _db
           .client(supabaseUrl, anonKey, bearerToken)
           .from('message_pins')
-          .select(
-            'pinned_at, messages!inner(${_ChatReadApiMixin._messageColumns})',
-          )
+          .select('pinned_at, messages!inner(${columns.messages})')
           .eq('channel_id', channelId)
           .order('pinned_at', ascending: false)
           .limit(50);
@@ -60,7 +58,7 @@ mixin _PinApiMixin {
             _ChatReadApiMixin._flatten(
               (row['messages'] as Map).cast<String, dynamic>(),
               userId: userId,
-              reactionsKey: 'message_reactions',
+              dm: false,
             ),
         ],
       };
@@ -77,13 +75,11 @@ mixin _PinApiMixin {
   }) {
     // The table keeps the pair sorted, so either side asks the same question.
     final pair = [userId, peerId]..sort();
-    return ServerDb.run(() async {
+    return _ChatReadApiMixin._readRows((columns) async {
       final rows = await _db
           .client(supabaseUrl, anonKey, bearerToken)
           .from('dm_message_pins')
-          .select(
-            'pinned_at, dm_messages!inner(${_ChatReadApiMixin._dmColumns})',
-          )
+          .select('pinned_at, dm_messages!inner(${columns.dms})')
           .eq('user_low', pair.first)
           .eq('user_high', pair.last)
           .order('pinned_at', ascending: false)
@@ -94,7 +90,7 @@ mixin _PinApiMixin {
             _ChatReadApiMixin._flatten(
               (row['dm_messages'] as Map).cast<String, dynamic>(),
               userId: userId,
-              reactionsKey: 'dm_message_reactions',
+              dm: true,
             ),
         ],
       };

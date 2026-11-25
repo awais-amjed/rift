@@ -9,47 +9,87 @@ part of 'server_repository.dart';
 mixin _ChatReadApiMixin {
   ServerDb get _db;
 
-  /// The columns every message read needs, with the sender's profile and the
-  /// message's reactions embedded.
+  /// The columns every message read needs, with the sender's profile, the
+  /// message's reaction counts and its pin embedded.
   ///
   /// The sender FK has to be named explicitly: reactions added a second
   /// messages↔users relationship, and PostgREST refuses an ambiguous embed.
   ///
   /// Reactions ride along rather than being fetched after the page, so opening
-  /// a channel is one round trip instead of two and the cost stops growing with
-  /// how far the reader has scrolled. RLS applies to the embed as it does to a
-  /// standalone read, so this widens nothing.
+  /// a channel is one round trip instead of two. They come as counts the
+  /// server works out per message (`reaction_counts`, `[{emoji, count,
+  /// mine}]`), checking once per message who may see them. Embedding every
+  /// reaction row instead, as this did before, read 3.3 MB and took 220 ms for
+  /// a page of announcements with 2,600 reactions each; the counts are 45 KB
+  /// and 22 ms (Nov 25 2026). A server from before them is asked the old way
+  /// ([_readRows]).
   static const _messageColumns =
+      '$_messageFields, reactions:reaction_counts, message_pins(pinned_at)';
+
+  static const _dmColumns =
+      '$_dmFields, reactions:reaction_counts, dm_message_pins(pinned_at)';
+
+  /// The same columns as a server from before `reaction_counts` is asked for
+  /// them: every reaction row, folded into counts here.
+  static const _oldMessageColumns =
+      '$_messageFields, message_reactions(user_id, emoji), message_pins(pinned_at)';
+
+  static const _oldDmColumns =
+      '$_dmFields, dm_message_reactions(user_id, emoji), dm_message_pins(pinned_at)';
+
+  static const _messageFields =
       'id, created_at, channel_id, sender_id, ciphertext, nonce, signature, '
       'key_version, edited_at, webhook_id, origin_name, is_system, to_bot, '
       'blocks, is_interaction, '
       'reply_to, ephemeral_for, poll, mentions_all, '
-      'sender:users!messages_sender_id_fkey(display_name, public_key, avatar_path), '
-      'message_reactions(user_id, emoji), '
-      'message_pins(pinned_at)';
+      'sender:users!messages_sender_id_fkey(display_name, public_key, avatar_path)';
 
-  static const _dmColumns =
+  static const _dmFields =
       'id, created_at, sender_id, recipient_id, ciphertext, nonce, signature, '
       'key_version, edited_at, '
-      'sender:users!dm_messages_sender_id_fkey(display_name, public_key, avatar_path), '
-      'dm_message_reactions(user_id, emoji), '
-      'dm_message_pins(pinned_at)';
+      'sender:users!dm_messages_sender_id_fkey(display_name, public_key, avatar_path)';
 
-  /// Lifts the embedded sender onto the row, tallies the embedded reaction
-  /// rows into counts, and lifts the pin (a one-to-one embed: an object or
-  /// null) to `pinned_at` — the shape the chat cubits decrypt from.
+  /// Runs a read of message rows with the columns the server understands:
+  /// [read] is handed the channel and DM column lists to select.
+  ///
+  /// A server from before `reaction_counts` (self-host 050) refuses the
+  /// column with 42703, and is asked again with every reaction row embedded.
+  /// That costs it one refused request a read until it is updated.
+  static Future<APIResponse> _readRows(
+    Future<dynamic> Function(({String messages, String dms}) columns) read,
+  ) async {
+    final response = await ServerDb.run(
+      () => read((messages: _messageColumns, dms: _dmColumns)),
+    );
+    final old =
+        response.errorCode == '42703' &&
+        (response.error ?? '').contains('reaction_counts');
+    if (!old) return response;
+    return ServerDb.run(
+      () => read((messages: _oldMessageColumns, dms: _oldDmColumns)),
+    );
+  }
+
+  /// Lifts the embedded sender onto the row, takes the reaction counts (or
+  /// tallies the embedded reaction rows of a server from before them), and
+  /// lifts the pin (a one-to-one embed: an object or null) to `pinned_at` —
+  /// the shape the chat cubits decrypt from.
   static Map<String, dynamic> _flatten(
     Map<String, dynamic> row, {
     required String? userId,
-    required String reactionsKey,
+    required bool dm,
   }) {
-    final pinsKey = reactionsKey == 'dm_message_reactions'
-        ? 'dm_message_pins'
-        : 'message_pins';
+    final reactionsKey = dm ? 'dm_message_reactions' : 'message_reactions';
+    final pinsKey = dm ? 'dm_message_pins' : 'message_pins';
     final pin = row[pinsKey];
     final sender = row['sender'] as Map<String, dynamic>?;
-    final reactions = (row[reactionsKey] as List? ?? const [])
-        .cast<Map<String, dynamic>>();
+    final embedded = row[reactionsKey] as List?;
+    final reactions = embedded == null
+        ? (row['reactions'] as List? ?? const [])
+        : ReactionOps.aggregate(
+            embedded.cast<Map<String, dynamic>>(),
+            userId: userId,
+          );
     // A webhook's message has no sender row to embed — `origin_name` is the
     // name, frozen on the message itself. Taking it here rather
     // than in each cubit keeps every reader on the same answer, and keeps the
@@ -65,7 +105,7 @@ mixin _ChatReadApiMixin {
       'sender_name': originName ?? sender?['display_name'] ?? 'Unknown',
       'sender_public_key': sender?['public_key'],
       'sender_avatar_path': sender?['avatar_path'],
-      'reactions': ReactionOps.aggregate(reactions, userId: userId),
+      'reactions': reactions,
     };
   }
 
@@ -81,7 +121,7 @@ mixin _ChatReadApiMixin {
     int? afterId,
     int? limit,
   }) {
-    return ServerDb.run(() async {
+    return _readRows((columns) async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       final pageSize = limit ?? ChatMessageOps.pageSize;
       // `channel_messages`, not `from('messages')`, and that is a performance
@@ -109,15 +149,14 @@ mixin _ChatReadApiMixin {
               'p_limit': pageSize + 1,
             },
           )
-          .select(_messageColumns);
+          .select(columns.messages);
       final page = Paging.split(
         (rows as List).cast<Map<String, dynamic>>(),
         limit: pageSize,
       );
       return {
         'messages': [
-          for (final r in page.rows)
-            _flatten(r, userId: userId, reactionsKey: 'message_reactions'),
+          for (final r in page.rows) _flatten(r, userId: userId, dm: false),
         ],
         'has_more': page.hasMore,
       };
@@ -135,15 +174,15 @@ mixin _ChatReadApiMixin {
     String? bearerToken,
     required String channelId,
   }) {
-    return ServerDb.run(() async {
+    return _readRows((columns) async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       final rows = await db
           .rpc('channel_live_messages', params: {'p_channel': channelId})
-          .select(_messageColumns);
+          .select(columns.messages);
       return {
         'messages': [
           for (final r in (rows as List).cast<Map<String, dynamic>>())
-            _flatten(r, userId: userId, reactionsKey: 'message_reactions'),
+            _flatten(r, userId: userId, dm: false),
         ],
       };
     });
@@ -160,15 +199,15 @@ mixin _ChatReadApiMixin {
     String? bearerToken,
     required String callId,
   }) {
-    return ServerDb.run(() async {
+    return _readRows((columns) async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       final rows = await db
           .rpc('call_live_messages', params: {'p_call': callId})
-          .select(_messageColumns);
+          .select(columns.messages);
       return {
         'messages': [
           for (final r in (rows as List).cast<Map<String, dynamic>>())
-            _flatten(r, userId: userId, reactionsKey: 'message_reactions'),
+            _flatten(r, userId: userId, dm: false),
         ],
       };
     });
@@ -185,12 +224,12 @@ mixin _ChatReadApiMixin {
     int? afterId,
     int? limit,
   }) {
-    return ServerDb.run(() async {
+    return _readRows((columns) async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       final pageSize = limit ?? ChatMessageOps.pageSize;
       var query = db
           .from('dm_messages')
-          .select(_dmColumns)
+          .select(columns.dms)
           .or(
             'and(sender_id.eq.$userId,recipient_id.eq.$peerId),'
             'and(sender_id.eq.$peerId,recipient_id.eq.$userId)',
@@ -207,8 +246,7 @@ mixin _ChatReadApiMixin {
       );
       return {
         'messages': [
-          for (final r in page.rows)
-            _flatten(r, userId: userId, reactionsKey: 'dm_message_reactions'),
+          for (final r in page.rows) _flatten(r, userId: userId, dm: true),
         ],
         'has_more': page.hasMore,
       };
@@ -234,9 +272,7 @@ mixin _ChatReadApiMixin {
     anonKey: anonKey,
     userId: userId,
     bearerToken: bearerToken,
-    table: 'messages',
-    columns: _messageColumns,
-    reactionsKey: 'message_reactions',
+    dm: false,
     messageId: messageId,
     channelId: channelId,
   );
@@ -253,9 +289,7 @@ mixin _ChatReadApiMixin {
     anonKey: anonKey,
     userId: userId,
     bearerToken: bearerToken,
-    table: 'dm_messages',
-    columns: _dmColumns,
-    reactionsKey: 'dm_message_reactions',
+    dm: true,
     messageId: messageId,
   );
 
@@ -292,21 +326,20 @@ mixin _ChatReadApiMixin {
     required String anonKey,
     required String userId,
     String? bearerToken,
-    required String table,
-    required String columns,
-    required String reactionsKey,
+    required bool dm,
     required int messageId,
     String? channelId,
   }) {
-    return ServerDb.run(() async {
+    return _readRows((columns) async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      var query = db.from(table).select(columns).eq('id', messageId);
+      var query = db
+          .from(dm ? 'dm_messages' : 'messages')
+          .select(dm ? columns.dms : columns.messages)
+          .eq('id', messageId);
       if (channelId != null) query = query.eq('channel_id', channelId);
       final row = await query.maybeSingle();
       return {
-        'message': row == null
-            ? null
-            : _flatten(row, userId: userId, reactionsKey: reactionsKey),
+        'message': row == null ? null : _flatten(row, userId: userId, dm: dm),
       };
     });
   }

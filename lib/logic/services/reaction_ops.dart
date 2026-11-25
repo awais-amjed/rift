@@ -6,9 +6,9 @@ import '../../data/classes/message_reaction.dart';
 ///
 /// Reactions are the one part of a message that is **not** end-to-end
 /// encrypted — the server stores one row per person per emoji and can see them
-/// (ARCHITECTURE.md §4). That is why the tallying lives here rather than in
-/// SQL: the raw rows come back with the message page, and folding them into
-/// counts is cheap, testable, and the same on every surface.
+/// (ARCHITECTURE.md §4). A self-hosted server counts them itself and a page
+/// arrives with the counts (`reaction_counts`); [aggregate] folds the raw rows
+/// a server from before that sends instead.
 class ReactionOps {
   const ReactionOps._();
 
