@@ -8,6 +8,18 @@ part of 'dm_cubit.dart';
 mixin _DmReactionsMixin on Cubit<DmState> {
   ReactionsApi get _reactions;
 
+  /// Our own toggles whose ring is still to come.
+  final ReactionEchoes _echoes = ReactionEchoes();
+
+  /// Whether a reaction ring about [messageId] is the echo of our own toggle,
+  /// whose counts are already on screen.
+  bool _isOwnEcho(Map<String, dynamic> payload, String messageId) {
+    final from = BroadcastPayload.stringOf(payload, 'user_id');
+    return from != null &&
+        from == _reactions.callerId &&
+        _echoes.take(messageId);
+  }
+
   /// Optimistic flip first so the tap feels instant, then reconcile with the
   /// server's authoritative counts.
   Future<void> toggleReaction(String messageId, String emoji) async {
@@ -32,7 +44,24 @@ mixin _DmReactionsMixin on Cubit<DmState> {
     );
     if (state.openPeerId != peerId) return;
     if (!response.success) {
-      emit(state.copyWith(notice: Notice.error('Failed to react')));
+      emit(
+        state.copyWith(notice: Notice.error(ReactionsApi.failureOf(response))),
+      );
+    }
+    // The counts came back with it, so its own ring need not ask again.
+    final counts = ReactionsApi.countsOf(response, idNum);
+    if (counts != null) {
+      _echoes.expect(messageId);
+      emit(
+        state.copyWith(
+          messages: ReactionOps.withReactionsFor(
+            state.messages,
+            messageId: messageId,
+            data: counts,
+          ),
+        ),
+      );
+      return;
     }
     final read = await refreshReactionsFor(messageId);
     // Neither got through — offline, most likely — so nothing replaced the

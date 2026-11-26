@@ -19,7 +19,30 @@ class ReactionsApi {
 
   ServerRepository get _repository => _session.repository;
 
-  /// Toggle the caller's [emoji] reaction on a message.
+  /// Who is reacting, so a ring naming them can be told from anybody else's.
+  String? get callerId => _target.server?.user?.id;
+
+  /// A refused toggle, in words.
+  static String failureOf(APIResponse response) => switch (response.errorCode) {
+    'too_many_reactions' => 'A message can have at most 20 different reactions',
+    _ => 'Failed to react',
+  };
+
+  /// The counts a toggle answered, as `{reactions: {id: counts}}` the way
+  /// [listReactions] answers them, or null from a server that answers none.
+  static Map<String, dynamic>? countsOf(APIResponse response, int messageId) {
+    final data = response.data;
+    if (!response.success || data is! Map || !data.containsKey('counts')) {
+      return null;
+    }
+    return {
+      'reactions': {'$messageId': data['counts']},
+    };
+  }
+
+  /// Toggle the caller's [emoji] reaction on a message. From a server with
+  /// `toggle_reaction` (self-host 067) the answer carries the counts after
+  /// it ([countsOf]).
   Future<APIResponse> toggleReaction({
     required String scope,
     required int messageId,

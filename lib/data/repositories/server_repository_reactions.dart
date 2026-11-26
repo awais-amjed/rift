@@ -17,12 +17,53 @@ mixin _ReactionApiMixin {
   static String _tableFor(String scope) =>
       scope == 'dm' ? 'dm_message_reactions' : 'message_reactions';
 
-  /// Toggle the caller's [emoji] reaction on a message. Returns `{reacted}`.
+  /// Servers from before `toggle_reaction` (self-host 067), by address:
+  /// asked once, then written row by row.
+  final Set<String> _noToggleReaction = {};
+
+  /// Toggle the caller's [emoji] reaction on a message. Answers `{reacted}`,
+  /// and from a server with `toggle_reaction` the message's `counts` too
+  /// (`[{emoji, count, mine}]`, or null for a message the caller cannot see),
+  /// so nothing need read them again.
   ///
-  /// Insert-then-fall-back-to-delete rather than read-then-write: the primary
-  /// key is (message, user, emoji), so a duplicate is the database telling us
-  /// the reaction was already there, with no window in between.
+  /// The function takes the reaction off first and only then puts one on,
+  /// which is what lets somebody the insert policy now refuses (timed out,
+  /// blocked) still take theirs off.
   Future<APIResponse> toggleReaction(
+    String supabaseUrl, {
+    required String anonKey,
+    required String userId,
+    String? bearerToken,
+    required String scope,
+    required int messageId,
+    required String emoji,
+  }) async {
+    if (!_noToggleReaction.contains(supabaseUrl)) {
+      final response = await ServerDb.run(() async {
+        final db = _db.client(supabaseUrl, anonKey, bearerToken);
+        final data = await db.rpc(
+          'toggle_reaction',
+          params: {'p_scope': scope, 'p_message': messageId, 'p_emoji': emoji},
+        );
+        return (data as Map).cast<String, dynamic>();
+      });
+      if (response.errorCode != 'PGRST202') return response;
+      _noToggleReaction.add(supabaseUrl);
+    }
+    return _toggleRow(
+      supabaseUrl,
+      anonKey: anonKey,
+      userId: userId,
+      bearerToken: bearerToken,
+      scope: scope,
+      messageId: messageId,
+      emoji: emoji,
+    );
+  }
+
+  /// A server from before `toggle_reaction`: insert, and on the primary key
+  /// saying it was already there, delete.
+  Future<APIResponse> _toggleRow(
     String supabaseUrl, {
     required String anonKey,
     required String userId,

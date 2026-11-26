@@ -209,6 +209,7 @@ mixin _DmRealtimeMixin
     if (isClosed) return;
     final messageId = BroadcastPayload.stringOf(payload, 'message_id');
     if (messageId != null) {
+      if (_isOwnEcho(payload, messageId)) return;
       unawaited(refreshReactionsFor(messageId));
     } else {
       unawaited(refreshReactions());

@@ -49,6 +49,7 @@ import '../../services/notification_ids.dart';
 import '../../services/outbox.dart';
 import '../../services/pin_ops.dart';
 import '../../services/quote_lookup.dart';
+import '../../services/reaction_echoes.dart';
 import '../../services/reaction_ops.dart';
 import '../../services/saved_conversation.dart';
 import '../../services/saved_copy_refresh.dart';
