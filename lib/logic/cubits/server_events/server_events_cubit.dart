@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/repositories/session_repository.dart';
 import '../../services/channel_eviction.dart';
+import '../../services/ring_throttle.dart';
 import '../../services/server_realtime.dart';
 import '../../services/server_topic_watcher.dart';
 import '../../services/server_topics.dart';
@@ -34,6 +35,10 @@ class ServerEventsCubit extends Cubit<int> {
   /// The server this is about.
   final String _serverId;
   RealtimeLease? _topic;
+
+  /// `changed` is any member's to ring, and each answer is a server re-read:
+  /// at most one every two seconds, however often it rings.
+  late final _changed = RingThrottle(_onChanged);
 
   /// The doorbell above is a courtesy — it only rings if the member who made
   /// the change remembered to ring it, and never for someone who was offline.
@@ -162,7 +167,7 @@ class ServerEventsCubit extends Cubit<int> {
     if (_topic != null) return; // already subscribed
 
     _topic = _session.realtime.join(server, ServerTopics.server(server.id))
-      ?..onBroadcast(ServerEvent.changed, (_) => _onChanged());
+      ?..onBroadcast(ServerEvent.changed, (_) => _changed.ring());
   }
 
   void _onChanged() {
@@ -181,6 +186,7 @@ class ServerEventsCubit extends Cubit<int> {
   }
 
   void _teardown() {
+    _changed.cancel();
     final topic = _topic;
     _topic = null;
     unawaited(topic?.release());

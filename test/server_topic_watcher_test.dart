@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -155,6 +156,9 @@ void main() {
         onNamed: answered.add,
         spreadUpTo: () => const Duration(milliseconds: 200),
         onServerChanged: (_) {},
+        // Short, so a burst after a burst is quick to see here; the gap
+        // itself has its own test below.
+        atMostEvery: const Duration(milliseconds: 300),
       );
       await Future<void>.delayed(Duration.zero);
       session.realtime.debugReportStatus(
@@ -214,6 +218,21 @@ void main() {
         null,
         {'d'},
       ]);
+    });
+
+    // Any member may ring the topic; a flood is answered every so often
+    // rather than at every ring, and cannot hold the answer off either.
+    test('a flood is answered now and then, never at every ring', () async {
+      final flood = Timer.periodic(
+        const Duration(milliseconds: 50),
+        (_) => ring({}),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 2500));
+      flood.cancel();
+      // At least one answer while it lasted, though rings came faster than
+      // the quarter second; nowhere near the fifty rings.
+      expect(answered, isNotEmpty);
+      expect(answered.length, lessThanOrEqualTo(3));
     });
 
     test('nothing is answered inside the quarter second', () async {

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../../data/classes/server.dart';
+import 'ring_throttle.dart';
 import 'server_realtime.dart';
 import 'server_topics.dart';
 
@@ -16,6 +17,7 @@ import 'server_topics.dart';
 /// know its key rotated out from under it.
 class KeySweepDoorbell {
   RealtimeLease? _lease;
+  RingThrottle? _throttle;
 
   /// Whether this doorbell is currently listening.
   bool get isListening => _lease != null;
@@ -28,10 +30,14 @@ class KeySweepDoorbell {
   /// channel that works without the doorbell is better than one that fails
   /// because of it. The chat and a call in progress each hold one of these;
   /// [realtime] gives them the same join.
+  ///
+  /// Answered at most every two seconds ([RingThrottle]): any member may ring
+  /// it, and each answer is a sweep's reads.
   void listen(ServerRealtime realtime, Server server, void Function() onRing) {
     unawaited(stop());
+    final throttle = _throttle = RingThrottle(onRing);
     _lease = realtime.join(server, ServerTopics.server(server.id))
-      ?..onBroadcast(ServerEvent.sweep, (_) => onRing());
+      ?..onBroadcast(ServerEvent.sweep, (_) => throttle.ring());
   }
 
   /// Ring it, so other clients go and look — and anything else on this device
@@ -58,6 +64,8 @@ class KeySweepDoorbell {
   Future<void> stop() async {
     final lease = _lease;
     _lease = null;
+    _throttle?.cancel();
+    _throttle = null;
     await lease?.release();
   }
 }

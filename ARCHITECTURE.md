@@ -734,6 +734,10 @@ and iOS leave out of backups; not on the web.
   `message` or `dm` ring of their own. The app only counts one into a badge, which the next
   count puts right; before it chimes, says or posts anything it reads the row the ring names
   (`announcedRow`) and speaks for that (review, Nov 23).
+  Nor can it keep one from ringing a doorbell in a loop, so every app answers a server's
+  doorbells at most every two seconds (`RingThrottle`, and `ServerTopicWatcher`'s gap): a flood
+  costs each app one re-read in that time, and cannot hold off the answer to a real change either
+  (security re-review, Nov 26).
 
 ---
 

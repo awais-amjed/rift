@@ -31,6 +31,18 @@ class ServerTopicWatcher {
   /// One logical change often writes several rows; refresh once for the burst.
   static const _coalesce = Duration(milliseconds: 250);
 
+  /// The longest a burst that keeps ringing holds its answer, past its first
+  /// ring and the spread: rings arriving faster than [_coalesce] once put it
+  /// off for as long as they came.
+  static const _longestBurst = Duration(seconds: 1);
+
+  /// The shortest time between two answers. Any member may ring a server's
+  /// topic (`app.can_use_topic`), so a member looping one had every app on
+  /// the server reading again as fast as Realtime carried the rings
+  /// (security re-review, Nov 26). Nothing is lost: the next read sees what
+  /// the rings in between announced.
+  final Duration atMostEvery;
+
   /// Where the server list, the selection and the connection are.
   final SessionRepository session;
 
@@ -83,6 +95,11 @@ class ServerTopicWatcher {
   /// arriving every second cannot keep pushing the spread out.
   DateTime? _notBefore;
 
+  /// The latest the burst may answer, fixed by its first ring too.
+  DateTime? _notAfter;
+
+  DateTime? _lastAnswered;
+
   static final Random _random = Random();
 
   ServerTopicWatcher({
@@ -95,6 +112,7 @@ class ServerTopicWatcher {
     required this.onServerChanged,
     required this.watchedServerId,
     this.whileBanned = false,
+    this.atMostEvery = const Duration(seconds: 2),
   }) : assert(
          (onChanged == null) != (onNamed == null),
          'one of onChanged and onNamed',
@@ -158,17 +176,24 @@ class ServerTopicWatcher {
     }
 
     final now = DateTime.now();
-    final spread = spreadUpTo?.call() ?? Duration.zero;
-    _notBefore ??= now.add(
-      _coalesce +
-          Duration(
-            milliseconds: spread.inMilliseconds <= 0
-                ? 0
-                : _random.nextInt(spread.inMilliseconds + 1),
-          ),
-    );
-    final settled = now.add(_coalesce);
-    final at = settled.isAfter(_notBefore!) ? settled : _notBefore!;
+    if (_notBefore == null) {
+      final spread = spreadUpTo?.call() ?? Duration.zero;
+      var first = now.add(
+        _coalesce +
+            Duration(
+              milliseconds: spread.inMilliseconds <= 0
+                  ? 0
+                  : _random.nextInt(spread.inMilliseconds + 1),
+            ),
+      );
+      final gapEnds = _lastAnswered?.add(atMostEvery);
+      if (gapEnds != null && gapEnds.isAfter(first)) first = gapEnds;
+      _notBefore = first;
+      _notAfter = first.add(_longestBurst);
+    }
+    var at = now.add(_coalesce);
+    if (at.isBefore(_notBefore!)) at = _notBefore!;
+    if (at.isAfter(_notAfter!)) at = _notAfter!;
     _debounce?.cancel();
     _debounce = Timer(at.difference(now), _fire);
   }
@@ -177,6 +202,8 @@ class ServerTopicWatcher {
     final named = _named;
     _named = {};
     _notBefore = null;
+    _notAfter = null;
+    _lastAnswered = DateTime.now();
     final onNamed = this.onNamed;
     if (onNamed != null) {
       onNamed(named);
@@ -190,6 +217,7 @@ class ServerTopicWatcher {
     _debounce = null;
     _named = {};
     _notBefore = null;
+    _notAfter = null;
     _serverId = null;
 
     final lease = _lease;
