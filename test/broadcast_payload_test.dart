@@ -66,6 +66,32 @@ void main() {
       );
     });
 
+    // A ring a role made says so (069), named or not.
+    test('reads whether a ring is about roles, flattened or nested', () {
+      expect(
+        BroadcastPayload.aboutRoles(const {'type': 'broadcast', 'roles': true}),
+        isTrue,
+      );
+      expect(
+        BroadcastPayload.aboutRoles(const {
+          'type': 'broadcast',
+          'payload': {
+            'ids': ['a'],
+            'roles': true,
+          },
+        }),
+        isTrue,
+      );
+      expect(BroadcastPayload.aboutRoles(const {'type': 'broadcast'}), isFalse);
+      expect(
+        BroadcastPayload.aboutRoles(const {
+          'type': 'broadcast',
+          'roles': 'yes',
+        }),
+        isFalse,
+      );
+    });
+
     test('a ring naming nobody is null, not an empty set', () {
       expect(BroadcastPayload.idsOf(const {'type': 'broadcast'}), isNull);
       expect(

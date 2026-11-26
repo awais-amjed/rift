@@ -17,8 +17,8 @@ mixin _DmRealtimeMixin
   /// peer's new chat key is heard without waiting for their next message.
   RealtimeLease? _serverFeed;
 
-  /// A role change rings `members` once per row it touches; one re-read
-  /// answers them all.
+  /// Several rings close together (members renamed one after another) are
+  /// answered by one re-read.
   Timer? _membersDebounce;
 
   /// Our own topic, where the database says a DM arrived, changed or was
@@ -77,10 +77,14 @@ mixin _DmRealtimeMixin
   ///
   /// Only for a ring about one of our peers: one that names its members
   /// (062) and none of them is somebody we talk to moved nothing here. A ring
-  /// that names nobody is heard by every app with DMs on the server, so those
-  /// answers are spread over two seconds rather than all landing at once.
+  /// about roles (069) moved no member's row, and the list draws no roles; a
+  /// server's members each read their list again on every role renamed,
+  /// moved or given before it said so (seen live, Nov 26). A ring that names
+  /// nobody is heard by every app with DMs on the server, so those answers
+  /// are spread over two seconds rather than all landing at once.
   void _onMembersDoorbell(Map<String, dynamic> message) {
     if (state.conversations.isEmpty) return;
+    if (BroadcastPayload.aboutRoles(message)) return;
     final named = BroadcastPayload.idsOf(message);
     if (named != null &&
         !named.contains(state.openPeerId) &&

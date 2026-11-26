@@ -40,4 +40,10 @@ class BroadcastPayload {
         if (id is String) id,
     };
   }
+
+  /// Whether a `members` ring is about roles (`"roles": true`, self-host
+  /// 069): one was given, taken, made, renamed or moved, and no member's own
+  /// row changed. What draws no roles lets it go.
+  static bool aboutRoles(Map<String, dynamic> message) =>
+      of(message)['roles'] == true;
 }
