@@ -6,9 +6,10 @@ part of 'server_repository.dart';
 /// they are two different transports. A **device registration** is the
 /// member's own row and goes straight to the table under RLS. The **relay
 /// credential** is the server's, has no policy and no grant at all, and can
-/// only be written by an admin through an edge function — because the secret
-/// in it is what proves a forward request came from this server, and nothing
-/// that can be read back by a client may hold it.
+/// only be written by an admin through definer calls that never hand it back
+/// (self-host 080; `configure_push` before) — because the secret in it is
+/// what proves a forward request came from this server, and nothing that can
+/// be read back by a client may hold it.
 mixin _PushApiMixin {
   ServerDb get _db;
   Future<APIResponse> _post(
@@ -63,13 +64,25 @@ mixin _PushApiMixin {
     });
   }
 
+  /// Servers, by address, that answered they have no `push_status`: older
+  /// than self-host 080. Their push calls go to `configure_push` until the
+  /// app is next started.
+  final Set<String> _pushByEdgeFunction = {};
+
   /// Whether this server can currently ring its members' phones. Admin only —
   /// the answer is the existence of the config row, never its contents.
-  Future<APIResponse> pushStatus(String supabaseUrl, {String? bearerToken}) {
-    return _post(supabaseUrl, 'configure_push', const {
-      'status': true,
-    }, bearerToken: bearerToken);
-  }
+  Future<APIResponse> pushStatus(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+  }) => _pushCall(
+    supabaseUrl,
+    anonKey,
+    bearerToken,
+    'push_status',
+    const {},
+    const {'status': true},
+  );
 
   /// Point this server at a relay credential its admin enrolled on central.
   ///
@@ -78,23 +91,61 @@ mixin _PushApiMixin {
   /// either end. Re-enrolling is how it is replaced.
   Future<APIResponse> configurePush(
     String supabaseUrl, {
+    required String anonKey,
     String? bearerToken,
     required String endpoint,
     required String relayId,
     required String secret,
-  }) {
-    return _post(supabaseUrl, 'configure_push', {
-      'endpoint': endpoint,
-      'relay_id': relayId,
-      'secret': secret,
-    }, bearerToken: bearerToken);
-  }
+  }) => _pushCall(
+    supabaseUrl,
+    anonKey,
+    bearerToken,
+    'set_push_config',
+    {'p_endpoint': endpoint, 'p_relay_id': relayId, 'p_secret': secret},
+    {'endpoint': endpoint, 'relay_id': relayId, 'secret': secret},
+  );
 
   /// Stop ringing. The credential stays enrolled on central until it is
   /// revoked there, but this server no longer holds it.
-  Future<APIResponse> disablePush(String supabaseUrl, {String? bearerToken}) {
-    return _post(supabaseUrl, 'configure_push', const {
-      'disable': true,
-    }, bearerToken: bearerToken);
+  Future<APIResponse> disablePush(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+  }) => _pushCall(
+    supabaseUrl,
+    anonKey,
+    bearerToken,
+    'clear_push_config',
+    const {},
+    const {'disable': true},
+  );
+
+  /// [rpc] (self-host 080), or `configure_push` with [body] where the server
+  /// has no such call. The two answer in the same shape.
+  Future<APIResponse> _pushCall(
+    String supabaseUrl,
+    String anonKey,
+    String? bearerToken,
+    String rpc,
+    Map<String, dynamic> params,
+    Map<String, dynamic> body,
+  ) async {
+    if (!_pushByEdgeFunction.contains(supabaseUrl)) {
+      final response = await ServerDb.run(
+        () => _db
+            .client(supabaseUrl, anonKey, bearerToken)
+            .rpc(rpc, params: params),
+      );
+      if (response.errorCode == ErrorCode.permissionDenied) {
+        return APIResponse(
+          success: false,
+          error: 'Only server admins can configure push notifications',
+          errorCode: ErrorCode.permissionDenied,
+        );
+      }
+      if (response.errorCode != 'PGRST202') return response;
+      _pushByEdgeFunction.add(supabaseUrl);
+    }
+    return _post(supabaseUrl, 'configure_push', body, bearerToken: bearerToken);
   }
 }

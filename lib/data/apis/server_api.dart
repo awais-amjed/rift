@@ -44,8 +44,11 @@ class ServerApi {
 
     final response = await _session.callFor(
       server,
-      (token) =>
-          _repository.listingToken(server.supabaseUrl, bearerToken: token),
+      (token) => _repository.listingToken(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: token,
+      ),
     );
     if (!response.success) {
       return (token: null, error: response.error?.toString());

@@ -118,8 +118,11 @@ class PushApi {
     if (server == null) return APIResponse.error(ServerSession.gone);
     return _session.callFor(
       server,
-      (bearer) =>
-          _repository.pushStatus(server.supabaseUrl, bearerToken: bearer),
+      (bearer) => _repository.pushStatus(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: bearer,
+      ),
     );
   }
 
@@ -160,6 +163,7 @@ class PushApi {
       server,
       (bearer) => _repository.configurePush(
         server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
         bearerToken: bearer,
         endpoint: SupabaseConfig.pushRelayEndpoint,
         relayId: relayId,
@@ -194,8 +198,11 @@ class PushApi {
 
     final result = await _session.callFor(
       server,
-      (bearer) =>
-          _repository.disablePush(server.supabaseUrl, bearerToken: bearer),
+      (bearer) => _repository.disablePush(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: bearer,
+      ),
     );
     if (!result.success) return result;
 

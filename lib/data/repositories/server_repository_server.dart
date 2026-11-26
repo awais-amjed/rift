@@ -124,10 +124,32 @@ mixin _ServerApiMixin {
   /// the server itself: this returns a token that central redeems against this
   /// server's own domain before it will write a listing.
   ///
-  /// Admin-gated at the endpoint. A member who is not one gets a refusal here
-  /// rather than a listing they were never entitled to create.
+  /// Admin-gated by `my_listing_token` (self-host 080), or the
+  /// `listing_token` edge function on a server from before it. A member who
+  /// is not one gets a refusal here rather than a listing they were never
+  /// entitled to create.
   Future<APIResponse> listingToken(
     String supabaseUrl, {
+    required String anonKey,
     required String bearerToken,
-  }) => _post(supabaseUrl, 'listing_token', const {}, bearerToken: bearerToken);
+  }) async {
+    final response = await ServerDb.run(
+      () =>
+          _db.client(supabaseUrl, anonKey, bearerToken).rpc('my_listing_token'),
+    );
+    if (response.errorCode == ErrorCode.permissionDenied) {
+      return APIResponse(
+        success: false,
+        error: 'Only a server admin can list this server publicly',
+        errorCode: ErrorCode.permissionDenied,
+      );
+    }
+    if (response.errorCode != 'PGRST202') return response;
+    return _post(
+      supabaseUrl,
+      'listing_token',
+      const {},
+      bearerToken: bearerToken,
+    );
+  }
 }
