@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../../data/apis/channel_messages_api.dart';
+import '../../../data/classes/api_response.dart';
 import '../../../data/classes/chat_message.dart';
 import '../../../data/classes/server.dart';
 import '../../../data/enums/channel_type.dart';
@@ -33,7 +34,8 @@ typedef CallSeen = ({String? channelId, Set<String> userIds});
 /// channel, one the caller cannot read included: the player is the call's.
 /// Every text channel the caller can read is asked as well
 /// (`channel_live_messages`), for a bot or a server from before players named
-/// their call. The doorbells keep both current: a bot in the call posting a
+/// their call. Since self-host 065 both are one read (`call_panels`), and a
+/// server from before it is asked the old way. The doorbells keep both current: a bot in the call posting a
 /// message has its channel and the call asked again, and a change to a held
 /// panel re-reads that panel. Who is in the call only filters what is held,
 /// so somebody joining asks nothing.
@@ -113,7 +115,7 @@ class CallPanelsCubit extends Cubit<CallPanelsState> {
       _fromCall = const [];
       _fromCallChannel = const {};
       _syncFeeds();
-      unawaited(_readCall());
+      unawaited(_readCallAgain());
       _publish();
     } else {
       _publish();
@@ -139,12 +141,63 @@ class CallPanelsCubit extends Cubit<CallPanelsState> {
   ];
 
   Future<void> _readAll() async {
+    if (await _readPanels()) return;
     final server = _session.serverById(_serverId);
     if (server == null) return;
     await Future.wait([
       _readCall(),
       ..._textChannels(server).map(_readChannel),
     ]);
+  }
+
+  /// Ask for the whole bar in one read (`call_panels`): the call's players and
+  /// every text channel's live panels. False when the server is from before
+  /// it, and the call and each channel are to be asked on their own.
+  Future<bool> _readPanels() async {
+    final callId = _callChannel;
+    if (callId == null) return false;
+    final generation = _generation;
+    final response = await _api.listCallPanels(callId: callId);
+    if (response.errorCode == 'PGRST202') return false;
+    if (isClosed || generation != _generation || callId != _callChannel) {
+      return true;
+    }
+    if (!response.success) {
+      HelperMethods.printDebug(
+        '[Call panels] bar read failed: ${response.error}',
+      );
+      return true;
+    }
+    final (opened, channelOf) = await _openAll(response);
+    if (isClosed || generation != _generation || callId != _callChannel) {
+      return true;
+    }
+    // One answer for every channel, so nothing held from a channel's own
+    // read stands beside it.
+    _byChannel.clear();
+    _fromCall = opened;
+    _fromCallChannel = channelOf;
+    _publish();
+    return true;
+  }
+
+  /// Each row of [response] opened as a panel, and the channel it was posted in.
+  Future<(List<ChatMessage>, Map<String, String>)> _openAll(
+    APIResponse response,
+  ) async {
+    final rows = ((response.data as Map<String, dynamic>)['messages'] as List)
+        .cast<Map<String, dynamic>>();
+    final opened = <ChatMessage>[];
+    final channelOf = <String, String>{};
+    for (final row in rows) {
+      final channelId = row['channel_id'];
+      if (channelId is! String) continue;
+      final message = await _open(row, channelId);
+      if (message == null) continue;
+      opened.add(message);
+      channelOf[message.id] = channelId;
+    }
+    return (opened, channelOf);
   }
 
   /// Ask the call for its players, wherever each was posted. A server from
@@ -163,18 +216,7 @@ class CallPanelsCubit extends Cubit<CallPanelsState> {
       );
       return;
     }
-    final rows = ((response.data as Map<String, dynamic>)['messages'] as List)
-        .cast<Map<String, dynamic>>();
-    final opened = <ChatMessage>[];
-    final channelOf = <String, String>{};
-    for (final row in rows) {
-      final channelId = row['channel_id'];
-      if (channelId is! String) continue;
-      final message = await _open(row, channelId);
-      if (message == null) continue;
-      opened.add(message);
-      channelOf[message.id] = channelId;
-    }
+    final (opened, channelOf) = await _openAll(response);
     if (isClosed || generation != _generation || callId != _callChannel) {
       return;
     }
@@ -316,17 +358,36 @@ class CallPanelsCubit extends Cubit<CallPanelsState> {
     }
   }
 
+  /// The call's players again: in one read, or from the call alone on a
+  /// server from before it.
+  Future<void> _readCallAgain() async {
+    if (!await _readPanels()) await _readCall();
+  }
+
   /// A bot in the call posted: its channel, or the call, may have a new
   /// player. A channel the caller cannot read is the call's to answer.
+  ///
+  /// Only a bot's message: only a bot draws a panel, so anybody else's
+  /// changes nothing held. Every message in a channel from anybody in the
+  /// call had every app in the call read the bar again.
   void _onMessage(Map<String, dynamic> message) {
     final channelId = BroadcastPayload.stringOf(message, 'channel_id');
     final sender = BroadcastPayload.stringOf(message, 'sender_id');
-    if (channelId == null || !_callIds.contains(sender)) return;
+    if (channelId == null ||
+        !_callIds.contains(sender) ||
+        !_botIds.contains(sender)) {
+      return;
+    }
+    unawaited(_readAfterPost(channelId));
+  }
+
+  Future<void> _readAfterPost(String channelId) async {
+    if (await _readPanels()) return;
     final server = _session.serverById(_serverId);
     if (server != null && _textChannels(server).contains(channelId)) {
       unawaited(_readChannel(channelId));
     }
-    unawaited(_readCall());
+    await _readCall();
   }
 
   void _onMessageChanged(Map<String, dynamic> message) {

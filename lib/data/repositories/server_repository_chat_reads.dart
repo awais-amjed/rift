@@ -188,6 +188,44 @@ mixin _ChatReadApiMixin {
     });
   }
 
+  /// Servers from before `call_panels` (self-host 065), by address: asked
+  /// once, then read channel by channel.
+  final Set<String> _noCallPanels = {};
+
+  /// What the bar of the voice call [callId] can hold, in one read: the
+  /// call's players wherever each was posted, and the live panels of every
+  /// text channel the caller reads. Each row has its own `channel_id`. A
+  /// server from before it answers `PGRST202`, once.
+  Future<APIResponse> listCallPanels(
+    String supabaseUrl, {
+    required String anonKey,
+    required String userId,
+    String? bearerToken,
+    required String callId,
+  }) async {
+    if (_noCallPanels.contains(supabaseUrl)) {
+      return APIResponse(
+        success: false,
+        error: 'This server has no call_panels',
+        errorCode: 'PGRST202',
+      );
+    }
+    final response = await _readRows((columns) async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final rows = await db
+          .rpc('call_panels', params: {'p_call': callId})
+          .select(columns.messages);
+      return {
+        'messages': [
+          for (final r in (rows as List).cast<Map<String, dynamic>>())
+            _flatten(r, userId: userId, dm: false),
+        ],
+      };
+    });
+    if (response.errorCode == 'PGRST202') _noCallPanels.add(supabaseUrl);
+    return response;
+  }
+
   /// The live players of the bots in the voice call [callId], from whichever
   /// text channel each was posted in — one the caller cannot read included,
   /// since the player is the call's. A server from before the read fails this

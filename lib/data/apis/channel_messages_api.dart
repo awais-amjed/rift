@@ -150,6 +150,20 @@ class ChannelMessagesApi {
         ),
       );
 
+  /// Everything the bar of the voice call [callId] can hold, in one read:
+  /// its players and the live panels of every text channel the caller reads.
+  /// Answers `{messages: […]}`, each row with its own `channel_id`, or
+  /// `PGRST202` from a server from before it.
+  Future<APIResponse> listCallPanels({required String callId}) => _target.call(
+    (server, token) => _repository.listCallPanels(
+      server.supabaseUrl,
+      anonKey: server.supabaseKey ?? '',
+      userId: server.user?.id ?? '',
+      callId: callId,
+      bearerToken: token,
+    ),
+  );
+
   /// Re-read one channel message after a change doorbell named it. Answers
   /// `{message: …}`, or `{message: null}` when the row has been deleted.
   Future<APIResponse> getChatMessage({
