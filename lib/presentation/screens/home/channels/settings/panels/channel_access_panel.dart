@@ -5,6 +5,7 @@ import '../../../../../../data/apis/channel_access_api.dart';
 import '../../../../../../data/apis/members_api.dart';
 import '../../../../../../data/classes/channel.dart';
 import '../../../../../../data/classes/server_member.dart';
+import '../../../../../../data/enums/channel_type.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../../logic/services/member_selection.dart';
@@ -154,6 +155,7 @@ class _ChannelAccessPanelState extends State<ChannelAccessPanel> {
     final result = await ChannelAccessApi(ServerScope.read(context))
         .changeChannelMembers(
           channelId: _channel.id,
+          isVoice: _channel.channelType == ChannelType.voice,
           add: selected.difference(_original),
           remove: _original.difference(selected),
           seated: {..._seated, ?_me},

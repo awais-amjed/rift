@@ -114,6 +114,25 @@ mixin _ChannelApiMixin {
     }, bearerToken: bearerToken);
   }
 
+  /// Seat [add] and remove [remove] by the `change_channel_members` RPC
+  /// itself (self-host 042): for a text channel, which has no call for the
+  /// edge function to take anybody out of.
+  Future<APIResponse> changeChannelMembersRpc(
+    String supabaseUrl,
+    String channelId, {
+    required String anonKey,
+    String? bearerToken,
+    required List<String> add,
+    required List<String> remove,
+  }) => ServerDb.run(
+    () => _db
+        .client(supabaseUrl, anonKey, bearerToken)
+        .rpc(
+          'change_channel_members',
+          params: {'p_channel': channelId, 'p_add': add, 'p_remove': remove},
+        ),
+  );
+
   /// Leave a private channel through the same function, so a call there is
   /// left on the server's side too. The answer's `reason` is
   /// `leave_channel`'s.
@@ -355,6 +374,34 @@ mixin _ChannelApiMixin {
     return _post(supabaseUrl, 'delete_channel', {
       'channel_id': channelId,
     }, bearerToken: bearerToken);
+  }
+
+  /// Delete a text channel's row as the caller: there is no room to drop,
+  /// so the edge function's only other work is not needed.
+  /// `channels_delete_managers` decides, and turns a refusal into nothing
+  /// matched, which is answered as the function answered it.
+  Future<APIResponse> deleteChannelRow(
+    String supabaseUrl,
+    String channelId, {
+    required String anonKey,
+    String? bearerToken,
+  }) async {
+    final response = await ServerDb.run(
+      () => _db
+          .client(supabaseUrl, anonKey, bearerToken)
+          .from('channels')
+          .delete()
+          .eq('id', channelId)
+          .select('id'),
+    );
+    if (response.success && (response.data as List).isEmpty) {
+      return APIResponse(
+        success: false,
+        error: 'Channel not found, or not yours to delete',
+        errorCode: ErrorCode.permissionDenied,
+      );
+    }
+    return response;
   }
 
   /// Persistently mute/unmute/deafen/undeafen a user (server admin). State is

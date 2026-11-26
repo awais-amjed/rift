@@ -99,18 +99,28 @@ class ChannelsApi {
     failure: 'Failed to update channel',
   );
 
-  /// Delete a channel (channel manager only). Anyone in its call is dropped —
-  /// see [ServerRepository.deleteChannel].
-  Future<({bool success, String? error})> deleteChannel(String channelId) =>
-      changeChannel(
-        _target,
-        (server, token) => _repository.deleteChannel(
-          server.supabaseUrl,
-          channelId,
-          bearerToken: token,
-        ),
-        failure: 'Failed to delete channel',
-      );
+  /// Delete a channel (channel manager only). Anyone in a voice channel's
+  /// call is dropped — see [ServerRepository.deleteChannel]; a text channel
+  /// has no call, and its row is deleted directly.
+  Future<({bool success, String? error})> deleteChannel(
+    String channelId, {
+    required bool isVoice,
+  }) => changeChannel(
+    _target,
+    (server, token) => isVoice
+        ? _repository.deleteChannel(
+            server.supabaseUrl,
+            channelId,
+            bearerToken: token,
+          )
+        : _repository.deleteChannelRow(
+            server.supabaseUrl,
+            channelId,
+            anonKey: server.supabaseKey ?? '',
+            bearerToken: token,
+          ),
+    failure: 'Failed to delete channel',
+  );
 
   /// Put one section's channels in the order given (`MANAGE_CHANNELS`).
   ///

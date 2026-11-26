@@ -33,12 +33,15 @@ class ChannelAccessApi {
   /// guarded against here: nobody outside can see a private channel, so
   /// nobody outside could be asked to tidy up an empty one.
   ///
-  /// Through the `change_channel_members` function, which also takes whoever
-  /// was removed out of a call running there. A server from before it gets
-  /// the old whole-list write, built from [seated] — the read the change was
-  /// made against, which has to be complete for that to be safe.
+  /// A voice channel's goes through the `change_channel_members` function,
+  /// which also takes whoever was removed out of a call running there; a
+  /// text channel's is the RPC of that name, since it has no call. A server
+  /// from before either gets the old whole-list write, built from [seated] —
+  /// the read the change was made against, which has to be complete for that
+  /// to be safe.
   Future<({bool success, String? error})> changeChannelMembers({
     required String channelId,
+    required bool isVoice,
     required Set<String> add,
     required Set<String> remove,
     required Set<String> seated,
@@ -49,15 +52,25 @@ class ChannelAccessApi {
 
     var response = await _session.callFor(
       server,
-      (token) => _repository.changeChannelMembers(
-        server.supabaseUrl,
-        channelId,
-        bearerToken: token,
-        add: add.toList(),
-        remove: remove.toList(),
-      ),
+      (token) => isVoice
+          ? _repository.changeChannelMembers(
+              server.supabaseUrl,
+              channelId,
+              bearerToken: token,
+              add: add.toList(),
+              remove: remove.toList(),
+            )
+          : _repository.changeChannelMembersRpc(
+              server.supabaseUrl,
+              channelId,
+              anonKey: server.supabaseKey ?? '',
+              bearerToken: token,
+              add: add.toList(),
+              remove: remove.toList(),
+            ),
     );
-    if (response.errorCode == ErrorCode.functionMissing) {
+    if (response.errorCode == ErrorCode.functionMissing ||
+        response.errorCode == 'PGRST202') {
       response = await _session.callFor(
         server,
         (token) => _repository.setChannelMembers(
@@ -158,21 +171,27 @@ class ChannelAccessApi {
   /// Not [changeChannelMembers] removing your own name — that needs the manage bit,
   /// which is the right answer for who *else* is in a room and the wrong one
   /// for whether you are. Leaving needs nobody's permission.
-  Future<({bool success, String? error})> leaveChannel(String channelId) async {
+  Future<({bool success, String? error})> leaveChannel(
+    String channelId, {
+    required bool isVoice,
+  }) async {
     final server = _target.server;
     if (server == null) return (success: false, error: ServerSession.gone);
 
-    // Through the function, so a call in the channel is left on the server's
-    // side too; straight to the RPC on a server from before it.
-    var response = await _session.callFor(
-      server,
-      (token) => _repository.leaveChannelAndCall(
-        server.supabaseUrl,
-        channelId,
-        bearerToken: token,
-      ),
-    );
-    if (response.errorCode == ErrorCode.functionMissing) {
+    // A voice channel through the function, so its call is left on the
+    // server's side too; a text one, and a server from before the function,
+    // straight to the RPC.
+    var response = isVoice
+        ? await _session.callFor(
+            server,
+            (token) => _repository.leaveChannelAndCall(
+              server.supabaseUrl,
+              channelId,
+              bearerToken: token,
+            ),
+          )
+        : null;
+    if (response == null || response.errorCode == ErrorCode.functionMissing) {
       response = await _session.callFor(
         server,
         (token) => _repository.leaveChannel(

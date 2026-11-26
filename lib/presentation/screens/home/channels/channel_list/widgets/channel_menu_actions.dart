@@ -104,7 +104,10 @@ Future<void> leaveChannel(BuildContext context, Channel channel) async {
   );
   if (!confirmed) return;
 
-  final result = await access.leaveChannel(channel.id);
+  final result = await access.leaveChannel(
+    channel.id,
+    isVoice: channel.channelType == ChannelType.voice,
+  );
   if (!result.success) {
     HelperMethods.showError(error: result.error ?? 'Could not leave');
   }
@@ -206,7 +209,7 @@ Future<bool> deleteChannel(
   if (!confirmed) return false;
   onConfirmed?.call();
 
-  final result = await channels.deleteChannel(channel.id);
+  final result = await channels.deleteChannel(channel.id, isVoice: isVoice);
   if (!result.success) {
     HelperMethods.showError(
       error: result.error ?? 'Could not delete that channel',
