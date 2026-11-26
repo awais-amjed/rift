@@ -662,6 +662,11 @@ sealed only `botKey` — by a member, since only somebody holding `channelKey`
 can produce one — and HMAC does not run backwards. It cannot reach the channel
 key, and two bots in one call cannot decrypt each other either.
 
+The server takes a bot's row only at the room's current version, from a member
+who holds that version (`bot_voice_keys_insert`, since Nov 26 2026). A bot
+speaks with its newest row, so a row sealed ahead of the room, with anything in
+it, would have left the bot inaudible to everyone in the call.
+
 This is the shape §2 says a key cannot have, and it is bought by giving the two
 directions different keys rather than by trusting anyone. It is also why the
 room runs in LiveKit's per-participant key mode instead of its simpler
