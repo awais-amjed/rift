@@ -361,18 +361,21 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       // does not turn up, which somebody can see and ask again, and is not a
       // reason to lose the message that carried it.
       if (command != null && command.summonsBot && inVoiceChannel != null) {
-        final summoned = await voiceBots.setBotVoiceSummon(
+        final summoned = await voiceBots.summonBot(
           channelId: inVoiceChannel,
           botId: command.bot.id,
-          summon: true,
         );
         // Then tell whoever is in that call to seal it a media key. A summon is
         // the one thing that puts a bot on `bots_missing` while the call is
         // already running, and every other path that seals runs on somebody
         // joining — so without this the bot waits for a member to rejoin a call
-        // they are already sitting in.
+        // they are already sitting in. Only when it is owed one: the ring
+        // reaches every app on the server, and a queue of `/play`s rang it
+        // once a song.
         // The doorbell is the open server's, so only while still here.
-        if (summoned.success && open()) _ringKeySweepDoorbell();
+        if (summoned.success && summoned.needsKey && open()) {
+          _ringKeySweepDoorbell();
+        }
       }
 
       // Noted before it goes: an answer that never comes may still mean the
@@ -393,10 +396,9 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
       // taking away, which is the point: leaving does not depend on the bot
       // acting on a verb it advertised.
       if (command != null && command.dismissesBot && inVoiceChannel != null) {
-        await voiceBots.setBotVoiceSummon(
+        await voiceBots.dismissBot(
           channelId: inVoiceChannel,
           botId: command.bot.id,
-          summon: false,
         );
       }
 

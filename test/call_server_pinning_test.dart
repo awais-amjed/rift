@@ -294,6 +294,27 @@ void main() {
       );
       expect(servers.calls.map((c) => c.$2).toSet(), {_callUrl});
     });
+
+    test('a ring takes the keys and seals the bots from one read', () async {
+      await ring.loadOrBootstrap(_voiceId, serverId: 'call');
+      await settle();
+      expect(ring.listeningBots, isNull, reason: 'an answer from before 080');
+      servers.calls.clear();
+      servers.channelKey = {
+        ...servers.channelKey,
+        'listening_bots': ['ear'],
+      };
+
+      await ring.absorbNewVersions(_voiceId, sealBots: true);
+      for (var i = 0; i < 200; i++) {
+        if (servers.calls.any((c) => c.$1 == 'bot')) break;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+
+      expect(servers.calls.where((c) => c.$1 == 'get'), hasLength(1));
+      expect(servers.calls.map((c) => c.$1), contains('bot'));
+      expect(ring.listeningBots, {'ear'});
+    });
   });
 
   group('the call\'s server', () {

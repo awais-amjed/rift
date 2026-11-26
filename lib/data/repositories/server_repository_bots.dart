@@ -210,6 +210,26 @@ mixin _BotApiMixin {
     });
   }
 
+  /// Ask a bot into a voice channel (`summon_bot_to_voice`), as the caller.
+  ///
+  /// The RPC directly: summoning pushes nothing onto a call, so the edge
+  /// function in front of it only passed it on. Since self-host 080 it also
+  /// answers `new` and `needs_key`; an older server answers `reason` alone.
+  Future<APIResponse> summonBotToVoice(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required String channelId,
+    required String botId,
+  }) => ServerDb.run(
+    () => _db
+        .client(supabaseUrl, anonKey, bearerToken)
+        .rpc(
+          'summon_bot_to_voice',
+          params: {'p_bot': botId, 'p_channel': channelId},
+        ),
+  );
+
   /// Seal one bot the key it speaks with in one voice channel.
   ///
   /// A plain insert, not an RPC: the value is opaque to the server and every

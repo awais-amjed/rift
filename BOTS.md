@@ -555,7 +555,9 @@ token, and does nothing to the connection the bot already holds, which is good f
 playing music. `set_bot_voice_summon` pushes `removeParticipant` for the one channel, the same
 shape and the same reason as `set_bot_voice_listen`'s push. Summoning pushes nothing: there is no
 connection yet, and what brings it in is the command message itself, which the database announces
-to the bot the moment it is written.
+to the bot the moment it is written. So the app summons through `summon_bot_to_voice` itself, and
+rings `sweep` for the members in the call to seal the bot its media key only when the answer says
+it is owed one (`needs_key`): a queue of ten `/play`s rang every app on the server ten times.
 
 **A summon ends when its reason does** (`channels_drop_bot_voice_summons`). Closing a channel drops its summons, the
 same as it does for listening grants — without it a bot called into a public call could still take

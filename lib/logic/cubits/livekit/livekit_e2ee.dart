@@ -71,7 +71,7 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   int _callKeyIndex = 0;
 
   /// Every key version this call has held, oldest first: the one it joined on
-  /// and each it moved to. The ring keeps them all (see [_absorbKeyRotation]),
+  /// and each it moved to. The ring keeps them all (see [_onKeyDoorbell]),
   /// since a share begun before a rotation stays sealed under the key it
   /// began with.
   final List<({Uint8List key, int index})> _callKeysHeld = [];
@@ -94,7 +94,15 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   /// taken back (BOTS.md §6, §6b).
   Set<String> _callListeningBots = const {};
 
-  Future<Set<String>> _listeningBots(String channelId, String? serverId) async {
+  /// The keyring's last answer names them (self-host 080); an older server
+  /// is asked the `voice_listeners` view.
+  Future<Set<String>> _listeningBots(
+    ChannelKeyring keyring,
+    String channelId,
+    String? serverId,
+  ) async {
+    final named = keyring.listeningBots;
+    if (named != null) return named;
     final session = _session;
     if (session == null || serverId == null) return const {};
     // A failed read keys no bot: the safe direction, since a listener that
@@ -124,10 +132,6 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
       return (options: null, refused: const ConnectionFailure.noChannelKey());
     }
 
-    // Which bots hear the call, asked for alongside the key rather than after
-    // it, which was one more round trip before the room.
-    var listening = _listeningBots(channelId, server.id);
-
     // The ring keeps the server it loads from, so the heals, seals and
     // rotations that follow go there too, whatever the person reads meanwhile.
     var outcome = await keyring.loadOrBootstrap(channelId, serverId: server.id);
@@ -147,8 +151,6 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
       _watchKeyRotations(server, channelId);
       _rotations.ring();
       outcome = await _awaitHeal(keyring, channelId, server.id);
-      // The wait may be long enough for the answer above to have gone stale.
-      listening = _listeningBots(channelId, server.id);
     }
 
     final key = keyring.currentKey;
@@ -172,7 +174,8 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     _callKeysHeld
       ..clear()
       ..add((key: key, index: _callKeyIndex));
-    _callListeningBots = await listening;
+    // Which bots hear the call, from the same answer as the key.
+    _callListeningBots = await _listeningBots(keyring, channelId, server.id);
 
     // `sharedKey: false` is the whole point — see the class comment.
     final provider = await BaseKeyProvider.create(sharedKey: false);
@@ -337,27 +340,22 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   /// The old key is left in its slot rather than cleared. LiveKit's ring holds
   /// sixteen, the two versions occupy different ones, and frames already in
   /// flight were encrypted under the old index.
-  /// The doorbell rang while we are in a call.
   ///
-  /// Two different things ring it and only one of them is a rotation. A summon
-  /// puts a bot on `bots_missing` without changing the key version at all, and
-  /// [_absorbKeyRotation] returns early when the version has not moved — so
-  /// sealing has to be asked for separately rather than ridden along with it.
+  /// The doorbell rang while we are in a call, and two different things ring
+  /// it: a rotation, and a summon, which puts a bot on `bots_missing` without
+  /// changing the key version at all. Both are answered from one read: the
+  /// keyring takes the rotation, then seals the bots that answer lists,
+  /// after the move, since a rotation changes which version a bot should be
+  /// sealed under.
   Future<void> _onKeyDoorbell(String channelId) async {
-    await _absorbKeyRotation(channelId);
-    // After, not before: a rotation changes which version a bot should be
-    // sealed under, and sealing first would hand it the one being left behind.
-    unawaited(_keyring?.sealMissingBotKeys(channelId) ?? Future.value());
-  }
-
-  Future<void> _absorbKeyRotation(String channelId) async {
     final keyring = _keyring;
-    final room = state.room;
-    if (keyring == null || room == null) return;
+    if (keyring == null) return;
 
     final before = keyring.currentVersion;
     // From the server the ring was loaded from, which is the call's.
-    await keyring.absorbNewVersions(channelId);
+    await keyring.absorbNewVersions(channelId, sealBots: true);
+    final room = state.room;
+    if (room == null) return;
     final after = keyring.currentVersion;
     if (after == before) return;
 
@@ -370,7 +368,11 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
     // A grant can have changed in the same breath as the rotation — revoking
     // one is what rotates the key — so which bot gets which kind is re-read
     // rather than carried over.
-    _callListeningBots = await _listeningBots(channelId, state.currentServerId);
+    _callListeningBots = await _listeningBots(
+      keyring,
+      channelId,
+      state.currentServerId,
+    );
 
     await _registerAllParticipantKeys(room);
     // Registering the keys is half of it: the frame cryptors were told an index

@@ -72,7 +72,7 @@ class VoiceBotsApi {
     );
   }
 
-  /// Ask [botId] into [channelId], or send it away (`summon_bot_to_voice`).
+  /// Ask [botId] into [channelId] (`summon_bot_to_voice`).
   ///
   /// Distinct from [setBotVoiceListen] in the way that matters: this one is
   /// `SUMMON_BOTS`, which `@everyone` holds, because a summoned bot publishes
@@ -85,13 +85,58 @@ class VoiceBotsApi {
   /// somebody can see and try again, not a reason to fail the message that
   /// carried it.
   ///
-  /// [stillConnected] is a bot sent away that the voice server did not drop:
-  /// it cannot come back, but plays on until it leaves by itself.
-  Future<({bool success, String? error, bool stillConnected})>
-  setBotVoiceSummon({
+  /// [needsKey] is the bot still owed a media key here, which members in the
+  /// call seal when told to. A repeat summon of a bot already keyed needs
+  /// nobody, and every `/play` in a queue used to ring the whole server. An
+  /// older server does not say, and is read as needing one.
+  Future<({bool success, String? error, bool needsKey})> summonBot({
     required String channelId,
     required String botId,
-    required bool summon,
+  }) async {
+    final server = _target.server;
+    if (server == null) {
+      return (success: false, error: ServerSession.gone, needsKey: false);
+    }
+
+    final response = await _session.callFor(
+      server,
+      (token) => _repository.summonBotToVoice(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: token,
+        channelId: channelId,
+        botId: botId,
+      ),
+    );
+    final data = response.data;
+    final answer = data is Map ? data : const {};
+    final refused = response.success
+        ? _summonRefusal(answer['reason'] as String?)
+        : (response.error ?? 'Could not do that');
+    if (refused != null) {
+      return (success: false, error: refused, needsKey: false);
+    }
+    return (success: true, error: null, needsKey: answer['needs_key'] != false);
+  }
+
+  /// The RPC's `reason` put into words, or null for `ok`.
+  static String? _summonRefusal(String? reason) => switch (reason) {
+    'ok' => null,
+    'forbidden' => 'Not allowed to summon bots',
+    'no_such_channel' => 'Channel not found',
+    'not_a_voice_channel' => 'That is not a voice channel',
+    'no_such_bot' => 'Bot not found',
+    _ => 'Could not call the bot in',
+  };
+
+  /// Send [botId] away from [channelId] (`dismiss_bot_from_voice`, through
+  /// `set_bot_voice_summon`, which also drops it from the live room).
+  ///
+  /// [stillConnected] is a bot sent away that the voice server did not drop:
+  /// it cannot come back, but plays on until it leaves by itself.
+  Future<({bool success, String? error, bool stillConnected})> dismissBot({
+    required String channelId,
+    required String botId,
   }) async {
     final server = _target.server;
     if (server == null) {
@@ -106,7 +151,7 @@ class VoiceBotsApi {
         bearerToken: token,
         channelId: channelId,
         botId: botId,
-        summon: summon,
+        summon: false,
       ),
     );
     if (!response.success) {

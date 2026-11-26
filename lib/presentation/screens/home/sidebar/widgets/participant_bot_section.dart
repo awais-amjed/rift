@@ -49,10 +49,9 @@ class ParticipantBotSection extends StatelessWidget {
     if (channelId == null) return;
 
     dismissMenu?.call();
-    final result = await api.setBotVoiceSummon(
+    final result = await api.dismissBot(
       channelId: channelId,
       botId: targetUserId,
-      summon: false,
     );
     if (result.success) {
       // The row is what the sidebar draws a summoned-but-absent bot from, so

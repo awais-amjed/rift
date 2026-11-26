@@ -97,6 +97,17 @@ class ChannelKeyring with _KeyringSealingMixin {
   /// The channel [keys] were loaded for, or null for a ring never loaded.
   String? _channelId;
 
+  /// The bots allowed to hear the channel, as the last key read answered
+  /// them (`listening_bots`, self-host 080): a call registers each bot under
+  /// the channel key or a key derived from it by this. Null where the server
+  /// does not send it, and the caller reads `voice_listeners` instead.
+  Set<String>? listeningBots;
+
+  void _noteListeners(Map<String, dynamic> data) {
+    final ids = data['listening_bots'];
+    listeningBots = ids is List ? {...ids.cast<String>()} : null;
+  }
+
   /// Bumped by every [clear], which every load begins with.
   ///
   /// A load or an absorb still waiting on the server when the ring is
@@ -115,6 +126,7 @@ class ChannelKeyring with _KeyringSealingMixin {
     currentVersion = 0;
     _serverId = null;
     _channelId = null;
+    listeningBots = null;
     _load++;
   }
 
@@ -184,7 +196,15 @@ class ChannelKeyring with _KeyringSealingMixin {
   /// [serverId] names the server for a ring that was never loaded — a
   /// reviewer opening reports on another server's page. Null is the server
   /// the ring was loaded from.
-  Future<bool> absorbNewVersions(String channelId, {String? serverId}) async {
+  ///
+  /// [sealBots] also seals the bots the same answer lists as short of a
+  /// media key, once the ring is on its version: what a call does on every
+  /// ring, which asked for the keys a second time to find them.
+  Future<bool> absorbNewVersions(
+    String channelId, {
+    String? serverId,
+    bool sealBots = false,
+  }) async {
     // A ring loaded for another channel is not this one's to add to.
     if (_channelId != null && _channelId != channelId) return false;
     final load = _load;
@@ -218,12 +238,20 @@ class ChannelKeyring with _KeyringSealingMixin {
     if (load != _load) return false;
     final gained = ring.length > keys.length;
     keys.addAll(ring);
+    _noteListeners(data);
 
     // Only move up once the new key is actually in hand. Announcing a version
     // we cannot seal with would break sending outright, where staying put
     // leaves the client working until the rotation reaches it.
     if (version > currentVersion && keys.containsKey(version)) {
       currentVersion = version;
+    }
+    // After the move, not before: a rotation changes which version a bot
+    // should be sealed under, and the answer lists who is short of this one.
+    if (sealBots && version == currentVersion && keys.containsKey(version)) {
+      final bots = (data['bots_missing'] as List? ?? const [])
+          .cast<Map<String, dynamic>>();
+      if (bots.isNotEmpty) unawaited(sealBotKeys(channelId, version, bots));
     }
     return gained;
   }
@@ -312,6 +340,7 @@ class ChannelKeyring with _KeyringSealingMixin {
       }
 
       final data = response.data as Map<String, dynamic>;
+      _noteListeners(data);
       final version = data['current_version'] as int;
       final myKeys = (data['my_keys'] as List).cast<Map<String, dynamic>>();
       final missing = (data['members_missing'] as List)

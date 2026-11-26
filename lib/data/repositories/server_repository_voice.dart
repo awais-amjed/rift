@@ -170,17 +170,15 @@ mixin _VoiceApiMixin {
     );
   }
 
-  /// Ask a bot into a voice channel, or send it away (`summon_bot_to_voice`).
+  /// Send a bot away from a voice channel (`dismiss_bot_from_voice`).
   ///
-  /// Not a key grant and not membership: it lets the bot take a token for this
-  /// one channel and publish there. Hearing stays behind `MANAGE_BOTS`, so a
-  /// summon adds a speaker to the room and never a listener.
-  ///
-  /// An edge function rather than the RPC directly, and only dismissing needs
-  /// it: deleting the row takes away the bot's media key and its right to a
-  /// *new* token, and does nothing to the connection it already holds, which is
-  /// good for its hour. Without the push, "Send away" removed the row and left
-  /// the bot in the call playing music. Same shape as `set_bot_voice_listen`.
+  /// An edge function rather than the RPC directly: deleting the row takes
+  /// away the bot's media key and its right to a *new* token, and does nothing
+  /// to the connection it already holds, which is good for its hour. Without
+  /// the push, "Send away" removed the row and left the bot in the call
+  /// playing music. Same shape as `set_bot_voice_listen`. A summon is the RPC
+  /// itself (`summonBotToVoice`); the function still takes one from an older
+  /// app.
   Future<APIResponse> setBotVoiceSummon(
     String supabaseUrl, {
     required String anonKey,
