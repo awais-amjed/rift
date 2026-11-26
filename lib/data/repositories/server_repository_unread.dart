@@ -8,14 +8,28 @@ part of 'server_repository.dart';
 /// under the voice-token banner, which was neither.
 mixin _UnreadApiMixin {
   ServerDb get _db;
+  ServerStartShare get _start;
 
   /// Unread counts for every channel and conversation on this server, in one
   /// call: `{channels: {id: n}, dms: {peerId: n}, prefs: {...}}`.
+  ///
+  /// [first] is a server's first load, which may take its part of
+  /// `server_start` ([ServerStartShare]).
   Future<APIResponse> unreadCounts(
     String supabaseUrl, {
     required String anonKey,
     String? bearerToken,
-  }) {
+    bool first = false,
+  }) async {
+    if (first) {
+      final part = await _start.part(
+        supabaseUrl,
+        anonKey,
+        bearerToken,
+        'unread',
+      );
+      if (part is Map) return APIResponse.success(part);
+    }
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       return db.rpc('unread_counts');

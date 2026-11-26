@@ -17,6 +17,7 @@ part of 'server_repository.dart';
 /// twelve different ways.
 mixin _MemberApiMixin {
   ServerDb get _db;
+  ServerStartShare get _start;
 
   /// Rows from any member RPC, in the shape the client models expect.
   static List<Map<String, dynamic>> _members(dynamic rows) => [
@@ -166,12 +167,27 @@ mixin _MemberApiMixin {
   ///
   /// Answers `PGRST202` from a server not updated to have it yet, which is the
   /// caller's cue to ask for them one by one.
+  ///
+  /// [first] is the list's first load, which may take its part of
+  /// `server_start` ([ServerStartShare]), asked at the default [limit].
   Future<APIResponse> memberSidebar(
     String supabaseUrl, {
     required String anonKey,
     String? bearerToken,
     int limit = MemberPage.pageSize,
-  }) {
+    bool first = false,
+  }) async {
+    if (first && limit == MemberPage.pageSize) {
+      final part = await _start.part(
+        supabaseUrl,
+        anonKey,
+        bearerToken,
+        'sidebar',
+      );
+      if (part is Map<String, dynamic>) {
+        return ServerDb.run(() async => _sidebarFrom(part, limit));
+      }
+    }
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       final row =
@@ -181,19 +197,27 @@ mixin _MemberApiMixin {
                 params: {'p_limit': limit + 1},
               )
               as Map<String, dynamic>;
-      Map<String, dynamic> page(String key) {
-        final split = Paging.split(_members(row[key]), limit: limit);
-        return {'users': split.rows, 'has_more': split.hasMore};
-      }
-
-      return {
-        'bots': page('bots'),
-        'people': page('people'),
-        'counts': row['counts'],
-        'roles': row['roles'],
-        'assignments': row['assignments'],
-      };
+      return _sidebarFrom(row, limit);
     });
+  }
+
+  /// `member_sidebar`'s answer in the shape the list reads.
+  static Map<String, dynamic> _sidebarFrom(
+    Map<String, dynamic> row,
+    int limit,
+  ) {
+    Map<String, dynamic> page(String key) {
+      final split = Paging.split(_members(row[key]), limit: limit);
+      return {'users': split.rows, 'has_more': split.hasMore};
+    }
+
+    return {
+      'bots': page('bots'),
+      'people': page('people'),
+      'counts': row['counts'],
+      'roles': row['roles'],
+      'assignments': row['assignments'],
+    };
   }
 
   /// What the member list re-reads when `members` rings, in one call: the

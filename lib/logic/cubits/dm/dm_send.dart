@@ -15,7 +15,7 @@ mixin _DmSendMixin on Cubit<DmState> {
   Future<ServerIdentity> _vaultIdentityFor(Server server);
 
   /// Implemented by the conversations mixin.
-  Future<void> refreshConversations();
+  Future<void> refreshConversations({Map<String, dynamic>? given});
   Future<void> refreshOpenLinkState();
 
   /// Implemented by the history mixin: what a retry reads first, in case the

@@ -10,6 +10,7 @@ part of 'server_repository.dart';
 /// way to being right — and, before `get_server_details`, waited on five round trips to do it.
 mixin _ServerApiMixin {
   ServerDb get _db;
+  Map<String, String> get _chatKeysHeard;
 
   Future<APIResponse> _post(
     String supabaseUrl,
@@ -69,6 +70,16 @@ mixin _ServerApiMixin {
       final data = await db.rpc('get_server_details');
       if (data is! Map) {
         throw const PostgrestException(message: ServerDb.serverGone);
+      }
+      final user = data['user'];
+      if (user is Map && user['id'] is String) {
+        final heard = '$supabaseUrl|${user['id']}';
+        final key = user['chat_public_key'];
+        if (key is String) {
+          _chatKeysHeard[heard] = key;
+        } else {
+          _chatKeysHeard.remove(heard);
+        }
       }
       return {...Map<String, dynamic>.from(data), 'supabase_key': anonKey};
     });

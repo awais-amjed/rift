@@ -162,9 +162,12 @@ class VoiceBotsApi {
   /// channel at once and a query per row would be a query per row.
   ///
   /// Null when the read failed, which is not "nobody listens".
+  ///
+  /// [first] is a first load on the server, which may share one
+  /// `server_start` with the other features opening it (`ServerStartShare`).
   Future<Map<String, List<({String id, String name})>>?>
-  voiceListenersByChannel() async {
-    final rows = await _voiceListenerRows(null);
+  voiceListenersByChannel({bool first = false}) async {
+    final rows = await _voiceListenerRows(null, first: first);
     if (rows == null) return null;
     final byChannel = <String, List<({String id, String name})>>{};
     for (final row in rows) {
@@ -183,9 +186,10 @@ class VoiceBotsApi {
   /// differently. A listener is somebody else hearing the room; a summon is a
   /// bot that was asked in and may not have arrived yet.
   ///
-  /// Null when the read failed.
-  Future<Map<String, List<({String id, String name})>>?>
-  voiceSummonsByChannel() async {
+  /// Null when the read failed. [first] as [voiceListenersByChannel].
+  Future<Map<String, List<({String id, String name})>>?> voiceSummonsByChannel({
+    bool first = false,
+  }) async {
     final server = _target.server;
     if (server == null) return null;
 
@@ -195,6 +199,7 @@ class VoiceBotsApi {
         server.supabaseUrl,
         anonKey: server.supabaseKey ?? '',
         bearerToken: token,
+        first: first,
       ),
     );
     if (!response.success) return null;
@@ -243,8 +248,9 @@ class VoiceBotsApi {
 
   /// Null when the read failed.
   Future<List<Map<String, dynamic>>?> _voiceListenerRows(
-    String? channelId,
-  ) async {
+    String? channelId, {
+    bool first = false,
+  }) async {
     final server = _target.server;
     if (server == null) return null;
 
@@ -255,6 +261,7 @@ class VoiceBotsApi {
         anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         channelId: channelId,
+        first: first,
       ),
     );
     if (!response.success) return null;

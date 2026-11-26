@@ -19,7 +19,7 @@ mixin _DmEditMixin on Cubit<DmState> {
   /// Neither was, so the next open drew the old text for a moment, and a
   /// deleted last message stayed in the list until something else moved it.
   Future<void> refreshMessage(String messageId);
-  Future<void> refreshConversations();
+  Future<void> refreshConversations({Map<String, dynamic>? given});
 
   /// Re-seal [messageId] with [newText]; attachments carry over unchanged.
   Future<void> editMessage(String messageId, String newText) async {

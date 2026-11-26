@@ -16,6 +16,7 @@ import '../device_id.dart';
 import '../enums/error_code.dart';
 import 'server_db.dart';
 import 'server_pass_repository.dart' show joinAddress;
+import 'server_start_share.dart';
 import 'server_user_row.dart';
 
 part 'server_repository_auth.dart';
@@ -51,7 +52,9 @@ part 'server_repository_webhooks.dart';
 /// what genuinely can't be a table call:
 ///
 ///   * it needs a secret the client must never hold — `get_channel_token`
-///     (LiveKit API secret), `create_server`, `login` (GoTrue admin grant);
+///     (LiveKit API secret), `create_server`, `login` for the first join, when
+///     there is no anon key yet (after that a sign-in goes straight to
+///     GoTrue: [login]);
 ///   * it runs before the caller is a member, or before they have a key at all
 ///     — `resolve_invite`, `register`;
 ///   * storing sealed keys (`post_channel_keys`), which enforces the
@@ -101,7 +104,9 @@ class ServerRepository
     http.Client? client,
     this.askAgainAfter = const Duration(seconds: 2),
   }) : _send = client?.post ?? http.post,
-       _db = ServerDb(httpClient: client);
+       _db = ServerDb(httpClient: client) {
+    _start = ServerStartShare(_db);
+  }
 
   final Future<http.Response> Function(
     Uri url, {
@@ -113,6 +118,16 @@ class ServerRepository
 
   @override
   final ServerDb _db;
+
+  /// An app's first loads on a server, asked once (`server_start`).
+  @override
+  late final ServerStartShare _start;
+
+  /// The chat key each server's details said we hold there, this run, by
+  /// `'<url>|<user id>'`. Publishing a key the server already holds then asks
+  /// nothing ([publishChatKey]).
+  @override
+  final Map<String, String> _chatKeysHeard = {};
 
   /// What comes back when the functions' runtime is not there to answer. The
   /// functions themselves always answer 200, so none of these is a function's
@@ -194,6 +209,80 @@ class ServerRepository
           msg.contains('connection closed') ||
           msg.contains('network is unreachable');
       if (isConnectionError) {
+        return APIResponse.error(
+          "Can't reach this server. It may be offline, or check your connection.",
+          errorCode: ErrorCode.serverUnreachable,
+        );
+      }
+      return APIResponse.error(e);
+    }
+  }
+
+  /// GoTrue's web3 grant, asked directly ([login]), or null where the `login`
+  /// function should be asked instead: the gateway refused the key (401) or
+  /// has no such route (404).
+  ///
+  /// Answers as the function did: the session on success, and on a refusal
+  /// GoTrue's own words with `signature_invalid`, since the clock check
+  /// (`isClockRefusal`) reads those words, with the server's time beside them.
+  @override
+  Future<APIResponse?> _web3Grant(
+    String supabaseUrl, {
+    required String anonKey,
+    required String message,
+    required String signature,
+  }) async {
+    try {
+      final response = await _send(
+        Uri.parse('$supabaseUrl/auth/v1/token?grant_type=web3'),
+        headers: {'Content-Type': 'application/json', 'apikey': anonKey},
+        body: jsonEncode({
+          'chain': 'solana',
+          'message': message,
+          'signature': signature,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      if (response.statusCode == 401 || response.statusCode == 404) {
+        return null;
+      }
+      if (_gatewayTrouble.contains(response.statusCode)) {
+        return APIResponse.error(
+          'This server is having trouble right now. Try again in a moment.',
+          errorCode: ErrorCode.serverTimeout,
+        );
+      }
+      final body = jsonDecode(response.body);
+      final data = body is Map<String, dynamic> ? body : <String, dynamic>{};
+      if (response.statusCode == 200) {
+        return APIResponse(
+          success: true,
+          data: data,
+          serverTime: _serverTime(response),
+        );
+      }
+      return APIResponse(
+        success: false,
+        error:
+            (data['error_description'] ?? data['msg'] ?? 'Login failed')
+                as String,
+        errorCode: ErrorCode.signatureInvalid,
+        serverTime: _serverTime(response),
+      );
+    } on TimeoutException {
+      return APIResponse.error(
+        "This server isn't responding — it may be offline. Try again later.",
+        errorCode: ErrorCode.serverTimeout,
+      );
+    } on FormatException {
+      return null;
+    } catch (e) {
+      final msg = e.toString().toLowerCase();
+      if (e is http.ClientException ||
+          msg.contains('socketexception') ||
+          msg.contains('failed host lookup') ||
+          msg.contains('connection refused') ||
+          msg.contains('connection closed') ||
+          msg.contains('network is unreachable')) {
         return APIResponse.error(
           "Can't reach this server. It may be offline, or check your connection.",
           errorCode: ErrorCode.serverUnreachable,

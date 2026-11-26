@@ -26,11 +26,15 @@ class UnreadApi {
 
   /// `{channels, dms, prefs}`: what is unread, and the levels that decide
   /// whether it may interrupt.
-  Future<APIResponse> unreadCounts() => _target.call(
+  ///
+  /// [first] is a first load on the server, which may share one
+  /// `server_start` with the other features opening it (`ServerStartShare`).
+  Future<APIResponse> unreadCounts({bool first = false}) => _target.call(
     (server, token) => _repository.unreadCounts(
       server.supabaseUrl,
       anonKey: server.supabaseKey ?? '',
       bearerToken: token,
+      first: first,
     ),
   );
 

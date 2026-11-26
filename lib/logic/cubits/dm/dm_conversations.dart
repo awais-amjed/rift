@@ -64,7 +64,9 @@ mixin _DmConversationsMixin on Cubit<DmState> {
   /// the inbox rejoins after a dropped connection, so it deliberately
   /// re-reads only the first page — a conversation that has just been spoken
   /// in is at the top of it by definition.
-  Future<void> refreshConversations() async {
+  ///
+  /// [given] is the first page already read, by `dm_lists` ([refreshLists]).
+  Future<void> refreshConversations({Map<String, dynamic>? given}) async {
     if (_localUserId == null) return;
     final serverId = _readyServerId;
     final openPeer = state.openPeerId;
@@ -72,7 +74,7 @@ mixin _DmConversationsMixin on Cubit<DmState> {
     final read = ++_conversationReads;
     emit(state.copyWith(conversationsLoading: true));
 
-    final page = await _fetchConversations();
+    final page = await _fetchConversations(given: given);
     if (isClosed || _readyServerId != serverId) return;
     // A later read is on its way and answers for the list.
     if (read != _conversationReads) return;
@@ -159,8 +161,10 @@ mixin _DmConversationsMixin on Cubit<DmState> {
   /// One page, decrypted, and where the page after it starts. Null when the
   /// request failed.
   Future<({List<DmConversation> conversations, bool hasMore, int? cursor})?>
-  _fetchConversations({int? before}) async {
-    final response = await _dms.listDmConversations(before: before);
+  _fetchConversations({int? before, Map<String, dynamic>? given}) async {
+    final response = given != null
+        ? APIResponse.success(given)
+        : await _dms.listDmConversations(before: before);
     if (isClosed || !response.success) return null;
 
     final data = response.data as Map<String, dynamic>;

@@ -92,7 +92,7 @@ class SoundboardCubit extends Cubit<SoundboardState>
             serverId: server.id,
           ),
         );
-        unawaited(refresh());
+        unawaited(refresh(first: true));
       },
     );
   }

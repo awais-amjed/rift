@@ -13,14 +13,18 @@ mixin _DmRequestsMixin on Cubit<DmState> {
   Future<List<DmConversation>?> _conversationsFrom(
     List<Map<String, dynamic>> rows,
   );
-  Future<void> refreshConversations();
+  Future<void> refreshConversations({Map<String, dynamic>? given});
   String? get _readyServerId;
 
   /// The requests waiting on us, previews decrypted like the conversation
   /// list's — the recipient of a request can read it, which is the point.
-  Future<void> refreshRequests() async {
+  ///
+  /// [given] is the list already read, by `dm_lists` ([refreshLists]).
+  Future<void> refreshRequests({List<dynamic>? given}) async {
     final serverId = _readyServerId;
-    final response = await _moderation.dmRequests();
+    final response = given != null
+        ? APIResponse.success(given)
+        : await _moderation.dmRequests();
     if (isClosed || !response.success || _readyServerId != serverId) return;
     final rows = (response.data as List? ?? const [])
         .cast<Map<String, dynamic>>();
@@ -29,9 +33,12 @@ mixin _DmRequestsMixin on Cubit<DmState> {
     emit(state.copyWith(requests: requests));
   }
 
-  Future<void> refreshBlocks() async {
+  /// [given] as [refreshRequests].
+  Future<void> refreshBlocks({List<dynamic>? given}) async {
     final serverId = _readyServerId;
-    final response = await _moderation.listBlocks();
+    final response = given != null
+        ? APIResponse.success(given)
+        : await _moderation.listBlocks();
     if (isClosed || !response.success || _readyServerId != serverId) return;
     emit(
       state.copyWith(

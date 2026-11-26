@@ -71,7 +71,7 @@ class VoiceListenersCubit extends Cubit<VoiceBotsState> {
     // is the one direction this marker must never be wrong in.
     _reads++;
     emit(const VoiceBotsState());
-    if (server != null) unawaited(refresh());
+    if (server != null) unawaited(refresh(first: true));
   }
 
   /// Re-read both. Called on server change, when the database says a grant
@@ -86,14 +86,17 @@ class VoiceListenersCubit extends Cubit<VoiceBotsState> {
   /// bot's "can hear" marker down while it still hears, and nothing reads
   /// again until the next ring. Only the newest read lands, so one that was
   /// slow cannot put back what a later one has already moved past.
-  Future<void> refresh() async {
+  ///
+  /// [first] is the first read on the server, which may share one
+  /// `server_start` with the server's other features opening.
+  Future<void> refresh({bool first = false}) async {
     final serverId = _watcher.serverId;
     if (serverId == null) return;
     final read = ++_reads;
     final api = VoiceBotsApi(_session.on(serverId));
     final (listeners, summons) = await (
-      api.voiceListenersByChannel(),
-      api.voiceSummonsByChannel(),
+      api.voiceListenersByChannel(first: first),
+      api.voiceSummonsByChannel(first: first),
     ).wait;
     if (isClosed || _watcher.serverId != serverId || read != _reads) return;
     emit(

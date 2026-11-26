@@ -255,6 +255,7 @@ class WakeServerReader with _WakeChannelKeysMixin, _WakeChannelsMixin {
         crypto: _crypto,
         supabaseUrl: server.supabaseUrl,
         identity: identity,
+        anonKey: server.anonKey,
       );
       if (!response.success) return null;
       return (response.data as Map<String, dynamic>?)?['access_token']

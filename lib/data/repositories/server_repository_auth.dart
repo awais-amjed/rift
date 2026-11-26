@@ -16,14 +16,38 @@ mixin _AuthApiMixin {
     String? bearerToken,
   });
 
-  /// Sign in with a SIWS message + signature. Proxied to GoTrue's web3 grant
-  /// server-side (so no anon key is needed client-side). Returns the GoTrue
-  /// session (access_token + refresh_token).
+  Future<APIResponse?> _web3Grant(
+    String supabaseUrl, {
+    required String anonKey,
+    required String message,
+    required String signature,
+  });
+
+  /// Sign in with a SIWS message + signature. Returns the GoTrue session
+  /// (access_token + refresh_token).
+  ///
+  /// With the server's [anonKey], which every joined server has, the message
+  /// goes straight to GoTrue's web3 grant. Before, it always went through the
+  /// `login` edge function, which only passed it on: one function call per
+  /// server at every start and every token refresh. Caddy sets the address
+  /// GoTrue limits sign-ins by on every request, so nothing is lost. Without a
+  /// key — the first join — or with one the gateway does not take (rotated
+  /// since we last heard), it is still the function, which needs none.
   Future<APIResponse> login(
     String supabaseUrl, {
     required String message,
     required String signature,
-  }) {
+    String? anonKey,
+  }) async {
+    if (anonKey != null && anonKey.isNotEmpty) {
+      final direct = await _web3Grant(
+        supabaseUrl,
+        anonKey: anonKey,
+        message: message,
+        signature: signature,
+      );
+      if (direct != null) return direct;
+    }
     return _post(supabaseUrl, 'login', {
       'message': message,
       'signature': signature,

@@ -12,14 +12,32 @@ part of 'server_repository.dart';
 /// press is a packet on the call's data channel. This is only the library.
 mixin _SoundboardApiMixin {
   ServerDb get _db;
+  ServerStartShare get _start;
 
   /// Every clip on the caller's server, newest last — the order they were
   /// added in, which is the order a picker reads best in.
+  ///
+  /// [first] is the library's first load, which may take its part of
+  /// `server_start` ([ServerStartShare]).
   Future<APIResponse> listSounds(
     String supabaseUrl, {
     required String anonKey,
     String? bearerToken,
-  }) {
+    bool first = false,
+  }) async {
+    if (first) {
+      final part = await _start.part(
+        supabaseUrl,
+        anonKey,
+        bearerToken,
+        'sounds',
+      );
+      if (part is List) {
+        return APIResponse.success({
+          'sounds': part.cast<Map<String, dynamic>>(),
+        });
+      }
+    }
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       final rows = await db

@@ -67,6 +67,16 @@ class VoiceBroadcast {
   /// The one second look at the roster — see [recheckAfter].
   Timer? _recheck;
 
+  /// When the read made as this was built went out, on [_clock].
+  Duration? _firstReadAt;
+
+  /// How soon after that read a first join may count on it, rather than
+  /// reading again. A move inside the gap is caught by the look
+  /// [recheckAfter] later; each read is `voice_roster`, an edge function
+  /// asking the database and LiveKit, and one join used to ask it twice
+  /// within milliseconds and keep only the second answer.
+  static const firstReadServesJoinWithin = Duration(seconds: 1);
+
   /// A look asked for by [recheckSoon], pending.
   Timer? _soon;
 
@@ -108,7 +118,12 @@ class VoiceBroadcast {
         // draws it in that call once its new session comes online. One
         // "nowhere" per start is what clears that ghost.
         if (_hasAnnounced) _send();
-        unawaited(_snapshot());
+        final firstReadAt = _firstReadAt;
+        _firstReadAt = null;
+        final justRead =
+            firstReadAt != null &&
+            _clock.elapsed - firstReadAt < firstReadServesJoinWithin;
+        if (!justRead) unawaited(_snapshot());
         _recheck ??= Timer(recheckAfter, () {
           if (!_disposed) unawaited(_snapshot());
         });
@@ -118,8 +133,14 @@ class VoiceBroadcast {
     // ordinary request, and a server answers a socket's joins one at a time,
     // so the voice topic can be seconds behind the others; the sidebar had
     // no calls to draw until it was. The read after the join still comes,
-    // for whatever moved before the deltas could reach us.
-    if (_topic != null) unawaited(_snapshot());
+    // for whatever moved before the deltas could reach us, unless the join
+    // came so soon after this one that it would read the same thing
+    // ([firstReadServesJoinWithin]). A topic already joined has answered
+    // from inside `join`, and read there.
+    if (_topic != null && !_subscribed) {
+      _firstReadAt = _clock.elapsed;
+      unawaited(_snapshot());
+    }
   }
 
   /// Read the roster again shortly: someone left our call and never said so

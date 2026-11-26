@@ -196,6 +196,16 @@ class ModerationApi {
     ),
   );
 
+  /// The DM list's first page, the requests and the blocks in one call;
+  /// `PGRST202` from a server without it.
+  Future<APIResponse> dmLists() => _target.call(
+    (server, token) => _repository.dmLists(
+      server.supabaseUrl,
+      anonKey: server.supabaseKey ?? '',
+      bearerToken: token,
+    ),
+  );
+
   Future<APIResponse> dmRequests() => _target.call(
     (server, token) => _repository.dmRequests(
       server.supabaseUrl,

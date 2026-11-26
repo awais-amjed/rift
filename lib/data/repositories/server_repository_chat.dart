@@ -24,6 +24,7 @@ const String publishedChatKeyIsNew = 'newly_published';
 
 mixin _ChatApiMixin {
   ServerDb get _db;
+  Map<String, String> get _chatKeysHeard;
 
   /// Publish the caller's X25519 chat public key (idempotent).
   ///
@@ -47,26 +48,36 @@ mixin _ChatApiMixin {
     required String userId,
     String? bearerToken,
     required String chatPublicKey,
-  }) {
+  }) async {
+    // This run's details already said the server holds it: nothing to ask.
+    final heard = '$supabaseUrl|$userId';
+    if (_chatKeysHeard[heard] == chatPublicKey) {
+      return APIResponse.success({
+        'published': true,
+        publishedChatKeyIsNew: false,
+      });
+    }
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       // Read, then write only if it differs, rather than filtering the update
       // on the column: it is null for a member who has never published, and
       // PostgREST's `neq` never matches a null — so the one case that has to
       // answer "newly published" is exactly the one such a filter would skip.
-      // Once per server per run, so the extra round trip costs nobody anything.
+      // Once per server per run, and only when the details did not say.
       final existing = await db
           .from('users')
           .select('chat_public_key')
           .eq('id', userId)
           .maybeSingle();
       if (existing?['chat_public_key'] == chatPublicKey) {
+        _chatKeysHeard[heard] = chatPublicKey;
         return {'published': true, publishedChatKeyIsNew: false};
       }
       await db
           .from('users')
           .update({'chat_public_key': chatPublicKey})
           .eq('id', userId);
+      _chatKeysHeard[heard] = chatPublicKey;
       return {'published': true, publishedChatKeyIsNew: true};
     });
   }

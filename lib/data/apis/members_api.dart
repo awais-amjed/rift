@@ -152,7 +152,12 @@ class MembersApi {
 
   /// What the sidebar's first frame needs, in one request. [unsupported] says
   /// the server has no such call yet, as distinct from one that failed.
-  Future<({MemberSidebar? sidebar, bool unsupported})> sidebar() async {
+  ///
+  /// [first] is a first load on the server, which may share one
+  /// `server_start` with the other features opening it (`ServerStartShare`).
+  Future<({MemberSidebar? sidebar, bool unsupported})> sidebar({
+    bool first = false,
+  }) async {
     final server = _target.server;
     if (server == null) return (sidebar: null, unsupported: false);
 
@@ -162,6 +167,7 @@ class MembersApi {
         server.supabaseUrl,
         anonKey: server.supabaseKey ?? '',
         bearerToken: token,
+        first: first,
       ),
     );
     if (!response.success) {

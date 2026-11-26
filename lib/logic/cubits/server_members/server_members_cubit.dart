@@ -111,7 +111,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState>
       return;
     }
     emit(ServerMembersState(serverId: server.id, loading: true));
-    unawaited(_loadFirst());
+    unawaited(_loadFirst(first: true));
   }
 
   // ── Loading ─────────────────────────────────────────────────
@@ -129,13 +129,18 @@ class ServerMembersCubit extends Cubit<ServerMembersState>
 
   /// Everything the sidebar needs to draw its first frame: the bots, the first
   /// page of people, how many there are, and the roles behind the chips.
+  ///
+  /// [first] is the list's first read on its server, which may share one
+  /// `server_start` with the server's other features opening.
   @override
-  Future<void> _loadFirst() async {
+  Future<void> _loadFirst({bool first = false}) async {
     final serverId = _watcher.serverId;
     if (serverId == null) return;
     final loadId = ++_loadId;
 
-    final read = _noSidebarCall ? null : await _membersOn(serverId).sidebar();
+    final read = _noSidebarCall
+        ? null
+        : await _membersOn(serverId).sidebar(first: first);
     if (_stale(loadId, serverId)) return;
     if (read?.unsupported ?? false) _noSidebarCall = true;
 

@@ -84,11 +84,12 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
     // readiness unset so the next server/vault event retries the whole setup.
     if (!_keyring.publishedChatKey.contains(server.id)) _readyServerId = null;
     unawaited(_runKeySweep());
-    // Housekeeping, not chat: applies the operator's retention settings and
-    // removes attachment blobs whose messages are gone. It rides along here
-    // because this is the app's once-per-server-ready hook, and because a
-    // server whose members never open it never gets swept — the pg_cron job
-    // trims message rows but cannot touch storage.
+    // Housekeeping, not chat: removes attachment blobs whose messages are
+    // gone, on a server older than self-host 064, whose console does not do
+    // it itself (`server_start` says `sweeps_itself`, and then this asks
+    // nothing). It rides along here because this is the app's
+    // once-per-server-ready hook — the pg_cron job trims message rows but
+    // cannot touch storage.
     unawaited(AttachmentsApi(_session.on(server.id)).sweepAttachments());
   }
 

@@ -44,7 +44,12 @@ class SoundboardApi {
   }
 
   /// Every clip on the server.
-  Future<({List<SoundboardSound> sounds, String? error})> listSounds() async {
+  ///
+  /// [first] is a first load on the server, which may share one
+  /// `server_start` with the other features opening it (`ServerStartShare`).
+  Future<({List<SoundboardSound> sounds, String? error})> listSounds({
+    bool first = false,
+  }) async {
     final server = _target.server;
     if (server == null) {
       return (sounds: const <SoundboardSound>[], error: 'No server');
@@ -56,6 +61,7 @@ class SoundboardApi {
         server.supabaseUrl,
         anonKey: server.supabaseKey ?? '',
         bearerToken: token,
+        first: first,
       ),
     );
     if (!response.success) {

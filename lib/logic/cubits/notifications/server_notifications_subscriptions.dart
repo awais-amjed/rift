@@ -11,6 +11,9 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
   Map<String, _ServerSub> get _subs;
 
   Future<void> _seed(String serverId);
+
+  /// [_seed] as the subscription opens: a first load on the server.
+  Future<void> _seedFirst(String serverId);
   void _onChannelMessage(String serverId, Map<String, dynamic> row);
   void _onDmMessage(String serverId, Map<String, dynamic> row);
   void _onChannelMessageChanged(String serverId, Map<String, dynamic> row);
@@ -116,7 +119,7 @@ mixin _SubscriptionsMixin on Cubit<NotificationsState>, _PeerNamesMixin {
       token: server.token,
       userId: userId,
     );
-    unawaited(_seed(server.id));
+    unawaited(_seedFirst(server.id));
   }
 
   /// Hold one topic per private channel the caller can see, and let the rest

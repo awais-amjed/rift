@@ -28,14 +28,16 @@ mixin _SoundboardLibraryMixin on Cubit<SoundboardState> {
   Timer? _retryTimer;
   static const Duration _retryAfter = Duration(seconds: 30);
 
-  Future<void> refresh() async {
+  /// [first] is the library's first read on its server, which may share one
+  /// `server_start` with the server's other features opening.
+  Future<void> refresh({bool first = false}) async {
     final serverId = _libraryServerId;
     if (serverId == null) return;
     _retryTimer?.cancel();
     final read = ++_reads;
 
     final api = _apiOn(serverId);
-    final result = await api.listSounds();
+    final result = await api.listSounds(first: first);
     // The rail moved while this was in flight; the answer is another
     // server's and drawing it under this one's name would be a lie.
     if (isClosed || _libraryServerId != serverId) return;

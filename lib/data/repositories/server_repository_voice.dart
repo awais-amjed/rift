@@ -8,6 +8,8 @@ part of 'server_repository.dart';
 /// sweeping is here for a different reason — it needs the Storage API, which no
 /// database role can reach.
 mixin _VoiceApiMixin {
+  ServerStartShare get _start;
+
   Future<APIResponse> _post(
     String supabaseUrl,
     String functionName,
@@ -97,25 +99,26 @@ mixin _VoiceApiMixin {
   /// call, and the rest speak and press clips as their roles now say. A role
   /// is written straight to the database, which cannot reach LiveKit, and a
   /// call is otherwise only checked when somebody joins it.
-  Future<APIResponse> refreshCalls(
-    String supabaseUrl, {
-    String? bearerToken,
-  }) => _post(
-    supabaseUrl,
-    'refresh_calls',
-    const {},
-    bearerToken: bearerToken,
-  );
+  Future<APIResponse> refreshCalls(String supabaseUrl, {String? bearerToken}) =>
+      _post(supabaseUrl, 'refresh_calls', const {}, bearerToken: bearerToken);
 
+  /// Remove attachment files nothing holds any more, on a server whose
+  /// console does not do it itself (before self-host 064, when every app
+  /// asked as it opened the server; `server_start` says `sweeps_itself`).
   Future<APIResponse> sweepAttachments(
     String supabaseUrl, {
     String? bearerToken,
-  }) => _post(
-    supabaseUrl,
-    'sweep_attachments',
-    const {},
-    bearerToken: bearerToken,
-  );
+  }) async {
+    if (await _start.sweptByServer(supabaseUrl)) {
+      return APIResponse.success({'swept': 0, 'more': false});
+    }
+    return _post(
+      supabaseUrl,
+      'sweep_attachments',
+      const {},
+      bearerToken: bearerToken,
+    );
+  }
 
   /// Pull a member from the voice channel they're in into [channelId]
   /// (channel manager or admin).

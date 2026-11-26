@@ -19,6 +19,7 @@ part of 'server_repository.dart';
 
 mixin _BotApiMixin {
   ServerDb get _db;
+  ServerStartShare get _start;
 
   Future<APIResponse> _post(
     String supabaseUrl,
@@ -140,12 +141,25 @@ mixin _BotApiMixin {
   /// summon whose bot never turned up is visible — "Send away" lives on the
   /// participant menu, which needs the bot to be in the call, so without this
   /// one that never arrived could be neither seen nor cleared.
+  ///
+  /// [first], for every channel at once, is the sidebar's first load, which
+  /// may take its part of `server_start` ([ServerStartShare]).
   Future<APIResponse> listVoiceSummons(
     String supabaseUrl, {
     required String anonKey,
     String? bearerToken,
     String? channelId,
-  }) {
+    bool first = false,
+  }) async {
+    if (first && channelId == null) {
+      final part = await _start.part(
+        supabaseUrl,
+        anonKey,
+        bearerToken,
+        'summons',
+      );
+      if (part is List) return APIResponse.success({'summons': part});
+    }
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       final query = db
@@ -158,12 +172,27 @@ mixin _BotApiMixin {
     });
   }
 
+  /// [first] as [listVoiceSummons].
   Future<APIResponse> listVoiceListeners(
     String supabaseUrl, {
     required String anonKey,
     String? bearerToken,
     String? channelId,
-  }) {
+    bool first = false,
+  }) async {
+    if (first && channelId == null) {
+      final part = await _start.part(
+        supabaseUrl,
+        anonKey,
+        bearerToken,
+        'listeners',
+      );
+      if (part is List) {
+        return APIResponse.success({
+          'listeners': part.cast<Map<String, dynamic>>(),
+        });
+      }
+    }
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
       // No channel filter means every voice channel at once, which is what the

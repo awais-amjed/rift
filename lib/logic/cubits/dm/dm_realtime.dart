@@ -132,8 +132,35 @@ mixin _DmRealtimeMixin
 
   /// The conversation list, the requests waiting and who is blocked — what
   /// the Server DMs list draws. Its "Try again" when they couldn't be read.
-  Future<void> refreshLists() =>
-      Future.wait([refreshConversations(), refreshRequests(), refreshBlocks()]);
+  ///
+  /// One request (`dm_lists`, self-host 064), or the three from a server
+  /// older than that, or when the one could not be read: each then says for
+  /// itself what failed, as it always did.
+  Future<void> refreshLists() async {
+    final serverId = _readyServerId;
+    final response = await _moderation.dmLists();
+    if (isClosed || _readyServerId != serverId) return;
+    final data = response.data;
+    if (response.success &&
+        data is Map<String, dynamic> &&
+        data['conversations'] is Map<String, dynamic> &&
+        data['requests'] is List &&
+        data['blocks'] is List) {
+      await Future.wait([
+        refreshConversations(
+          given: data['conversations'] as Map<String, dynamic>,
+        ),
+        refreshRequests(given: data['requests'] as List),
+        refreshBlocks(given: data['blocks'] as List),
+      ]);
+      return;
+    }
+    await Future.wait([
+      refreshConversations(),
+      refreshRequests(),
+      refreshBlocks(),
+    ]);
+  }
 
   Future<void> _teardownRealtime() async {
     final inbox = _inbox;

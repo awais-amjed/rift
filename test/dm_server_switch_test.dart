@@ -56,6 +56,12 @@ class _UnlockedVault extends VaultCubit {
 class _HeldServers extends ServerRepository {
   final Map<String, List<Completer<APIResponse>>> lists = {};
 
+  /// Servers, by URL, that answer `dm_lists` (self-host 064).
+  final Set<String> withDmLists = {};
+
+  /// Every list call made, by name.
+  final List<String> asked = [];
+
   @override
   Future<APIResponse> listDmConversations(
     String supabaseUrl, {
@@ -63,9 +69,34 @@ class _HeldServers extends ServerRepository {
     String? bearerToken,
     int? before,
   }) {
+    asked.add('dm_conversations');
     final answer = Completer<APIResponse>();
     (lists[supabaseUrl] ??= []).add(answer);
     return answer.future;
+  }
+
+  /// A server from before `dm_lists`: the lists are read one by one, which
+  /// is what this holds back.
+  @override
+  Future<APIResponse> dmLists(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+  }) async {
+    asked.add('dm_lists');
+    if (!withDmLists.contains(supabaseUrl)) {
+      return APIResponse(success: false, errorCode: 'PGRST202');
+    }
+    return APIResponse.success({
+      'conversations': {
+        'conversations': [
+          {'peer_id': 'peer@$supabaseUrl', 'peer_name': 'Peer'},
+        ],
+        'has_more': false,
+      },
+      'requests': [],
+      'blocks': ['blocked@$supabaseUrl'],
+    });
   }
 
   @override
@@ -189,6 +220,16 @@ void main() {
     servers.answer(_url('b'));
     await _settle();
     expect(listed, isTrue);
+  });
+
+  test('a server with dm_lists is asked once for all three lists', () async {
+    servers.withDmLists.add(_url('a'));
+    dms.showServer('a');
+    await _settle();
+    await _settle();
+    expect(servers.asked, ['dm_lists']);
+    expect(peers(), ['peer@${_url('a')}']);
+    expect(dms.state.blockedIds, {'blocked@${_url('a')}'});
   });
 
   test('nothing shown while a switch is let go stays nothing', () async {

@@ -132,6 +132,9 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
     _sync();
   }
 
+  @override
+  Future<void> _seedFirst(String serverId) => _seed(serverId, first: true);
+
   /// Ask a server what is unread and fold the answer into state.
   ///
   /// One RPC per server — `unread_counts()` counts messages above each read
@@ -142,11 +145,16 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   /// apart is how a muted channel gets one notification anyway. Whatever the
   /// user is looking at is then marked read, which is what stops a badge
   /// appearing for the channel already on screen.
+  ///
+  /// [first] is the seed as the server's subscription opens, which may share
+  /// one `server_start` with the server's other features opening.
   @override
-  Future<void> _seed(String serverId) async {
+  Future<void> _seed(String serverId, {bool first = false}) async {
     if (!_subs.containsKey(serverId)) return;
     // Best-effort — a failed seed just means no badges until the next event.
-    final response = await UnreadApi(_session.on(serverId)).unreadCounts();
+    final response = await UnreadApi(
+      _session.on(serverId),
+    ).unreadCounts(first: first);
     if (isClosed || !_subs.containsKey(serverId)) return;
     final data = response.data;
     if (!response.success || data is! Map) return;

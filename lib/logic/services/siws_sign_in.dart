@@ -15,11 +15,16 @@ import '../../data/repositories/server_repository.dart';
 /// so the message is signed again at that time and sent once more.
 ///
 /// Shared by the app and the push isolate, which sign in the same way.
+///
+/// [anonKey] is the server's, when it is known: the message then goes
+/// straight to GoTrue rather than through the `login` function
+/// (`ServerRepository.login`).
 Future<APIResponse> siwsSignIn({
   required ServerRepository repository,
   required CryptoRepository crypto,
   required String supabaseUrl,
   required ServerIdentity identity,
+  String? anonKey,
 }) async {
   Future<APIResponse> signedAt(DateTime? issuedAt) async {
     final signed = await crypto.signSiws(
@@ -31,6 +36,7 @@ Future<APIResponse> siwsSignIn({
       supabaseUrl,
       message: signed.message,
       signature: signed.signatureBase64,
+      anonKey: anonKey,
     );
   }
 

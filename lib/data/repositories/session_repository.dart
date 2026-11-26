@@ -208,6 +208,7 @@ class SessionRepository {
   Future<({String? accessToken, String? error})> signIn(
     String supabaseUrl, {
     required String serverId,
+    String? anonKey,
   }) async {
     final seed = await _storage.getMasterSeed();
     if (seed == null) {
@@ -226,6 +227,7 @@ class SessionRepository {
       crypto: _crypto,
       supabaseUrl: supabaseUrl,
       identity: identity,
+      anonKey: anonKey,
     );
     if (!response.success) {
       return (accessToken: null, error: response.error);
@@ -267,7 +269,11 @@ class SessionRepository {
     Server server,
   ) async {
     try {
-      final login = await signIn(server.supabaseUrl, serverId: server.id);
+      final login = await signIn(
+        server.supabaseUrl,
+        serverId: server.id,
+        anonKey: server.supabaseKey,
+      );
       final token = login.accessToken;
       if (token == null) {
         HelperMethods.printDebug(

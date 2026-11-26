@@ -8,6 +8,33 @@ part of 'server_repository.dart';
 mixin _DmRequestsApiMixin {
   ServerDb get _db;
 
+  /// Servers, by URL, with no `dm_lists`: asked the three calls instead.
+  final Set<String> _noDmLists = {};
+
+  /// The DM list, the requests waiting and who is blocked, in one call
+  /// (`dm_lists`, self-host 064): `{conversations, requests, blocks}`, each as
+  /// [listDmConversations], [dmRequests] and [listBlocks] answer it. A server
+  /// older than that answers `PGRST202`, once; after that the answer is
+  /// given here without asking.
+  Future<APIResponse> dmLists(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+  }) async {
+    if (_noDmLists.contains(supabaseUrl)) {
+      return APIResponse(
+        success: false,
+        error: 'This server has no dm_lists',
+        errorCode: 'PGRST202',
+      );
+    }
+    final response = await ServerDb.run(
+      () => _db.client(supabaseUrl, anonKey, bearerToken).rpc('dm_lists'),
+    );
+    if (response.errorCode == 'PGRST202') _noDmLists.add(supabaseUrl);
+    return response;
+  }
+
   /// Set who may start a DM with the caller: `everyone`, `requests` or
   /// `nobody`.
   Future<APIResponse> setDmPolicy(
