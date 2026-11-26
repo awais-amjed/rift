@@ -35,6 +35,7 @@ class ChannelKeysApi {
   Future<APIResponse> getChannelKey(String channelId) => _target.call(
     (server, token) => _repository.getChannelKey(
       server.supabaseUrl,
+      anonKey: server.supabaseKey ?? '',
       channelId: channelId,
       bearerToken: token,
     ),
@@ -42,8 +43,11 @@ class ChannelKeysApi {
 
   /// List key-distribution work available to the local user.
   Future<APIResponse> sweepChannelKeys() => _target.call(
-    (server, token) =>
-        _repository.sweepChannelKeys(server.supabaseUrl, bearerToken: token),
+    (server, token) => _repository.sweepChannelKeys(
+      server.supabaseUrl,
+      anonKey: server.supabaseKey ?? '',
+      bearerToken: token,
+    ),
   );
 
   /// Store sealed keyring entries for a key version — a new one when [mint],

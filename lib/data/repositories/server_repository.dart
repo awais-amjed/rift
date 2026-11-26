@@ -54,9 +54,11 @@ part 'server_repository_webhooks.dart';
 ///     (LiveKit API secret), `create_server`, `login` (GoTrue admin grant);
 ///   * it runs before the caller is a member, or before they have a key at all
 ///     — `resolve_invite`, `register`;
-///   * key distribution (`get_channel_key`, `post_channel_keys`,
-///     `sweep_channel_keys`), which enforces the channel-key version race and
-///     is deliberately left alone until it can be moved with care.
+///   * storing sealed keys (`post_channel_keys`), which enforces the
+///     channel-key version race. Reading them is database calls since
+///     self-host 063 (`my_channel_key`, `my_key_work`), with the edge
+///     functions `get_channel_key` and `sweep_channel_keys` kept for servers
+///     older than that.
 ///
 /// Everything else was an endpoint that existed only because clients weren't
 /// trusted with the database — which was never a decision, just a consequence
@@ -93,11 +95,13 @@ class ServerRepository
   static const invitesPage = 200;
 
   /// [client] and [askAgainAfter] are for a test; the app posts with
-  /// `http.post`, a connection per call, as it always has.
+  /// `http.post`, a connection per call, as it always has, and asks the
+  /// database through clients of its own.
   ServerRepository({
     http.Client? client,
     this.askAgainAfter = const Duration(seconds: 2),
-  }) : _send = client?.post ?? http.post;
+  }) : _send = client?.post ?? http.post,
+       _db = ServerDb(httpClient: client);
 
   final Future<http.Response> Function(
     Uri url, {
@@ -108,7 +112,7 @@ class ServerRepository
   _send;
 
   @override
-  final ServerDb _db = ServerDb();
+  final ServerDb _db;
 
   /// What comes back when the functions' runtime is not there to answer. The
   /// functions themselves always answer 200, so none of these is a function's

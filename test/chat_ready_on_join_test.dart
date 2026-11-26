@@ -45,6 +45,7 @@ class _Servers extends ServerRepository {
   @override
   Future<APIResponse> sweepChannelKeys(
     String supabaseUrl, {
+    required String anonKey,
     String? bearerToken,
   }) async => APIResponse.success(const {'work': [], 'more': false});
 

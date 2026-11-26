@@ -80,6 +80,7 @@ class _RecordingServers extends ServerRepository {
   @override
   Future<APIResponse> getChannelKey(
     String supabaseUrl, {
+    required String anonKey,
     String? bearerToken,
     required String channelId,
   }) async {

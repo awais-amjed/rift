@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:http/http.dart' as http;
 import 'package:supabase/supabase.dart' hide ErrorCode;
 
 import '../classes/api_response.dart';
@@ -28,11 +29,16 @@ class ServerDb {
 
   final Map<String, SupabaseClient> _clients = {};
 
+  /// For a test; the app's clients make their own connections.
+  final http.Client? _http;
+
+  ServerDb({http.Client? httpClient}) : _http = httpClient;
+
   ServerDbClient client(String url, String anonKey, String? bearerToken) =>
       ServerDbClient._(
         _clients.putIfAbsent(
           '$url|$anonKey',
-          () => SupabaseClient(url, anonKey),
+          () => SupabaseClient(url, anonKey, httpClient: _http),
         ),
         {
           'apikey': anonKey,

@@ -23,6 +23,7 @@ mixin _WakeChannelKeysMixin {
   }) async {
     final response = await _repo.getChannelKey(
       server.supabaseUrl,
+      anonKey: server.anonKey,
       bearerToken: token,
       channelId: channelId,
     );
