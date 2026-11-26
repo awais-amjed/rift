@@ -8,6 +8,7 @@ import '../../../../../../data/classes/role.dart';
 import '../../../../../../data/enums/server_permission.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/cubits/server_members/server_members_cubit.dart';
+import '../../../../../../logic/helper_methods.dart';
 import '../../../../../../logic/services/role_ladder.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/hint_card.dart';
@@ -130,25 +131,11 @@ class _RolesPanelState extends State<RolesPanel> {
     setState(() => _movingId = role.id);
     final api = RolesApi(ServerScope.read(context));
 
-    // Two writes for one swap, and neither result was being looked at. If the
-    // second is refused — the connection drops, or somebody else reshaped the
-    // ladder underneath us — the first has already landed and both roles claim
-    // the same position. That is a ladder nobody chose, and `RoleLadder` reads
-    // positions to decide who outranks whom.
-    //
-    // Putting the first one back is the best this side can do; the real fix is
-    // a swap that happens in one statement on the server, which does not exist
-    // yet. Either way the re-read below shows what actually happened rather
-    // than what was asked for.
-    final moved = await api.updateRole(role.id, position: neighbour.position);
-    if (moved.success) {
-      final swapped = await api.updateRole(
-        neighbour.id,
-        position: role.position,
-      );
-      if (!swapped.success) {
-        await api.updateRole(role.id, position: role.position);
-      }
+    // Both or neither: two roles left on one rung would be a ladder nobody
+    // chose. The re-read below shows what actually happened.
+    final swapped = await api.swapRoles(role, neighbour);
+    if (!swapped.success && swapped.error != null) {
+      HelperMethods.showError(error: swapped.error);
     }
     await _members.refreshRoles();
     if (!mounted) return;

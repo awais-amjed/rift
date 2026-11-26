@@ -2,11 +2,11 @@ part of 'server_repository.dart';
 
 /// Roles and who holds them.
 ///
-/// All direct table calls. There is no RPC here and there does not need to be:
-/// the two delegation rules — you may only touch a role below your own, and
-/// you may only grant permissions you hold — are `roles_insert`,
-/// `roles_update` and `member_roles_insert`, so a client that skipped this
-/// file entirely would be refused by the same rules.
+/// Direct table calls, but for the counts and the swap, which run as the
+/// caller too: the two delegation rules — you may only touch a role below
+/// your own, and you may only grant permissions you hold — are
+/// `roles_insert`, `roles_update` and `member_roles_insert`, so a client that
+/// skipped this file entirely would be refused by the same rules.
 ///
 /// Which is the point of putting them there rather than here.
 mixin _RoleApiMixin {
@@ -153,6 +153,35 @@ mixin _RoleApiMixin {
           .select('id');
       return {'rows': rows};
     });
+  }
+
+  /// Servers from before `swap_role_positions` (self-host 068), by address:
+  /// asked once, then moved a row at a time.
+  final Set<String> _noRoleSwap = {};
+
+  /// Exchange two roles' positions in one statement, both or neither
+  /// (`not_swapped`). A server from before it answers `PGRST202`, once.
+  Future<APIResponse> swapRolePositions(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required String roleA,
+    required String roleB,
+  }) async {
+    if (_noRoleSwap.contains(supabaseUrl)) {
+      return APIResponse(
+        success: false,
+        error: 'This server has no swap_role_positions',
+        errorCode: 'PGRST202',
+      );
+    }
+    final response = await ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      await db.rpc('swap_role_positions', params: {'p_a': roleA, 'p_b': roleB});
+      return const <String, dynamic>{};
+    });
+    if (response.errorCode == 'PGRST202') _noRoleSwap.add(supabaseUrl);
+    return response;
   }
 
   /// As [updateRole]: `roles_delete` filters out what the caller may not

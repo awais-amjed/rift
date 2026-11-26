@@ -214,6 +214,36 @@ class RolesApi {
     ),
   );
 
+  /// Swap two roles' places on the ladder, both or neither.
+  ///
+  /// One statement on a server with `swap_role_positions` (self-host 068).
+  /// On one from before it, two writes as there always were: if the second
+  /// is refused (the connection drops, or somebody else reshaped the ladder
+  /// underneath us) the first has already landed and both roles claim one
+  /// rung, which `RoleLadder` reads to decide who outranks whom, so the
+  /// first is put back.
+  Future<({bool success, String? error})> swapRoles(Role a, Role b) =>
+      _changeRole(
+        // A place changes nothing a call holds.
+        affectsCalls: false,
+        unsupported: () async {
+          final moved = await updateRole(a.id, position: b.position);
+          if (!moved.success) return moved;
+          final swapped = await updateRole(b.id, position: a.position);
+          if (!swapped.success) {
+            await updateRole(a.id, position: a.position);
+          }
+          return swapped;
+        },
+        (server, token) => _repository.swapRolePositions(
+          server.supabaseUrl,
+          anonKey: server.supabaseKey ?? '',
+          bearerToken: token,
+          roleA: a.id,
+          roleB: b.id,
+        ),
+      );
+
   Future<({bool success, String? error})> deleteRole(String roleId) =>
       _changeRole(
         refused: _outranked,
@@ -263,10 +293,14 @@ class RolesApi {
   /// a row policy filters out what the caller may not touch rather than
   /// refusing it, and read as success an edit to a locked role closed its
   /// editor as though saved.
+  ///
+  /// [unsupported] is what to do instead on a server without the function
+  /// [call] asks (`PGRST202`).
   Future<({bool success, String? error})> _changeRole(
     Future<APIResponse> Function(Server server, String token) call, {
     String? refused,
     bool affectsCalls = true,
+    Future<({bool success, String? error})> Function()? unsupported,
   }) async {
     final server = _target.server;
     if (server == null) {
@@ -277,6 +311,9 @@ class RolesApi {
       server,
       (token) => call(server, token),
     );
+    if (unsupported != null && response.errorCode == 'PGRST202') {
+      return unsupported();
+    }
     if (!response.success) {
       return (success: false, error: _roleFailure(response));
     }
@@ -322,6 +359,9 @@ class RolesApi {
       'everyone_is_permanent' => 'The @everyone role cannot be deleted.',
       'owner_is_singular' => 'Only one person can hold the owner role.',
       'bot_cannot_own' => 'A bot cannot hold the owner role.',
+      'not_swapped' =>
+        'Those roles could not be swapped. One may be at or above your own, '
+            'or the list changed.',
       _ => raw,
     };
   }
