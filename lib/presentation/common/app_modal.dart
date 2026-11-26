@@ -130,15 +130,25 @@ class AppModal extends StatelessWidget {
        );
 
   /// [content] with the [error] banner above it, when there is one.
-  Widget? get _form => error == null || content == null
-      ? content
+  ///
+  /// The column is there with or without the banner, and the form keeps its
+  /// key in it: moved between parents, the form was built anew whenever the
+  /// banner came or went, so every field lost its focus and an autofocused one
+  /// took it back. A dialog's error clears on the first keystroke, so the rest
+  /// of what someone typed went into another field.
+  Widget? get _form => content == null
+      ? null
       : Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           spacing: 12,
           children: [
-            MessageBanner(message: error!, kind: MessageBannerKind.error),
-            content!,
+            if (error != null)
+              MessageBanner(message: error!, kind: MessageBannerKind.error),
+            KeyedSubtree(
+              key: const ValueKey('app-modal-form'),
+              child: content!,
+            ),
           ],
         );
 
