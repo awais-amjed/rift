@@ -487,7 +487,8 @@ names its files beside the sealed body (`attachment_paths`: each attachment, a
 video's poster, a link card's picture), and the server checks each is its
 sender's own upload under that conversation's folder. Deleting the message, by
 anyone, puts them in the server's trash, and `sweep_attachments` removes those
-no other message names; that is how a moderator's or a report's delete frees
+no other message names (the console runs it every five minutes from 1.9.1; on
+an older server each app asks for it); that is how a moderator's or a report's delete frees
 them. A file is deleted directly only by its uploader (`chat_attachments_delete`).
 The sender's app also removes its own message's files at once
 (`AttachmentCleanup.forMessage`), which covers a message from before 1.9.0 or on
