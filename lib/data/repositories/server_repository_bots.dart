@@ -258,35 +258,38 @@ mixin _BotApiMixin {
         ),
   );
 
-  /// Seal one bot the key it speaks with in one voice channel.
+  /// Seal bots the keys they speak with in one voice channel.
   ///
   /// A plain insert, not an RPC: the value is opaque to the server and every
   /// rule about who may write one is in its write policy — a member of the room,
   /// never a bot, and `is_channel_key` only where a listening grant exists.
   /// A conflict means another member's client got there first, which is the
   /// same non-event it is when healing a member.
-  Future<APIResponse> postBotVoiceKey(
+  ///
+  /// Every bot short of a key in one statement, since a member joining a call
+  /// with several bots in it sent one request per bot. Each `keys` entry is
+  /// `bot_id`, `is_channel_key` and the wrapped bytes' fields.
+  Future<APIResponse> postBotVoiceKeys(
     String supabaseUrl, {
     required String anonKey,
     String? bearerToken,
     required String channelId,
-    required String botId,
     required int keyVersion,
-    required bool isChannelKey,
-    required Map<String, dynamic> wrapped,
+    required List<Map<String, dynamic>> keys,
     required String wrappedBy,
   }) {
     return ServerDb.run(() async {
       final db = _db.client(supabaseUrl, anonKey, bearerToken);
-      await db.from('bot_voice_keys').upsert({
-        'channel_id': channelId,
-        'bot_id': botId,
-        'key_version': keyVersion,
-        'is_channel_key': isChannelKey,
-        'wrapped_by': wrappedBy,
-        ...wrapped,
-      }, ignoreDuplicates: true);
-      return {'sealed': true};
+      await db.from('bot_voice_keys').upsert([
+        for (final key in keys)
+          {
+            'channel_id': channelId,
+            'key_version': keyVersion,
+            'wrapped_by': wrappedBy,
+            ...key,
+          },
+      ], ignoreDuplicates: true);
+      return {'sealed': keys.length};
     });
   }
 

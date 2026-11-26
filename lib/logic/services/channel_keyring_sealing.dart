@@ -43,31 +43,42 @@ mixin _KeyringSealingMixin {
     final serverId = _serverId;
     if (channelKey == null || serverId == null) return;
 
+    final sealed = <BotVoiceKey>[];
     for (final bot in bots) {
       final botId = bot['bot_id'] as String?;
       final publicKey = bot['chat_public_key'] as String?;
       if (botId == null || publicKey == null) continue;
 
       try {
-        final sealed = await VoiceKeys.forOneBot(
+        final key = await VoiceKeys.forOneBot(
           crypto: _crypto,
           channelKey: channelKey,
           botId: botId,
           mayListen: bot['may_listen'] == true,
         );
-        await _botsOn(serverId).postBotVoiceKey(
-          channelId: channelId,
-          botId: botId,
-          keyVersion: keyVersion,
-          isChannelKey: sealed.isChannelKey,
-          wrapped: await _crypto.wrapKey(
-            key: sealed.key,
-            recipientPublicKey: CryptoRepository.fromBase64(publicKey),
+        sealed.add(
+          BotVoiceKey(
+            botId: botId,
+            isChannelKey: key.isChannelKey,
+            wrapped: await _crypto.wrapKey(
+              key: key.key,
+              recipientPublicKey: CryptoRepository.fromBase64(publicKey),
+            ),
           ),
         );
       } catch (e) {
         HelperMethods.printDebug('[Keyring] bot key seal failed: $e');
       }
+    }
+    if (sealed.isEmpty) return;
+    try {
+      await _botsOn(serverId).postBotVoiceKeys(
+        channelId: channelId,
+        keyVersion: keyVersion,
+        keys: sealed,
+      );
+    } catch (e) {
+      HelperMethods.printDebug('[Keyring] bot key write failed: $e');
     }
   }
 

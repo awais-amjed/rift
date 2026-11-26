@@ -101,15 +101,13 @@ class _RecordingServers extends ServerRepository {
   }
 
   @override
-  Future<APIResponse> postBotVoiceKey(
+  Future<APIResponse> postBotVoiceKeys(
     String supabaseUrl, {
     required String anonKey,
     String? bearerToken,
     required String channelId,
-    required String botId,
     required int keyVersion,
-    required bool isChannelKey,
-    required Map<String, dynamic> wrapped,
+    required List<Map<String, dynamic>> keys,
     required String wrappedBy,
   }) async {
     calls.add(('bot', supabaseUrl));

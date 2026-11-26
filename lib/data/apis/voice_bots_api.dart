@@ -1,5 +1,6 @@
 import 'package:rift_crypto/rift_crypto.dart';
 
+import '../classes/api_response.dart';
 import '../repositories/server_repository.dart';
 import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
@@ -168,37 +169,44 @@ class VoiceBotsApi {
     );
   }
 
-  /// Seal one bot its media key for [channelId].
+  /// Seal bots their media keys for [channelId], in one write.
   ///
   /// The bytes are produced by `ChannelKeyring`, which holds the channel key;
   /// this only posts them. Failure is swallowed by the caller on purpose — a
   /// bot short of a key is inaudible until the next member opens the call, and
   /// that is not worth failing somebody's own join over.
-  Future<void> postBotVoiceKey({
+  ///
+  /// The write policy judges each row, and one it refuses refuses the whole
+  /// statement — a bot whose grant went away between the read and the write.
+  /// So a refused batch is sent again a bot at a time, and the rest still get
+  /// theirs.
+  Future<void> postBotVoiceKeys({
     required String channelId,
-    required String botId,
     required int keyVersion,
-    required bool isChannelKey,
-    required WrappedKey wrapped,
+    required List<BotVoiceKey> keys,
   }) async {
     final server = _target.server;
     final me = server?.user?.id;
-    if (server == null || me == null) return;
+    if (server == null || me == null || keys.isEmpty) return;
 
-    await _session.callFor(
+    Future<APIResponse> post(List<BotVoiceKey> some) => _session.callFor(
       server,
-      (token) => _repository.postBotVoiceKey(
+      (token) => _repository.postBotVoiceKeys(
         server.supabaseUrl,
         anonKey: server.supabaseKey ?? '',
         bearerToken: token,
         channelId: channelId,
-        botId: botId,
         keyVersion: keyVersion,
-        isChannelKey: isChannelKey,
-        wrapped: wrapped.toJson(),
+        keys: [for (final key in some) key.toJson()],
         wrappedBy: me,
       ),
     );
+
+    final all = await post(keys);
+    if (all.success || keys.length == 1) return;
+    for (final key in keys) {
+      await post([key]);
+    }
   }
 
   /// Who can hear each voice channel on this server: channel id → bots.
@@ -345,4 +353,26 @@ class VoiceBotsApi {
   /// it on the live connection (`livekit_error` in its answer).
   static bool _liveKitMissed(Object? data) =>
       data is Map && data['livekit_error'] != null;
+}
+
+/// One bot's sealed media key, as [VoiceBotsApi.postBotVoiceKeys] writes it.
+class BotVoiceKey {
+  final String botId;
+
+  /// The channel key itself, for a bot granted hearing; otherwise the key
+  /// derived for it alone.
+  final bool isChannelKey;
+  final WrappedKey wrapped;
+
+  const BotVoiceKey({
+    required this.botId,
+    required this.isChannelKey,
+    required this.wrapped,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'bot_id': botId,
+    'is_channel_key': isChannelKey,
+    ...wrapped.toJson(),
+  };
 }
