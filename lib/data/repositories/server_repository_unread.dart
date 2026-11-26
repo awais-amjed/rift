@@ -28,6 +28,7 @@ mixin _UnreadApiMixin {
         bearerToken,
         'unread',
       );
+      if (part is APIResponse) return part;
       if (part is Map) return APIResponse.success(part);
     }
     return ServerDb.run(() async {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:rift/data/enums/error_code.dart';
 import 'package:rift/data/repositories/server_repository.dart';
 
 /// Self-host 064: a server's first loads share one `server_start`, its DM
@@ -73,12 +74,15 @@ void main() {
     return (repo: repo, asked: asked);
   }
 
-  Future<List<dynamic>> firstLoads(ServerRepository repo) => Future.wait([
-    repo.unreadCounts(url, anonKey: 'a', bearerToken: 't', first: true),
-    repo.memberSidebar(url, anonKey: 'a', bearerToken: 't', first: true),
-    repo.listSounds(url, anonKey: 'a', bearerToken: 't', first: true),
-    repo.listVoiceListeners(url, anonKey: 'a', bearerToken: 't', first: true),
-    repo.listVoiceSummons(url, anonKey: 'a', bearerToken: 't', first: true),
+  Future<List<dynamic>> firstLoads(
+    ServerRepository repo, [
+    String token = 't',
+  ]) => Future.wait([
+    repo.unreadCounts(url, anonKey: 'a', bearerToken: token, first: true),
+    repo.memberSidebar(url, anonKey: 'a', bearerToken: token, first: true),
+    repo.listSounds(url, anonKey: 'a', bearerToken: token, first: true),
+    repo.listVoiceListeners(url, anonKey: 'a', bearerToken: token, first: true),
+    repo.listVoiceSummons(url, anonKey: 'a', bearerToken: token, first: true),
   ]);
 
   test('first loads share one server_start, each taking its part', () async {
@@ -170,5 +174,36 @@ void main() {
       chatPublicKey: 'K2',
     );
     expect(s.asked, isNotEmpty);
+  });
+
+  test('a token the server no longer takes is every part\'s answer, and '
+      'the retry under a new one is one server_start again', () async {
+    final asked = <String>[];
+    final repo = ServerRepository(
+      askAgainAfter: Duration.zero,
+      client: MockClient((request) async {
+        asked.add(request.url.path);
+        if (request.headers['Authorization'] == 'Bearer old') {
+          return json(request, {
+            'code': 'PGRST303',
+            'message': 'JWT expired',
+          }, 401);
+        }
+        if (request.url.path == '/rest/v1/rpc/server_start') {
+          return json(request, start);
+        }
+        return json(request, []);
+      }),
+    );
+
+    final refused = await firstLoads(repo, 'old');
+    expect(asked, ['/rest/v1/rpc/server_start']);
+    expect(refused.every((a) => a.errorCode == ErrorCode.tokenExpired), isTrue);
+
+    // Signed in again, at once: inside the gap a stale answer keeps.
+    asked.clear();
+    final answers = await firstLoads(repo, 'new');
+    expect(asked, ['/rest/v1/rpc/server_start']);
+    expect(answers.every((a) => a.success == true), isTrue);
   });
 }

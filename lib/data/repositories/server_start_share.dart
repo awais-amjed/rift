@@ -1,4 +1,6 @@
+import '../classes/api_response.dart';
 import '../classes/member_page.dart';
+import '../enums/error_code.dart';
 import 'server_db.dart';
 
 /// What an app loads first on a server, asked once (`server_start`, self-host
@@ -17,6 +19,14 @@ import 'server_db.dart';
 ///
 /// A server older than 064 answers `PGRST202` once, and is asked the five
 /// calls from then on.
+///
+/// An app opening after an hour away holds a token the server has stopped
+/// taking. The refusal of the shared call is then each part's answer, so the
+/// caller signs in once and asks again, and that retry, under the new token,
+/// is one `server_start` again. Answered with nothing, each part asked for
+/// itself with the old token, was refused, and its retry fell inside
+/// [_startGap]: five calls refused and five more answered, at the start that
+/// most needed one (seen live, Nov 26).
 class ServerStartShare {
   final ServerDb _db;
 
@@ -45,7 +55,8 @@ class ServerStartShare {
   static const memberLimit = MemberPage.pageSize + 1;
 
   /// Part [name] of a shared first answer, or null when the caller should
-  /// ask for it itself.
+  /// ask for it itself, or the refusal when the server would not take the
+  /// caller's token, which the caller answers with.
   Future<dynamic> part(
     String supabaseUrl,
     String anonKey,
@@ -67,8 +78,11 @@ class ServerStartShare {
       answer = _StartAnswer(_askStart(supabaseUrl, anonKey, bearerToken));
       _starts[key] = answer;
     }
-    final data = await answer.future;
-    if (data == null || !answer.take(name)) return null;
+    final response = await answer.future;
+    if (ErrorCode.isSessionInvalid(response.errorCode)) return response;
+    final data = response.data;
+    if (!response.success || data is! Map<String, dynamic>) return null;
+    if (!answer.take(name)) return null;
     return data[name];
   }
 
@@ -87,7 +101,7 @@ class ServerStartShare {
     return _sweepsItself.contains(supabaseUrl);
   }
 
-  Future<Map<String, dynamic>?> _askStart(
+  Future<APIResponse> _askStart(
     String supabaseUrl,
     String anonKey,
     String? bearerToken,
@@ -97,10 +111,17 @@ class ServerStartShare {
       return db.rpc('server_start', params: {'p_member_limit': memberLimit});
     });
     if (response.errorCode == 'PGRST202') _noStart.add(supabaseUrl);
+    // The retry under a new token may ask again at once.
+    if (ErrorCode.isSessionInvalid(response.errorCode)) {
+      _startSent.remove(supabaseUrl);
+    }
     final data = response.data;
-    if (!response.success || data is! Map<String, dynamic>) return null;
-    if (data['sweeps_itself'] == true) _sweepsItself.add(supabaseUrl);
-    return data;
+    if (response.success &&
+        data is Map<String, dynamic> &&
+        data['sweeps_itself'] == true) {
+      _sweepsItself.add(supabaseUrl);
+    }
+    return response;
   }
 }
 
@@ -111,11 +132,11 @@ class _StartAnswer {
   /// milliseconds of each other; one asking later reads for itself.
   static const freshFor = Duration(seconds: 1);
 
-  _StartAnswer(Future<Map<String, dynamic>?> asked) {
+  _StartAnswer(Future<APIResponse> asked) {
     future = asked.whenComplete(() => _arrived = DateTime.now());
   }
 
-  late final Future<Map<String, dynamic>?> future;
+  late final Future<APIResponse> future;
   DateTime? _arrived;
   final Set<String> _taken = {};
 

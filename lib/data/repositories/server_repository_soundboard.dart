@@ -32,6 +32,7 @@ mixin _SoundboardApiMixin {
         bearerToken,
         'sounds',
       );
+      if (part is APIResponse) return part;
       if (part is List) {
         return APIResponse.success({
           'sounds': part.cast<Map<String, dynamic>>(),

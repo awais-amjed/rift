@@ -158,6 +158,7 @@ mixin _BotApiMixin {
         bearerToken,
         'summons',
       );
+      if (part is APIResponse) return part;
       if (part is List) return APIResponse.success({'summons': part});
     }
     return ServerDb.run(() async {
@@ -187,6 +188,7 @@ mixin _BotApiMixin {
         bearerToken,
         'listeners',
       );
+      if (part is APIResponse) return part;
       if (part is List) {
         return APIResponse.success({
           'listeners': part.cast<Map<String, dynamic>>(),

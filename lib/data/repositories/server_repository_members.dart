@@ -184,6 +184,7 @@ mixin _MemberApiMixin {
         bearerToken,
         'sidebar',
       );
+      if (part is APIResponse) return part;
       if (part is Map<String, dynamic>) {
         return ServerDb.run(() async => _sidebarFrom(part, limit));
       }
