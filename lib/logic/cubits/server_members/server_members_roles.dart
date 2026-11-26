@@ -7,7 +7,7 @@ mixin _MembersRolesMixin on Cubit<ServerMembersState> {
   RolesApi _rolesOn(String serverId);
 
   /// Whether something is showing [ServerMembersState.roleCounts], so a
-  /// refresh reads every assignment again rather than only the rows on screen.
+  /// refresh counts the roles again as well as re-reading the rows on screen.
   bool _countingRoles = false;
 
   /// Role chips for [userIds], merged into what is already known.
@@ -50,16 +50,17 @@ mixin _MembersRolesMixin on Cubit<ServerMembersState> {
   }
 
   /// Keep [ServerMembersState.roleCounts] — what the Roles page shows beside
-  /// each role — until [stopCountingRoles]. Every holder's roles land in
-  /// [ServerMembersState.memberRoles] with it, the viewer's own among them,
-  /// which is what decides how far down the ladder they reach.
+  /// each role — until [stopCountingRoles]. The viewer's own roles land in
+  /// [ServerMembersState.memberRoles] with it (every holder's, from a server
+  /// too old to count), which is what decides how far down the ladder they
+  /// reach.
   Future<void> countRoles() async {
     _countingRoles = true;
     if (state.roleCountFailed) emit(state.copyWith(roleCountFailed: false));
     await _countRoles();
   }
 
-  /// Nothing is showing the counts any more; stop reading every assignment.
+  /// Nothing is showing the counts any more; stop counting.
   void stopCountingRoles() {
     _countingRoles = false;
     if (!isClosed && (state.roleCounts != null || state.roleCountFailed)) {
@@ -91,28 +92,26 @@ mixin _MembersRolesMixin on Cubit<ServerMembersState> {
   Future<void> _countRoles() async {
     final serverId = _watcher.serverId;
     if (serverId == null) return;
-    final held = await _rolesOn(serverId).listMemberRoles();
+    final counted = await _rolesOn(serverId).roleCounts();
     if (isClosed || serverId != _watcher.serverId || !_countingRoles) return;
-    if (held == null) {
+    if (counted == null) {
       // What was counted before stays; only a page with nothing yet says so.
       if (state.roleCounts == null) emit(state.copyWith(roleCountFailed: true));
       return;
     }
 
-    final counts = <String, int>{};
-    for (final roles in held.values) {
-      for (final role in roles) {
-        counts[role.id] = (counts[role.id] ?? 0) + 1;
-      }
-    }
     emit(
       state.copyWith(
-        // Every assignment on the server, so somebody absent holds nothing.
-        memberRoles: {
-          for (final id in state.memberRoles.keys) id: held[id] ?? const [],
-          ...held,
-        },
-        roleCounts: counts,
+        memberRoles: counted.whole
+            // Every assignment on the server, so somebody absent holds nothing.
+            ? {
+                for (final id in state.memberRoles.keys)
+                  id: counted.held[id] ?? const [],
+                ...counted.held,
+              }
+            // The viewer's own, beside the chips already read.
+            : {...state.memberRoles, ...counted.held},
+        roleCounts: counted.counts,
         roleCountFailed: false,
       ),
     );

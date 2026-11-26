@@ -19,9 +19,10 @@ class RoleLadder {
 
   /// `member_role_list` rows grouped by member, each list most senior first.
   ///
-  /// The rows arrive flat — one per (member, role) — from two different calls
-  /// now that the roster pages: `listMemberRoles` for a whole server, and
-  /// `memberRolesFor` for the handful of rows on screen. Both want the same
+  /// The rows arrive flat — one per (member, role) — from different calls
+  /// now that the roster pages: `roleCounts` for the viewer's own
+  /// (`listMemberRoles` for a whole server too old to count), and
+  /// `memberRolesFor` for the handful of rows on screen. All want the same
   /// shape, and a second copy of the grouping is where the sort order quietly
   /// stops matching and one screen starts showing the junior role.
   static Map<String, List<Role>> byUser(List<Map<String, dynamic>> rows) {

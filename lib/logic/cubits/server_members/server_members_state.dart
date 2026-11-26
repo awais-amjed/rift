@@ -44,13 +44,13 @@ class ServerMembersState extends Equatable {
   final List<Role> roles;
 
   /// Which roles each member holds, most senior first. Filled for the members
-  /// on screen, not for everybody — except while [roleCounts] is kept, when
-  /// it holds every holder on the server.
+  /// on screen and, while [roleCounts] is kept, the viewer — not for
+  /// everybody, except from a server too old to count roles itself.
   final Map<String, List<Role>> memberRoles;
 
   /// How many members hold each role, by role id. Null unless something is
-  /// showing the counts ([ServerMembersCubit.countRoles]): counting reads
-  /// every assignment on the server, and only the Roles page needs it.
+  /// showing the counts ([ServerMembersCubit.countRoles]): only the Roles page
+  /// needs them.
   final Map<String, int>? roleCounts;
 
   /// The last count could not be read, so the Roles page offers to try again

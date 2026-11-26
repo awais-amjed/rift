@@ -70,6 +70,28 @@ mixin _RoleApiMixin {
     });
   }
 
+  /// How many members hold each role, and the caller's own roles, in one
+  /// call (`role_counts`): what the Roles page needs, where
+  /// [listMemberRoles] pages through every assignment on the server to work
+  /// it out — 49 requests on a server of 50,000 members.
+  ///
+  /// `counts` is null when the server answers that the caller is no member.
+  /// Answers `PGRST202` from a server not updated to have it yet.
+  Future<APIResponse> roleCounts(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final row = await db.rpc('role_counts') as Map<String, dynamic>?;
+      return {
+        'counts': row?['counts'],
+        'assignments': row?['mine'] ?? const <Map<String, dynamic>>[],
+      };
+    });
+  }
+
   Future<APIResponse> createRole(
     String supabaseUrl, {
     required String anonKey,

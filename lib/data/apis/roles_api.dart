@@ -75,6 +75,56 @@ class RolesApi {
     return RoleLadder.byUser(_assignmentRows(response));
   }
 
+  /// How many members hold each role (`{roleId: holders}`, a role nobody
+  /// holds absent) and who holds what. Null when the read failed.
+  ///
+  /// The server counts (`role_counts`), and then [held] is the viewer's own
+  /// roles alone, which decide how far down the ladder they reach. A server
+  /// not updated to count answers `PGRST202`, and every assignment is read
+  /// and counted here as before: then [held] is the whole server, and
+  /// [whole] says so, since only then is somebody absent from it holding
+  /// nothing.
+  Future<({Map<String, int> counts, Map<String, List<Role>> held, bool whole})?>
+  roleCounts() async {
+    final server = _target.server;
+    if (server == null) return null;
+
+    final response = await _session.callFor(
+      server,
+      (token) => _repository.roleCounts(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: token,
+      ),
+    );
+    if (response.success) {
+      final counts = (response.data as Map<String, dynamic>)['counts'];
+      final me = server.user?.id;
+      if (counts is! Map<String, dynamic> || me == null) return null;
+      return (
+        counts: {
+          for (final entry in counts.entries)
+            entry.key: (entry.value as num).toInt(),
+        },
+        held: {
+          me: RoleLadder.byUser(_assignmentRows(response))[me] ?? const [],
+        },
+        whole: false,
+      );
+    }
+    if (response.errorCode != 'PGRST202') return null;
+
+    final held = await listMemberRoles();
+    if (held == null) return null;
+    final counts = <String, int>{};
+    for (final roles in held.values) {
+      for (final role in roles) {
+        counts[role.id] = (counts[role.id] ?? 0) + 1;
+      }
+    }
+    return (counts: counts, held: held, whole: true);
+  }
+
   /// The roles held by [userIds] and nobody else — the chips for the rows on
   /// screen.
   ///
@@ -243,10 +293,8 @@ class RolesApi {
       unawaited(
         _session.callFor(
           server,
-          (token) => _repository.refreshCalls(
-            server.supabaseUrl,
-            bearerToken: token,
-          ),
+          (token) =>
+              _repository.refreshCalls(server.supabaseUrl, bearerToken: token),
         ),
       );
     }
