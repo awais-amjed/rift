@@ -1,8 +1,24 @@
 import '../classes/api_response.dart';
 import '../classes/server.dart';
+import '../classes/server_member.dart';
 import '../repositories/server_repository.dart';
 import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
+import 'bot_keys_api.dart';
+
+/// What a channel showed when it opened, in the answers of the reads
+/// `channel_open` stands for: [page] as [ChannelMessagesApi.listChatMessages]
+/// answers, [live] as `listLiveMessages`, [key] as `getChannelKey`, the
+/// [listeners] as `BotKeysApi.channelListeners` and the [bots] as
+/// `MembersApi.listBots`. Null [listeners] is a failed read, as there; null
+/// [bots] is one to read whole, failed or longer than a page.
+typedef ChannelOpening = ({
+  APIResponse page,
+  APIResponse live,
+  APIResponse key,
+  List<String>? listeners,
+  List<ServerMember>? bots,
+});
 
 /// A channel's messages on a server: sending, editing, deleting and paging
 /// sealed envelopes. Pass-throughs — all crypto happens in the chat cubit and
@@ -123,6 +139,50 @@ class ChannelMessagesApi {
       bearerToken: token,
     ),
   );
+
+  /// Everything [channelId] shows when it opens, in one request rather than
+  /// five (self-host 066). Null from a server from before it, which is then
+  /// read the old way.
+  Future<ChannelOpening?> openChannel({
+    required String channelId,
+    int? limit,
+  }) async {
+    final response = await _target.call(
+      (server, token) => _repository.openChannel(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        userId: server.user?.id ?? '',
+        channelId: channelId,
+        limit: limit,
+        bearerToken: token,
+      ),
+    );
+    if (response.errorCode == 'PGRST202') return null;
+    if (!response.success) {
+      return (
+        page: response,
+        live: response,
+        key: response,
+        listeners: null,
+        bots: null,
+      );
+    }
+    final data = response.data as Map<String, dynamic>;
+    final keyError = data['key_error'] as String?;
+    final bots = data['bots'] as Map<String, dynamic>;
+    final serverId = _target.server?.id;
+    return (
+      page: APIResponse.success(data['page']),
+      live: APIResponse.success(data['live']),
+      key: keyError != null
+          ? APIResponse(success: false, error: keyError, errorCode: keyError)
+          : APIResponse.success(data['key']),
+      listeners: BotKeysApi.listenerNames(data['listeners'] as List),
+      bots: bots['has_more'] == true || serverId == null
+          ? null
+          : _session.members.remember(serverId, ServerMember.listFrom(bots)),
+    );
+  }
 
   /// The channel's open polls and live panels, for the bar above its
   /// message box. Answers `{messages: […]}`, shaped as a page is.

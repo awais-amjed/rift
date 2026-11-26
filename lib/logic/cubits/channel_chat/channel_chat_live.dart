@@ -21,13 +21,14 @@ mixin _ChannelChatLiveMixin
   /// [_liveFromServer] changed under an emit that may not touch the page.
   bool _liveStale = false;
 
-  /// Ask the server what is live in the open channel.
-  Future<void> refreshLive() async {
+  /// Ask the server what is live in the open channel. [answered] is its
+  /// answer already in hand, from the read that opened the channel.
+  Future<void> refreshLive({APIResponse? answered}) async {
     final channelId = state.channelId;
     if (channelId == null) return;
-    final response = await _channelMessages.listLiveMessages(
-      channelId: channelId,
-    );
+    final response =
+        answered ??
+        await _channelMessages.listLiveMessages(channelId: channelId);
     if (isClosed || state.channelId != channelId) return;
     if (!response.success) {
       HelperMethods.printDebug('[Chat] live read failed: ${response.error}');

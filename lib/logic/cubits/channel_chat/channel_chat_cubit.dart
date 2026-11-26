@@ -376,21 +376,38 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     // when no key is found: without one most of it comes back as locked rows
     // and any webhook message readable, which is the difference between a
     // channel that looks empty and one that looks like what it is.
-    final listenersRead = _botKeys.channelListeners(channelId);
-    final botsRead = _members.listBots(channelId: channelId);
-    final pageRead = _readLatest(channelId);
+    //
+    // One request where the server has `channel_open` (self-host 066), which
+    // answers all of them and the bar too; the reads apart where it has not.
+    final opening = _channelMessages.openChannel(
+      channelId: channelId,
+      limit: ChatMessageOps.pageSize,
+    );
+    final listenersRead = opening.then<List<String>?>(
+      (o) => o == null ? _botKeys.channelListeners(channelId) : o.listeners,
+    );
+    final botsRead = opening.then<List<ServerMember>>(
+      (o) => o?.bots ?? _members.listBots(channelId: channelId),
+    );
+    final pageRead = opening.then<APIResponse>(
+      (o) => o?.page ?? _readLatest(channelId),
+    );
 
     // What this device saved last time, drawn before anything is back. It is
     // replaced the moment the server's page is.
     await _drawSaved(server, channelId);
     if (_isStale(generation)) return;
 
-    await _keyring.ensureChatKeyPublished(server);
+    final newlyKeyed = await _keyring.ensureChatKeyPublished(server);
     if (_isStale(generation)) return;
 
+    // The keys the opening read brought, unless this member's chat key was
+    // published only now: asked before it landed, they could name everybody
+    // to seal a first key to but this member.
     final keyring = await _keyring.loadOrBootstrap(
       channelId,
       serverId: server.id,
+      answered: newlyKeyed ? null : (await opening)?.key,
     );
     if (_isStale(generation)) return;
 
@@ -423,7 +440,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     _ringHeldDoorbells();
     // What the bar holds, which the page may not. Not awaited: the bar can
     // fill a moment after the history does.
-    unawaited(refreshLive());
+    unawaited(refreshLive(answered: (await opening)?.live));
 
     if (keyring.isWaiting && _plainChannel) {
       // Nothing new here is sealed, so there is nothing to wait for: open

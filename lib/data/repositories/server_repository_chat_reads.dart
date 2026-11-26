@@ -226,6 +226,77 @@ mixin _ChatReadApiMixin {
     return response;
   }
 
+  /// Servers from before `channel_open` (self-host 066), by address: asked
+  /// once, then read in five.
+  final Set<String> _noChannelOpen = {};
+
+  /// Everything [channelId] shows when it opens, in one request
+  /// (`channel_open`): its newest page, the bar's rows, the caller's keys or
+  /// why there are none, the bots holding a key to it and the bots a `/`
+  /// there reaches. Answers `{page: {messages, has_more}, live: {messages},
+  /// key, key_error, listeners, bots: {users, has_more}}`, each part in the
+  /// shape its own read answers. A server from before it answers `PGRST202`,
+  /// once.
+  Future<APIResponse> openChannel(
+    String supabaseUrl, {
+    required String anonKey,
+    required String userId,
+    String? bearerToken,
+    required String channelId,
+    int? limit,
+  }) async {
+    if (_noChannelOpen.contains(supabaseUrl)) {
+      return APIResponse(
+        success: false,
+        error: 'This server has no channel_open',
+        errorCode: 'PGRST202',
+      );
+    }
+    final response = await ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final pageSize = limit ?? ChatMessageOps.pageSize;
+      final data = await db.rpc(
+        'channel_open',
+        params: {
+          'p_channel': channelId,
+          // One row past each page — see Paging.split.
+          'p_limit': pageSize + 1,
+          'p_bot_limit': MemberPage.pageSize + 1,
+        },
+      );
+      final answer = data as Map<String, dynamic>;
+      final page = Paging.split(
+        (answer['messages'] as List).cast<Map<String, dynamic>>(),
+        limit: pageSize,
+      );
+      final bots = Paging.split(
+        _MemberApiMixin._members(answer['bots']),
+        limit: MemberPage.pageSize,
+      );
+      return {
+        'page': {
+          'messages': [
+            for (final r in page.rows) _flatten(r, userId: userId, dm: false),
+          ],
+          'has_more': page.hasMore,
+        },
+        'live': {
+          'messages': [
+            for (final r
+                in (answer['live'] as List).cast<Map<String, dynamic>>())
+              _flatten(r, userId: userId, dm: false),
+          ],
+        },
+        'key': answer['key'],
+        'key_error': answer['key_error'],
+        'listeners': answer['listeners'],
+        'bots': {'users': bots.rows, 'has_more': bots.hasMore},
+      };
+    });
+    if (response.errorCode == 'PGRST202') _noChannelOpen.add(supabaseUrl);
+    return response;
+  }
+
   /// The live players of the bots in the voice call [callId], from whichever
   /// text channel each was posted in — one the caller cannot read included,
   /// since the player is the call's. A server from before the read fails this

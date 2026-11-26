@@ -25,7 +25,7 @@ mixin _ChannelChatRealtimeMixin
   Future<void> retry();
 
   /// See [_ChannelChatLiveMixin].
-  Future<void> refreshLive();
+  Future<void> refreshLive({APIResponse? answered});
 
   /// The open channel's own topic, for typing.
   RealtimeLease? _rtTopic;

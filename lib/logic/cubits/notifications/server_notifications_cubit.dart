@@ -15,6 +15,7 @@ import '../../services/broadcast_payload.dart';
 import '../../services/notification_ids.dart';
 import '../../services/notification_service.dart';
 import '../../services/per_server_map.dart';
+import '../../services/read_marks.dart';
 import '../../services/server_realtime.dart';
 import '../../services/server_topics.dart';
 import '../../services/sound_service.dart';
@@ -226,6 +227,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   void _onAppStateChanged(AppState appState) {
     if (appState.surface == _lastSurface) return;
     _lastSurface = appState.surface;
+    _flushMarks();
     // Navigating *to* a surface reads what was waiting on it.
     _markOnScreenRead();
   }
@@ -239,6 +241,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   void _onChatChanged(ChannelChatState chatState) {
     final channelId = chatState.channelId;
     if (channelId == _openChannelId) return;
+    _flushMarks();
     _openChannelId = channelId;
     if (channelId == null) {
       _openServerId = null;
@@ -254,6 +257,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   void _onDmChanged(DmState dmState) {
     final peerId = dmState.openPeerId;
     if (peerId == _openPeerId) return;
+    _flushMarks();
     _openPeerId = peerId;
     if (peerId == null) {
       _openDmServerId = null;
@@ -265,7 +269,10 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
   }
 
   void _onFocusChanged() {
-    if (!WindowFocusService.instance.isFocused) return;
+    if (!WindowFocusService.instance.isFocused) {
+      _flushMarks();
+      return;
+    }
     _markOnScreenRead();
     _recountOnFocus();
   }
@@ -304,6 +311,7 @@ class ServerNotificationsCubit extends Cubit<NotificationsState>
     WindowFocusService.instance.focused.removeListener(_onFocusChanged);
     _refreshTimer?.cancel();
     _cancelRecounts();
+    _flushMarks();
     await _serverSub?.cancel();
     await _chatSub?.cancel();
     await _dmSub?.cancel();

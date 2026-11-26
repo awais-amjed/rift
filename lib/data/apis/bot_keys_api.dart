@@ -148,11 +148,15 @@ class BotKeysApi {
   Future<List<String>?> channelListeners(String channelId) async {
     final rows = await _listeners(channelId);
     if (rows == null) return null;
-    return [
-      for (final r in rows)
-        (r['display_name'] as String?) ?? (r['username'] as String? ?? 'a bot'),
-    ];
+    return listenerNames(rows);
   }
+
+  /// [channelListeners]'s names from the rows of `channel_bot_listeners`,
+  /// for an answer that brought them along (`channel_open`).
+  static List<String> listenerNames(List<dynamic> rows) => [
+    for (final r in rows.cast<Map<String, dynamic>>())
+      (r['display_name'] as String?) ?? (r['username'] as String? ?? 'a bot'),
+  ];
 
   /// Null when the read failed.
   Future<List<Map<String, dynamic>>?> _listeners(String channelId) async {

@@ -5,6 +5,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 
 import '../../data/apis/channel_keys_api.dart';
 import '../../data/apis/voice_bots_api.dart';
+import '../../data/classes/api_response.dart';
 import '../../data/classes/server.dart';
 import '../../data/enums/error_code.dart';
 import '../../data/repositories/server_repository.dart';
@@ -274,9 +275,14 @@ class ChannelKeyring with _KeyringSealingMixin {
   /// Fetch + unwrap the keyring for [channelId] on [serverId]; bootstrap v1
   /// when the channel has no key yet; heal members missing current-version
   /// entries.
+  ///
+  /// [answered] is the server's answer already in hand, brought by the
+  /// channel's opening read, and stands in for the first fetch. A bootstrap
+  /// that loses the race still fetches the winner's.
   Future<KeyringOutcome> loadOrBootstrap(
     String channelId, {
     required String serverId,
+    APIResponse? answered,
   }) async {
     clear();
     final load = _load;
@@ -296,7 +302,9 @@ class ChannelKeyring with _KeyringSealingMixin {
     // Bootstrap can race another member: retry once on conflict, using the
     // winner's keyring.
     for (var attempt = 0; attempt < 2; attempt++) {
-      final response = await _keysOn(server.id).getChannelKey(channelId);
+      final response = attempt == 0 && answered != null
+          ? answered
+          : await _keysOn(server.id).getChannelKey(channelId);
       if (load != _load) return _superseded;
       if (!response.success) {
         return KeyringOutcome.failed(ChatFailure.fromResponse(response));

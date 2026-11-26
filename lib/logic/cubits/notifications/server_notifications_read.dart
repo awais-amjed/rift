@@ -69,17 +69,33 @@ mixin _ReadMarkingMixin on Cubit<NotificationsState> {
   void _takeDown(ConversationNotificationPayload target) =>
       unawaited(NotificationService.instance.cancelConversation(target));
 
-  /// Moves one cursor to whatever is newest right now (`p_last_read_id: 0`).
+  /// The cursors' writes, spaced out ([ReadMarks]).
+  late final ReadMarks<({String serverId, String scope, String scopeId})>
+  _readMarks = ReadMarks(_writeMark);
+
+  /// Moves one cursor to whatever is newest right now (`p_last_read_id: 0`),
+  /// or a moment later when it was moved a moment ago.
   void _markRead(
     String serverId, {
     required String scope,
     required String scopeId,
   }) {
     if (!_subs.containsKey(serverId)) return;
+    _readMarks.mark((serverId: serverId, scope: scope, scopeId: scopeId));
+  }
+
+  void _writeMark(({String serverId, String scope, String scopeId}) mark) {
+    if (!_subs.containsKey(mark.serverId)) return;
     unawaited(
-      UnreadApi(_session.on(serverId)).markRead(scope: scope, scopeId: scopeId),
+      UnreadApi(
+        _session.on(mark.serverId),
+      ).markRead(scope: mark.scope, scopeId: mark.scopeId),
     );
   }
+
+  /// See [ReadMarks.flush]: what is on screen changed, or the window lost
+  /// focus.
+  void _flushMarks() => _readMarks.flush();
 
   // ── Read on another device ────────────────────────────────────
 
