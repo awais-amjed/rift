@@ -43,7 +43,10 @@ class ServerStartShare {
   /// member on one server, and the answer is theirs.
   final Map<String, _StartAnswer> _starts = {};
 
-  /// When each server was last sent one, by URL. A first load that finds
+  /// When each member was last sent one, by the same key as [_starts]: one
+  /// URL may be several servers (a project holds many), each opening on its
+  /// own, and by URL alone the second server's first loads each asked for
+  /// themselves (seen live, Nov 26). A first load that finds
   /// the last answer gone stale asks for itself rather than sending another
   /// for its one part, unless it has been [_startGap] since: a server's
   /// features open together, and one arriving on its own wants one answer.
@@ -67,14 +70,14 @@ class ServerStartShare {
     final key = '$supabaseUrl|$bearerToken';
     var answer = _starts[key];
     if (answer == null || !answer.mayServe) {
-      final sent = _startSent[supabaseUrl];
-      if (sent != null && DateTime.now().difference(sent) < _startGap) {
-        return null;
-      }
-      // One a server at a time: an answer under a token since rotated, or
-      // one gone stale, will not be wanted again.
-      _starts.removeWhere((k, _) => k.startsWith('$supabaseUrl|'));
-      _startSent[supabaseUrl] = DateTime.now();
+      final now = DateTime.now();
+      final sent = _startSent[key];
+      if (sent != null && now.difference(sent) < _startGap) return null;
+      // An answer gone stale, or one under a token since rotated, will not
+      // be wanted again.
+      _starts.removeWhere((_, start) => !start.mayServe);
+      _startSent.removeWhere((_, at) => now.difference(at) >= _startGap);
+      _startSent[key] = now;
       answer = _StartAnswer(_askStart(supabaseUrl, anonKey, bearerToken));
       _starts[key] = answer;
     }
@@ -111,10 +114,6 @@ class ServerStartShare {
       return db.rpc('server_start', params: {'p_member_limit': memberLimit});
     });
     if (response.errorCode == 'PGRST202') _noStart.add(supabaseUrl);
-    // The retry under a new token may ask again at once.
-    if (ErrorCode.isSessionInvalid(response.errorCode)) {
-      _startSent.remove(supabaseUrl);
-    }
     final data = response.data;
     if (response.success &&
         data is Map<String, dynamic> &&

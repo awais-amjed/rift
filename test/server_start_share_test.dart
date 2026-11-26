@@ -206,4 +206,10 @@ void main() {
     expect(asked, ['/rest/v1/rpc/server_start']);
     expect(answers.every((a) => a.success == true), isTrue);
   });
+
+  test('two servers at one URL each share their own server_start', () async {
+    final s = server(is064: true);
+    await Future.wait([firstLoads(s.repo, 'one'), firstLoads(s.repo, 'two')]);
+    expect(s.asked, ['/rest/v1/rpc/server_start', '/rest/v1/rpc/server_start']);
+  });
 }
