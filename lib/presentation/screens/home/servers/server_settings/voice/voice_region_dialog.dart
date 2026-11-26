@@ -61,7 +61,30 @@ class VoiceRegionDialog extends StatefulWidget {
     if (!RegExp(r'^wss?://[^ ]+$').hasMatch(value)) {
       return 'A LiveKit URL starts with ws:// or wss:// and has no spaces.';
     }
+    if (_pointsInside(value)) {
+      return 'Use an address people\'s apps can reach: not localhost, a '
+          'link-local address or a container name.';
+    }
     return null;
+  }
+
+  /// The server's `app.livekit_url_refused` (self-host 079): an address that
+  /// points inside the server, where its functions would send requests
+  /// signed with the region's key. A LAN address is fine.
+  static bool _pointsInside(String value) {
+    final authority =
+        RegExp(r'^wss?://([^/?#]*)').firstMatch(value.toLowerCase())?[1] ?? '';
+    if (authority.contains('@')) return true;
+    final host = RegExp(r'^(\[[^\]]*\]|[^:]*)').firstMatch(authority)?[1] ?? '';
+    if (host.isEmpty) return true;
+    if (host.startsWith('[')) {
+      return RegExp(r'^\[(::|0|fe[89ab][0-9a-f]*:)').hasMatch(host);
+    }
+    return !host.contains('.') ||
+        RegExp(r'(^|\.)localhost\.?$').hasMatch(host) ||
+        RegExp(r'^(127|0)\.').hasMatch(host) ||
+        host.startsWith('169.254.') ||
+        RegExp(r'^0[0-9x]').hasMatch(host);
   }
 
   @override
@@ -139,8 +162,18 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
       );
     }
 
+    // A new address needs the key again, the default's as much as any: the
+    // functions sign for wherever it points with the key it has, so whoever
+    // moves it has to show they hold the key there.
+    if (url != node.url && apiKey.isEmpty) {
+      return (
+        success: false,
+        error: 'A new address needs the region\'s API key and secret.',
+      );
+    }
+
     if (label != node.label) {
-      final renamed = await regions.updateVoiceRegion(
+      final renamed = await regions.renameVoiceRegion(
         nodeId: node.id,
         label: label,
       );
@@ -156,8 +189,12 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
       );
     }
     if (url != node.url) {
-      final moved = await regions.updateVoiceRegion(nodeId: node.id, url: url);
-      if (!moved.success) return moved;
+      return regions.moveVoiceRegion(
+        nodeId: node.id,
+        url: url,
+        apiKey: apiKey,
+        secret: secret,
+      );
     }
     // The fields cannot show what is stored, so both empty means "leave it
     // alone" and both filled is a rotation. There is no third outcome — a
@@ -250,7 +287,7 @@ class _VoiceRegionDialogState extends State<VoiceRegionDialog> {
           Text(
             _isEdit
                 ? 'Leave both blank to keep the current key, or enter a '
-                      'new pair to replace it.'
+                      'new pair to replace it. A new URL needs the key too.'
                 : 'Use a key pair made just for this region — the one in '
                       'its livekit.yaml. If regions shared one, anyone who '
                       'broke into one server could get into calls in all of '

@@ -49,26 +49,62 @@ class VoiceRegionsApi {
     failure: 'Failed to add the region',
   );
 
-  Future<({bool success, String? error})> updateVoiceRegion({
+  /// Renames a region. Its address moves with its key ([moveVoiceRegion]).
+  Future<({bool success, String? error})> renameVoiceRegion({
     required String nodeId,
-    String? label,
-    String? url,
+    required String label,
   }) => _change(
     (server, token) => _repository.updateVoiceRegion(
       server.supabaseUrl,
       nodeId,
       label: label,
-      url: url,
       anonKey: server.supabaseKey ?? '',
       bearerToken: token,
     ),
     failure: 'Failed to change the region',
   );
 
+  /// Points a region at [url], with the key pair it signs with there: the
+  /// address moves only with its key since self-host 079. A server from
+  /// before it is sent the two writes it took then.
+  Future<({bool success, String? error})> moveVoiceRegion({
+    required String nodeId,
+    required String url,
+    required String apiKey,
+    required String secret,
+  }) => _change((server, token) async {
+    final moved = await _repository.moveVoiceRegion(
+      server.supabaseUrl,
+      nodeId,
+      url: url,
+      apiKey: apiKey,
+      secret: secret,
+      anonKey: server.supabaseKey ?? '',
+      bearerToken: token,
+    );
+    if (moved.success || moved.errorCode != 'PGRST202') return moved;
+    final pointed = await _repository.updateVoiceRegion(
+      server.supabaseUrl,
+      nodeId,
+      url: url,
+      anonKey: server.supabaseKey ?? '',
+      bearerToken: token,
+    );
+    if (!pointed.success) return pointed;
+    return _repository.setVoiceRegionCredentials(
+      server.supabaseUrl,
+      nodeId,
+      apiKey: apiKey,
+      secret: secret,
+      anonKey: server.supabaseKey ?? '',
+      bearerToken: token,
+    );
+  }, failure: 'Failed to move the region');
+
   /// Replaces the key pair a region signs with — a rotation, one box at a
   /// time.
   ///
-  /// Its own call rather than part of [updateVoiceRegion], because it writes a
+  /// Its own call rather than part of [renameVoiceRegion], because it writes a
   /// different table through a different door: the node row is an ordinary
   /// table write under a policy, and the key is an RPC that checks the caller
   /// because the table it writes has no policy at all.

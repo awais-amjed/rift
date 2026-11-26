@@ -272,6 +272,32 @@ void main() {
       expect(VoiceRegionDialog.checkUrl('wss://sg example.com'), isNotNull);
       expect(VoiceRegionDialog.checkUrl(''), isNotNull);
     });
+
+    // Self-host 079 refuses an address inside the server, where its
+    // functions would send requests signed with the region's key; the dialog
+    // says so first. The same list as the schema's suite.
+    test('refuses an address inside the server, and keeps a LAN one', () {
+      for (final inside in [
+        'ws://kong:8000',
+        'ws://localhost:7880',
+        'ws://127.0.0.1:7880',
+        'ws://127.1',
+        'ws://0.0.0.0',
+        'ws://169.254.169.254',
+        'ws://[::1]:7880',
+        'ws://[fe80::1]',
+        'ws://[::ffff:127.0.0.1]',
+        'ws://0x7f.0.0.1',
+        'ws://2130706433',
+        'ws://user@127.0.0.1',
+        'ws://x@good.test',
+        'ws://lk.localhost',
+      ]) {
+        expect(VoiceRegionDialog.checkUrl(inside), isNotNull, reason: inside);
+      }
+      expect(VoiceRegionDialog.checkUrl('ws://10.0.0.4:7880'), isNull);
+      expect(VoiceRegionDialog.checkUrl('ws://[2001:db8::1]:7880'), isNull);
+    });
   });
 
   group('VoiceRegionProbe.httpUrlFor', () {

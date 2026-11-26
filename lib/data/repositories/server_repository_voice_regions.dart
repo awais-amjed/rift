@@ -2,9 +2,10 @@ part of 'server_repository.dart';
 
 /// The LiveKit nodes a server may hold calls on.
 ///
-/// Renaming, repointing and removing are table calls, under
-/// `livekit_nodes_update_admins` and the matching delete policy; they ask for
-/// no permission of their own.
+/// Renaming and removing are table calls, under `livekit_nodes_update_admins`
+/// and the matching delete policy; they ask for no permission of their own.
+/// Repointing was one too, before self-host 079 made it an RPC that takes the
+/// key with the address ([moveVoiceRegion]).
 ///
 /// **Adding is an RPC**, because a region and the key it signs with are one
 /// act: every added region carries its own pair, in a table with no policy
@@ -66,6 +67,35 @@ mixin _VoiceRegionsMixin {
         );
       }
       return rows.first;
+    });
+  }
+
+  /// Point a region at a new address with the key pair it signs with there
+  /// (`move_voice_region`, self-host 079). The address no longer moves on
+  /// its own: the functions sign admin tokens for wherever it points with the
+  /// region's key, so an address alone could send them to a host the key was
+  /// never meant for. A server from before it answers `PGRST202`.
+  Future<APIResponse> moveVoiceRegion(
+    String supabaseUrl,
+    String nodeId, {
+    required String url,
+    required String apiKey,
+    required String secret,
+    required String anonKey,
+    String? bearerToken,
+  }) {
+    return ServerDb.run(() async {
+      return await _db
+          .client(supabaseUrl, anonKey, bearerToken)
+          .rpc(
+            'move_voice_region',
+            params: {
+              'p_node': nodeId,
+              'p_url': url,
+              'p_api_key': apiKey,
+              'p_secret': secret,
+            },
+          );
     });
   }
 
