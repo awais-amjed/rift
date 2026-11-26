@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:rift/data/classes/resolved_invite.dart';
 import 'package:rift/data/repositories/secure_storage_repository.dart';
 import 'package:rift/data/repositories/server_pass_repository.dart';
 import 'package:rift/data/repositories/server_repository.dart';
@@ -163,6 +164,109 @@ void main() {
     },
   );
 
+  test('an invite the join form has read is not asked again, and its key '
+      'signs in', () async {
+    const link = 'https://rift.example';
+    servers.invite[link] = {'server_id': serverId};
+
+    final result = await vault.registerOnServer(
+      supabaseUrl: link,
+      inviteCode: code,
+      username: 'cara',
+      displayName: 'Cara',
+      invite: const ResolvedInvite(
+        serverUrl: link,
+        inviteCode: code,
+        serverId: serverId,
+        serverName: 'S',
+        asked: true,
+        joinUrl: link,
+        supabaseKey: 'anon',
+      ),
+    );
+
+    expect(result.success, isTrue, reason: result.error);
+    expect(servers.resolves, isEmpty);
+    expect(vault.keysSignedInWith, ['anon']);
+  });
+
+  test('a listing not yet asked is asked by the join', () async {
+    const link = 'https://rift.example';
+    servers.invite[link] = {'server_id': serverId};
+
+    await vault.registerOnServer(
+      supabaseUrl: link,
+      inviteCode: code,
+      username: 'cara',
+      displayName: 'Cara',
+      invite: const ResolvedInvite(
+        serverUrl: link,
+        inviteCode: code,
+        serverId: serverId,
+        serverName: 'S',
+      ),
+    );
+
+    expect(servers.resolves, [link]);
+  });
+
+  test('a server that sends no context has its details read once, by the '
+      'join', () async {
+    const link = 'https://rift.example';
+    servers.invite[link] = {'server_id': serverId};
+    servers.bare.add(link);
+
+    final result = await vault.registerOnServer(
+      supabaseUrl: link,
+      inviteCode: code,
+      username: 'cara',
+      displayName: 'Cara',
+    );
+
+    expect(result.success, isTrue, reason: result.error);
+    expect(servers.detailsReads, [link]);
+    expect(result.detailsRead, isTrue);
+    expect(result.data!['name'], 'Read');
+    expect(result.data!['supabase_key'], 'anon');
+    expect(result.data!['token'], 'token');
+  });
+
+  test('a member coming back to such a server is still told so', () async {
+    const link = 'https://rift.example';
+    servers.invite[link] = {'server_id': serverId};
+    servers.bare.add(link);
+    servers.members.add(link);
+
+    final result = await vault.registerOnServer(
+      supabaseUrl: link,
+      inviteCode: code,
+      username: 'cara',
+      displayName: 'Cara',
+    );
+
+    expect(result.success, isTrue, reason: result.error);
+    expect(servers.detailsReads, [link]);
+    expect(result.data!['rejoined'], isTrue);
+  });
+
+  test(
+    'an older server sends its context, and the list reads it again',
+    () async {
+      const link = 'https://rift.example';
+      servers.invite[link] = {'server_id': serverId};
+
+      final result = await vault.registerOnServer(
+        supabaseUrl: link,
+        inviteCode: code,
+        username: 'cara',
+        displayName: 'Cara',
+      );
+
+      expect(servers.detailsReads, isEmpty);
+      expect(result.detailsRead, isFalse);
+    },
+  );
+
   // Somebody who joined at the link's address and left still has their
   // profile there, and the server lets them back without a pass: joined at
   // the server's own address, they would be a new identity and a new member.
@@ -231,6 +335,14 @@ class _Servers {
   final Map<String, Map<String, Object?>> invite = {};
   final List<(String, String?)> registers = [];
 
+  /// Where `resolve_invite` was asked, and where the details were read.
+  final List<String> resolves = [];
+  final List<String> detailsReads = [];
+
+  /// Servers since 1.9.1, whose `register` answers without a context when
+  /// the app asks for none.
+  final Set<String> bare = {};
+
   /// The server id each address's `register` names, when not its invite's.
   final Map<String, String> answersAs = {};
 
@@ -241,10 +353,30 @@ class _Servers {
   late final http.Client client = MockClient((request) async {
     final origin = request.url.origin;
     final function = request.url.pathSegments.last;
+    if (function == 'get_server_details') {
+      detailsReads.add(origin);
+      return http.Response(
+        jsonEncode({
+          'server_id': invite[origin]?['server_id'],
+          'name': 'Read',
+          'user': {
+            'id': 'me',
+            'username': 'cara',
+            'display_name': 'Cara',
+            'permissions': {'is_server_admin': true},
+          },
+          'channels': <Object?>[],
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+        request: request,
+      );
+    }
     final body = jsonDecode(request.body) as Map<String, dynamic>;
     Map<String, Object?> answer;
     switch (function) {
       case 'resolve_invite':
+        resolves.add(origin);
         final known = invite[origin];
         answer = known == null
             ? {'success': false, 'error': 'Invalid invite'}
@@ -269,6 +401,15 @@ class _Servers {
             'success': false,
             'error': 'This link needs a Rift account.',
             'code': 'account_required',
+          };
+        } else if (bare.contains(origin) && body['context'] == false) {
+          answer = {
+            'success': true,
+            'data': {
+              'server_id': answersAs[origin] ?? invite[origin]?['server_id'],
+              'supabase_key': 'anon',
+              if (members.contains(origin)) 'rejoined': true,
+            },
           };
         } else {
           answer = {
@@ -340,13 +481,16 @@ class _Vault extends VaultCubit {
   _Vault({super.storage, super.serverRepo, super.passRepo});
 
   final List<String> signedInAt = [];
+  final List<String?> keysSignedInWith = [];
 
   @override
   Future<({String? accessToken, String? error})> siwsLogin(
     String supabaseUrl, {
     required String serverId,
+    String? anonKey,
   }) async {
     signedInAt.add(supabaseUrl);
+    keysSignedInWith.add(anonKey);
     return (accessToken: 'token', error: null);
   }
 }

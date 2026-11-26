@@ -77,10 +77,15 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
       return;
     }
 
-    // Step 2: Persist the new server (token + full context) into HydratedBloc.
+    // Step 2: Persist the new server (token + the details the join read) into HydratedBloc.
     final data = result.data!;
     final token = data['token'] as String;
-    final server = servers.addServer(result.serverUrl!, token, data);
+    final server = servers.addServer(
+      result.serverUrl!,
+      token,
+      data,
+      detailsRead: result.detailsRead,
+    );
     if (server == null) {
       // Refused, and the notice says why.
       setState(() => _isLoading = false);

@@ -24,6 +24,20 @@ class ResolvedInvite extends Equatable {
   /// from a listing until its invite has been read.
   final bool needsAccount;
 
+  /// Whether the server has answered for this invite (`resolve_invite`).
+  /// False from a listing, whose join form asks; true from a typed link,
+  /// whose answer the join then goes on with rather than asking again.
+  final bool asked;
+
+  /// The address a join through this link goes to: the link's own, or for
+  /// one that needs a Rift account the server's own (`joinAddress`). Null
+  /// until [asked].
+  final String? joinUrl;
+
+  /// The server's anon key, from a server that hands it out with the invite
+  /// (self-host 1.9.1): the first sign-in then goes to GoTrue directly.
+  final String? supabaseKey;
+
   const ResolvedInvite({
     required this.serverUrl,
     required this.inviteCode,
@@ -31,6 +45,9 @@ class ResolvedInvite extends Equatable {
     required this.serverName,
     this.iconPath,
     this.needsAccount = false,
+    this.asked = false,
+    this.joinUrl,
+    this.supabaseKey,
   });
 
   /// A listing already names its server and carries a working invite, so
@@ -53,6 +70,9 @@ class ResolvedInvite extends Equatable {
     serverName,
     iconPath,
     needsAccount,
+    asked,
+    joinUrl,
+    supabaseKey,
   ];
 }
 

@@ -66,6 +66,7 @@ mixin _AuthApiMixin {
       String? iconPath,
       bool needsAccount,
       String? joinUrl,
+      String? supabaseKey,
       String? error,
     })
   >
@@ -81,6 +82,7 @@ mixin _AuthApiMixin {
         iconPath: null,
         needsAccount: false,
         joinUrl: null,
+        supabaseKey: null,
         error: response.error,
       );
     }
@@ -92,13 +94,22 @@ mixin _AuthApiMixin {
       iconPath: data['server_icon'] as String?,
       needsAccount: needsAccountIn(data),
       joinUrl: joinAddress(linkUrl: supabaseUrl, data: data),
+      // The anon key, since self-host 1.9.1: the first sign-in then goes to
+      // GoTrue directly, as every later one does. Null from an older server,
+      // whose join signs in through the `login` function.
+      supabaseKey: data['supabase_key'] as String?,
       error: null,
     );
   }
 
   /// Register a server profile bound to the caller's SIWS identity.
-  /// [bearerToken] is the GoTrue access token obtained from [login]. Returns
-  /// full server context (no token — the client already holds the JWT).
+  /// [bearerToken] is the GoTrue access token obtained from [login].
+  ///
+  /// Asks for no context (`"context": false`): the app reads
+  /// `get_server_details` straight after, which the context could not stand
+  /// in for, being built on the service role without the caller's permission
+  /// bits. A server since 1.9.1 then answers the id and anon key alone, four
+  /// reads fewer; an older one ignores the field and sends the context.
   Future<APIResponse> register(
     String supabaseUrl, {
     required String bearerToken,
@@ -117,6 +128,7 @@ mixin _AuthApiMixin {
       'display_name': displayName,
       // Central's pass, for a link that needs a Rift account.
       'pass': ?pass,
+      'context': false,
     }, bearerToken: bearerToken);
   }
 

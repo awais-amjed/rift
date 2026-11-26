@@ -11,6 +11,7 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
   Future<({String? accessToken, String? error})> siwsLogin(
     String supabaseUrl, {
     required String serverId,
+    String? anonKey,
   });
 
   /// Implemented by [_VaultAuthMixin].
@@ -82,17 +83,37 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
   /// [serverUrl] in the answer is the address joined, for the server to be
   /// kept under: a link that needs a Rift account is joined at the server's
   /// own address, which may not be the link's (`joinAddress`).
+  ///
+  /// [invite] is the server's answer for this link when the join form
+  /// already has it, so it is not asked again. It changes nothing a server
+  /// checks: `register_user` reads the code for itself.
   Future<JoinOutcome> registerOnServer({
     required String supabaseUrl,
     required String inviteCode,
     required String username,
     required String displayName,
+    ResolvedInvite? invite,
   }) async {
     try {
       // 1. Resolve the invite to its server id BEFORE deriving the identity:
       //    with multiple servers per Supabase project the identity is scoped to
       //    (host, serverId), so we must know the server first — ARCHITECTURE.md §1.
-      var resolved = await _serverRepo.resolveInvite(supabaseUrl, inviteCode);
+      var resolved =
+          invite != null &&
+              invite.asked &&
+              invite.serverUrl == supabaseUrl &&
+              invite.inviteCode == inviteCode
+          ? (
+              success: true,
+              serverId: invite.serverId,
+              serverName: invite.serverName,
+              iconPath: invite.iconPath,
+              needsAccount: invite.needsAccount,
+              joinUrl: invite.joinUrl,
+              supabaseKey: invite.supabaseKey,
+              error: null,
+            )
+          : await _serverRepo.resolveInvite(supabaseUrl, inviteCode);
       if (!resolved.success || resolved.serverId == null) {
         return _failed(resolved.error ?? 'Invalid invite');
       }
@@ -100,6 +121,8 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
           _joinAt(
             url,
             serverId: resolved.serverId!,
+            serverName: resolved.serverName,
+            anonKey: resolved.supabaseKey,
             withPass: withPass,
             inviteCode: inviteCode,
             username: username,
@@ -160,6 +183,8 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
   Future<JoinOutcome> _joinAt(
     String url, {
     required String serverId,
+    required String? serverName,
+    required String? anonKey,
     required bool withPass,
     required String inviteCode,
     required String username,
@@ -171,7 +196,9 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
     // 2. SIWS login — creates the per-(host, serverId) GoTrue identity (signup)
     //    and yields the JWT that register binds the profile to
     //    (users.id = auth.uid()).
-    final login = await siwsLogin(url, serverId: serverId);
+    //    With the anon key the invite brought, straight to GoTrue; without,
+    //    through the `login` function.
+    final login = await siwsLogin(url, serverId: serverId, anonKey: anonKey);
     if (login.accessToken == null) return _failed(login.error);
     final token = login.accessToken!;
 
@@ -210,31 +237,64 @@ mixin _VaultIdentityMixin on Cubit<VaultState> {
     // [serverId], and every row on this device is found by its id. A reply
     // naming another — another server's, which an invite to it shows — would
     // be listed as that server.
-    final data = response.data;
+    var data = response.data;
     if (data is! Map<String, dynamic> || data['server_id'] != serverId) {
       return _failed('The server answered as a different server.');
     }
-
     await _addServerToVault(host, version: 'v1');
+
+    // 4. A server since 1.9.1 answers the id and key alone, and the details
+    //    are read here, as the member: the list draws the server from them
+    //    with nothing to read again. An older one sent its context, which
+    //    the list reads again once the server is on it. So does a join whose
+    //    read failed: the member exists now, and the server must be listed.
+    var detailsRead = false;
+    if (data['user'] == null) {
+      final details = await _serverRepo.getServerDetails(
+        url,
+        anonKey: (data['supabase_key'] as String?) ?? anonKey ?? '',
+        bearerToken: token,
+      );
+      final read = details.data;
+      if (details.success &&
+          read is Map<String, dynamic> &&
+          read['server_id'] == serverId) {
+        data = {...read, 'rejoined': data['rejoined']};
+        detailsRead = true;
+      } else {
+        data = {'name': ?serverName, ...data};
+      }
+    }
+
     return (
       success: true,
       error: null,
       code: null,
       data: <String, dynamic>{'token': token, ...data},
       serverUrl: url,
+      detailsRead: detailsRead,
     );
   }
 }
 
 /// [VaultCubit.registerOnServer]'s answer. [code] is the server's refusal
-/// code, for the join to tell a newcomer from a member.
+/// code, for the join to tell a newcomer from a member. [detailsRead] says
+/// [data] is the member's own `get_server_details`, which the list need not
+/// read again ([ServerCubit.addServer]).
 typedef JoinOutcome = ({
   bool success,
   String? error,
   String? code,
   Map<String, dynamic>? data,
   String? serverUrl,
+  bool detailsRead,
 });
 
-JoinOutcome _failed(String? error, {String? code}) =>
-    (success: false, error: error, code: code, data: null, serverUrl: null);
+JoinOutcome _failed(String? error, {String? code}) => (
+  success: false,
+  error: error,
+  code: code,
+  data: null,
+  serverUrl: null,
+  detailsRead: false,
+);

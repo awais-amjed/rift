@@ -76,6 +76,11 @@ class _JoinServerModalState extends State<JoinServerModal> {
   /// already; a listing has not, so it is asked once the form is open.
   late bool _needsAccount = widget.invite.needsAccount;
 
+  /// The server's answer for this invite, which the join goes on with
+  /// rather than asking again: a typed link's from the start, a listing's
+  /// once [_askNeedsAccount] has it.
+  late ResolvedInvite? _answered = widget.invite.asked ? widget.invite : null;
+
   /// The server is being asked. Join waits for it: pressed sooner, the join
   /// asked central for a pass before the note saying it would had shown.
   bool _askingAccount = false;
@@ -93,7 +98,7 @@ class _JoinServerModalState extends State<JoinServerModal> {
     );
     _usernameCtrl.text = defaults.username;
     _displayNameCtrl.text = defaults.displayName;
-    if (!_needsAccount) {
+    if (_answered == null) {
       _askingAccount = true;
       _askNeedsAccount();
     }
@@ -107,9 +112,11 @@ class _JoinServerModalState extends State<JoinServerModal> {
     if (!mounted) return;
     // A failed ask lets Join go on: the join resolves the link again, and a
     // server that cannot answer here will not let anybody in there either.
+    final answered = resolved.invite;
     setState(() {
       _askingAccount = false;
-      if (resolved.invite?.needsAccount == true) _needsAccount = true;
+      if (answered?.needsAccount == true) _needsAccount = true;
+      if (answered?.serverId == invite.serverId) _answered = answered;
     });
   }
 
@@ -136,6 +143,7 @@ class _JoinServerModalState extends State<JoinServerModal> {
       inviteCode: invite.inviteCode,
       username: _usernameCtrl.text.trim(),
       displayName: _displayNameCtrl.text.trim(),
+      invite: _answered,
     );
 
     if (!result.success) {
@@ -147,14 +155,19 @@ class _JoinServerModalState extends State<JoinServerModal> {
       return;
     }
 
-    // register returns the full server context — add directly. Even with the
+    // The join brings the server's details — add directly. Even with the
     // dialog gone: the server has the member and the invite is spent, so a
     // join left off the list could not be made again.
     final data = result.data!;
     final token = data['token'] as String;
     // Kept under the address joined, which for a link that needs a Rift
     // account is the server's own (`joinAddress`).
-    final added = servers.addServer(result.serverUrl!, token, data);
+    final added = servers.addServer(
+      result.serverUrl!,
+      token,
+      data,
+      detailsRead: result.detailsRead,
+    );
     if (!mounted) return;
     if (added == null) {
       // Refused, and the notice says why.
@@ -176,7 +189,7 @@ class _JoinServerModalState extends State<JoinServerModal> {
           : 'Welcome back to ${invite.serverName} — you are $rejoinedAs again',
     );
 
-    // Read off the register response rather than the roster, which has not
+    // Read off the join's answer rather than the roster, which has not
     // been fetched yet at this point.
     final permissions =
         (data['user'] as Map?)?['permissions'] as Map<String, dynamic>?;

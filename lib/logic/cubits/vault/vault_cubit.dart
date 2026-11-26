@@ -8,6 +8,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 import '../../../data/classes/backup_file.dart';
 import '../../../data/classes/encrypted_seed.dart';
 import '../../../data/classes/encrypted_vault.dart';
+import '../../../data/classes/resolved_invite.dart';
 import '../../../data/classes/stored_vault.dart';
 import '../../../data/enums/auth_status.dart';
 import '../../../data/enums/error_code.dart';

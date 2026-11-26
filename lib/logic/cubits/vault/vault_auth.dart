@@ -74,12 +74,14 @@ mixin _VaultAuthMixin on Cubit<VaultState> {
   // ── Sign-in-with-Web3 (SIWS) login ────────────────────────
 
   /// Sign a SIWS message with this server's Ed25519 key and exchange it for a
-  /// GoTrue session via the `login` proxy. Returns the access token (JWT).
+  /// GoTrue session: at GoTrue itself with the server's [anonKey], through
+  /// the `login` proxy without one. Returns the access token (JWT).
   /// [serverId] scopes the identity so servers sharing a host (project) sign
   /// in as distinct users. The signing is [SessionRepository]'s, which every
   /// later re-login goes through too.
   Future<({String? accessToken, String? error})> siwsLogin(
     String supabaseUrl, {
     required String serverId,
-  }) => _session.signIn(supabaseUrl, serverId: serverId);
+    String? anonKey,
+  }) => _session.signIn(supabaseUrl, serverId: serverId, anonKey: anonKey);
 }

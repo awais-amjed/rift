@@ -84,6 +84,9 @@ class JoiningApi {
         serverName: resolved.serverName ?? link.serverUrl,
         iconPath: resolved.iconPath,
         needsAccount: resolved.needsAccount,
+        asked: true,
+        joinUrl: resolved.joinUrl,
+        supabaseKey: resolved.supabaseKey,
       ),
       error: null,
     );

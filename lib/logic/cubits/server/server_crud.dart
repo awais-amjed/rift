@@ -41,11 +41,15 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
   /// One already on the list at this address — an invite tapped to a server
   /// you are on, answered as a rejoin — takes the place of the row it had,
   /// rather than a second chip beside it.
+  ///
+  /// [detailsRead] says [serverDetails] is the member's own
+  /// `get_server_details`, read by the join, so it is not read again here.
   Server? addServer(
     String supabaseUrl,
     String token,
-    Map<String, dynamic> serverDetails,
-  ) {
+    Map<String, dynamic> serverDetails, {
+    bool detailsRead = false,
+  }) {
     final joined = Server.fromJoin(supabaseUrl, token, serverDetails);
     final clash = listedElsewhere(
       supabaseUrl: supabaseUrl,
@@ -87,13 +91,14 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     // not that — so a server joined mid-session would otherwise go unregistered
     // until the next launch.
     unawaited(_pushOn(newServer.id).registerDevice());
-    _readJoinedServer(newServer.id);
+    if (!detailsRead) _readJoinedServer(newServer.id);
     return newServer;
   }
 
-  /// Read a server just joined through `get_server_details`.
+  /// Read a server just joined through `get_server_details`, unless the
+  /// join did (self-host 1.9.1 answers `register` without a context).
   ///
-  /// `register`'s reply is built on the service role, which knows the three
+  /// An older `register`'s reply is built on the service role, which knows the three
   /// cached booleans but not the permission bits (`my_permissions()`
   /// describes the caller, and the caller there is the service role) nor
   /// each channel's own. Kept as it came, a new admin's bits read as zero,
