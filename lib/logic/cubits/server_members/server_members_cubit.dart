@@ -15,6 +15,7 @@ import '../../services/server_topic_watcher.dart';
 import '../../services/server_topics.dart';
 
 part 'server_members_page.dart';
+part 'server_members_refresh.dart';
 part 'server_members_roles.dart';
 part 'server_members_state.dart';
 
@@ -41,7 +42,7 @@ part 'server_members_state.dart';
 ///  * a `members` event re-resolves only what is on screen, rather than
 ///    re-reading the server.
 class ServerMembersCubit extends Cubit<ServerMembersState>
-    with _MembersRolesMixin, _MembersPageMixin {
+    with _MembersRolesMixin, _MembersPageMixin, _MembersRefreshMixin {
   final SessionRepository _session;
   @override
   late final ServerTopicWatcher _watcher;
@@ -50,11 +51,13 @@ class ServerMembersCubit extends Cubit<ServerMembersState>
   MembersApi _membersOn(String serverId) => MembersApi(_session.on(serverId));
   @override
   RolesApi _rolesOn(String serverId) => RolesApi(_session.on(serverId));
+  @override
   late final MemberRosterPager _people = MemberRosterPager(
     fetchPage: _fetchPeoplePage,
   );
 
   /// Guards against a slow fetch landing after a newer one, or after a switch.
+  @override
   int _loadId = 0;
 
   final List<StreamSubscription<void>> _idSubs = [];
@@ -83,7 +86,12 @@ class ServerMembersCubit extends Cubit<ServerMembersState>
       watchedServerId: serverId,
       topicOf: (server) => ServerTopics.server(server.id),
       event: ServerEvent.members,
-      onChanged: () => unawaited(refresh()),
+      onNamed: (ids) => unawaited(refresh(named: ids)),
+      // About a millisecond for each person here, up to two seconds: nothing
+      // on a small server, and on one of thousands the answers to one ring
+      // arrive over two seconds rather than in the same quarter second.
+      spreadUpTo: () =>
+          Duration(milliseconds: state.peopleCount.clamp(0, 2000)),
       onServerChanged: _onServerChanged,
     );
   }
@@ -96,6 +104,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState>
     if (isClosed) return;
     _loadId++;
     _noSidebarCall = false;
+    _noRefreshCall = false;
     _people.reset();
     if (server == null) {
       emit(ServerMembersState());
@@ -120,6 +129,7 @@ class ServerMembersCubit extends Cubit<ServerMembersState>
 
   /// Everything the sidebar needs to draw its first frame: the bots, the first
   /// page of people, how many there are, and the roles behind the chips.
+  @override
   Future<void> _loadFirst() async {
     final serverId = _watcher.serverId;
     if (serverId == null) return;
@@ -228,97 +238,12 @@ class ServerMembersCubit extends Cubit<ServerMembersState>
     await _loadRoles([for (final member in found) member.id]);
   }
 
-  /// A `users` row changed. Re-read what is on screen, and nothing else.
-  ///
-  /// A rename, an avatar, a mute, a ban or a join all arrive here. The old
-  /// answer was to refetch the server; the new one is to refetch the members
-  /// this client is currently able to name, which is bounded by the sidebar and
-  /// the call rather than by how many people have ever joined. A join shows up
-  /// through [peopleCount] and, once somebody scrolls to them, through the
-  /// pages — except when every page is already loaded, where there is nothing
-  /// left to scroll to, so the roster is read again from the top.
-  Future<void> refresh() async {
-    final serverId = _watcher.serverId;
-    if (serverId == null) return;
-    if (!state.loaded) return _loadFirst();
-    final loadId = ++_loadId;
-
-    final (bots, counts, roles) = await (
-      _membersOn(serverId).listBots(),
-      _membersOn(serverId).memberCounts(),
-      _rolesOn(serverId).listRoles(),
-    ).wait;
-
-    // The pages reach a joiner only when somebody scrolls to them, which is
-    // never when every page is already loaded: the count went up and the row
-    // did not appear. With the whole roster in hand and the count moved, read
-    // it again from the top — as far as it was — so a join, or a ban, lands.
-    var repaged = false;
-    if (!state.people.hasMore && counts.people != state.people.members.length) {
-      final reach = state.people.members.length;
-      _people.reset();
-      while (await _people.next() &&
-          _people.loaded.members.length < reach &&
-          _people.hasMore) {}
-      if (_stale(loadId, serverId)) return;
-      // A read that failed part way leaves what was on screen, not nothing.
-      repaged = _people.loaded.members.isNotEmpty || counts.people == 0;
-    }
-
-    // Everybody we hold, paged or resolved by id: somebody known only from a
-    // call or a message kept their old name and picture until they left.
-    final refreshed = await _membersOn(serverId).membersByIds(
-      {
-        ...(repaged ? _people.loaded : state.people).members.map((m) => m.id),
-        ...state.known.keys,
-      }.toList(),
-    );
-    if (_stale(loadId, serverId)) return;
-
-    final byId = {for (final member in refreshed) member.id: member};
-    _emitLoaded(
-      state.copyWith(
-        bots: bots,
-        peopleCount: counts.people,
-        // Every server has its baseline role, so none back means the read
-        // failed — keep the ladder on screen rather than blanking it.
-        roles: roles.isEmpty ? null : roles,
-        // Order is the pages'; the rows are the fresh ones. Re-sorting here
-        // would move somebody under the reader's finger the moment they were
-        // renamed, and the cursor the next page resumes from is the old order.
-        people: repaged
-            ? MemberPage(
-                members: [
-                  for (final member in _people.loaded.members)
-                    byId[member.id] ?? member,
-                ],
-                hasMore: _people.loaded.hasMore,
-              )
-            : MemberPage(
-                members: [
-                  for (final member in state.people.members)
-                    byId[member.id] ?? member,
-                ],
-                hasMore: state.people.hasMore,
-              ),
-        known: {
-          for (final entry in state.known.entries)
-            entry.key: byId[entry.key] ?? entry.value,
-        },
-      ),
-    );
-    // The permission cache on a `users` row is written by the same trigger
-    // that a role change fires, so this runs on exactly the event that can
-    // have moved somebody's roles.
-    await _loadRoles([for (final member in refreshed) member.id], force: true);
-    if (_countingRoles) await _countRoles();
-    await _refreshExtras();
-  }
-
   /// Whether a load that started as [loadId] is still the one we want.
+  @override
   bool _stale(int loadId, String serverId) =>
       isClosed || loadId != _loadId || serverId != _watcher.serverId;
 
+  @override
   void _emitLoaded(ServerMembersState next) => emit(next);
 
   @override

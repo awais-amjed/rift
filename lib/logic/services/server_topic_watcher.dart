@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:math';
 
 import '../../data/classes/server.dart';
 import '../../data/repositories/session_repository.dart';
+import 'broadcast_payload.dart';
 import 'server_realtime.dart';
 
 /// Listens for one thing the database says about one server: its channels
@@ -16,7 +18,9 @@ import 'server_realtime.dart';
 ///
 /// What arrives is a doorbell, not a delta: the authoritative read is whatever
 /// [onChanged] goes and fetches, which also keeps the shape identical to the
-/// first load and picks up the token refresh that path already handles.
+/// first load and picks up the token refresh that path already handles. A
+/// ring may say *who* it is about (`members` does, since self-host 062), and
+/// then [onNamed] hears whom, so only they are read again.
 ///
 /// A doorbell rung while the topic was down is lost, and nothing rings it
 /// again, so the topic opening after a failure rings it here
@@ -47,7 +51,19 @@ class ServerTopicWatcher {
   final bool whileBanned;
 
   /// [event] was said on the watched server.
-  final void Function() onChanged;
+  final void Function()? onChanged;
+
+  /// In place of [onChanged], for a ring that names what it is about
+  /// (`{"ids": [...]}`, as `members` does): every id the burst named, or null
+  /// when any ring in it named nothing, "anything may have moved", which is
+  /// also what the topic opening again means.
+  final void Function(Set<String>? ids)? onNamed;
+
+  /// The most a burst waits beyond [_coalesce], chosen at random once per
+  /// burst. Every app with the server on its list hears a ring at the same
+  /// instant, and without it they all ask in the same quarter second; a
+  /// watcher whose answer grows with the server's size spreads them out.
+  final Duration Function()? spreadUpTo;
 
   /// The watched server is now [server], or nothing — it became usable or
   /// went away. Always fires before the
@@ -60,15 +76,29 @@ class ServerTopicWatcher {
   Timer? _debounce;
   bool _disposed = false;
 
+  /// What the burst so far has named; null once one named nothing.
+  Set<String>? _named = {};
+
+  /// The earliest the burst may answer, fixed by its first ring, so a ring
+  /// arriving every second cannot keep pushing the spread out.
+  DateTime? _notBefore;
+
+  static final Random _random = Random();
+
   ServerTopicWatcher({
     required this.session,
     required this.topicOf,
     required this.event,
-    required this.onChanged,
+    this.onChanged,
+    this.onNamed,
+    this.spreadUpTo,
     required this.onServerChanged,
     required this.watchedServerId,
     this.whileBanned = false,
-  }) {
+  }) : assert(
+         (onChanged == null) != (onNamed == null),
+         'one of onChanged and onNamed',
+       ) {
     _serverSub = session.changes.listen((_) => _sync());
     // Deferred a microtask, never called straight from here. Consumers hold
     // the watcher in a `late final` field that this very expression is
@@ -114,18 +144,52 @@ class ServerTopicWatcher {
 
   void _subscribe(Server server) {
     _lease = session.realtime.join(server, topicOf(server))
-      ?..onBroadcast(event, (_) => _schedule())
-      ..onReopen(_schedule);
+      ?..onBroadcast(event, (message) => _schedule(message))
+      ..onReopen(() => _schedule(null));
   }
 
-  void _schedule() {
+  /// [message] is the ring heard, or null for the topic opening again.
+  void _schedule(Map<String, dynamic>? message) {
+    final ids = message == null ? null : BroadcastPayload.idsOf(message);
+    if (ids == null) {
+      _named = null;
+    } else {
+      _named?.addAll(ids);
+    }
+
+    final now = DateTime.now();
+    final spread = spreadUpTo?.call() ?? Duration.zero;
+    _notBefore ??= now.add(
+      _coalesce +
+          Duration(
+            milliseconds: spread.inMilliseconds <= 0
+                ? 0
+                : _random.nextInt(spread.inMilliseconds + 1),
+          ),
+    );
+    final settled = now.add(_coalesce);
+    final at = settled.isAfter(_notBefore!) ? settled : _notBefore!;
     _debounce?.cancel();
-    _debounce = Timer(_coalesce, onChanged);
+    _debounce = Timer(at.difference(now), _fire);
+  }
+
+  void _fire() {
+    final named = _named;
+    _named = {};
+    _notBefore = null;
+    final onNamed = this.onNamed;
+    if (onNamed != null) {
+      onNamed(named);
+    } else {
+      onChanged?.call();
+    }
   }
 
   void _teardown() {
     _debounce?.cancel();
     _debounce = null;
+    _named = {};
+    _notBefore = null;
     _serverId = null;
 
     final lease = _lease;

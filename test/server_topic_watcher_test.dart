@@ -130,6 +130,103 @@ void main() {
     });
   });
 
+  // A `members` ring names the members it is about (062), and a burst of
+  // them is answered once, for all of them.
+  group('a ring that names who', () {
+    late SessionRepository session;
+    late ServerCubit serverCubit;
+    late ServerTopicWatcher watcher;
+    late List<Set<String>?> answered;
+    final topic = ServerTopics.server('srv-1');
+
+    setUp(() async {
+      session = SessionRepository();
+      serverCubit = _cubitWithSelectedServer(
+        session,
+        url: 'http://127.0.0.1:9',
+        token: _spentJwt(),
+      );
+      answered = [];
+      watcher = ServerTopicWatcher(
+        session: session,
+        watchedServerId: 'srv-1',
+        topicOf: (server) => ServerTopics.server(server.id),
+        event: ServerEvent.members,
+        onNamed: answered.add,
+        spreadUpTo: () => const Duration(milliseconds: 200),
+        onServerChanged: (_) {},
+      );
+      await Future<void>.delayed(Duration.zero);
+      session.realtime.debugReportStatus(
+        'srv-1',
+        topic,
+        RealtimeSubscribeStatus.subscribed,
+      );
+    });
+
+    tearDown(() async {
+      await watcher.dispose();
+      await serverCubit.close();
+      await session.dispose();
+    });
+
+    void ring(Map<String, dynamic> payload) => session.realtime.debugBroadcast(
+      'srv-1',
+      topic,
+      ServerEvent.members,
+      payload,
+    );
+
+    // Past the quarter second and the most the spread can add.
+    Future<void> settle() =>
+        Future<void>.delayed(const Duration(milliseconds: 600));
+
+    test('a burst is answered once, with everybody it named', () async {
+      ring({
+        'ids': ['a'],
+      });
+      ring({
+        'ids': ['b', 'c'],
+      });
+      await settle();
+      expect(answered, [
+        {'a', 'b', 'c'},
+      ]);
+    });
+
+    test('one ring naming nobody makes the burst about everybody', () async {
+      ring({
+        'ids': ['a'],
+      });
+      ring({});
+      await settle();
+      expect(answered, [null]);
+    });
+
+    test('the next burst starts with nobody named', () async {
+      ring({});
+      await settle();
+      ring({
+        'ids': ['d'],
+      });
+      await settle();
+      expect(answered, [
+        null,
+        {'d'},
+      ]);
+    });
+
+    test('nothing is answered inside the quarter second', () async {
+      ring({
+        'ids': ['a'],
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      expect(answered, isEmpty);
+      await settle();
+      expect(answered, hasLength(1));
+    });
+  });
+
   test(
     'a watcher does not call back from inside its own constructor',
     () async {

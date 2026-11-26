@@ -44,5 +44,34 @@ void main() {
       const message = {'payload': 'nonsense', 'from': 'u1'};
       expect(BroadcastPayload.stringOf(message, 'from'), 'u1');
     });
+
+    // A `members` ring names who moved (062); without `ids` it means
+    // anybody may have.
+    test('reads the ids a ring names, flattened or nested', () {
+      expect(
+        BroadcastPayload.idsOf(const {
+          'type': 'broadcast',
+          'ids': ['a', 'b'],
+        }),
+        {'a', 'b'},
+      );
+      expect(
+        BroadcastPayload.idsOf(const {
+          'type': 'broadcast',
+          'payload': {
+            'ids': ['a'],
+          },
+        }),
+        {'a'},
+      );
+    });
+
+    test('a ring naming nobody is null, not an empty set', () {
+      expect(BroadcastPayload.idsOf(const {'type': 'broadcast'}), isNull);
+      expect(
+        BroadcastPayload.idsOf(const {'type': 'broadcast', 'ids': 'a'}),
+        isNull,
+      );
+    });
   });
 }

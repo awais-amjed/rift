@@ -354,6 +354,19 @@ class ServerRealtime {
     }
   }
 
+  /// A broadcast on [topic], delivered to its listeners as if the server had
+  /// sent it.
+  @visibleForTesting
+  void debugBroadcast(
+    String serverId,
+    String topic,
+    String event,
+    RealtimePayload payload,
+  ) => _connections[serverId]?.topics[topic]?.dispatch(
+    'broadcast:$event',
+    payload,
+  );
+
   /// The channel a topic is currently joined on.
   @visibleForTesting
   RealtimeChannel? debugChannelOf(String serverId, String topic) =>

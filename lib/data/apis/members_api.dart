@@ -1,5 +1,6 @@
 import '../classes/member_page.dart';
 import '../classes/member_sidebar.dart';
+import '../classes/members_refresh.dart';
 import '../classes/server_member.dart';
 import '../repositories/server_repository.dart';
 import '../repositories/server_session.dart';
@@ -175,6 +176,42 @@ class MembersApi {
       ...sidebar.people.members,
     ]);
     return (sidebar: sidebar, unsupported: false);
+  }
+
+  /// How many members one [refresh] re-reads; the rest go through
+  /// [membersByIds], as `members_refresh` answers about this many and drops
+  /// the others.
+  static const int idsPerRefresh = _idsPerCall;
+
+  /// What a `members` ring has the list re-read, in one request: the bots,
+  /// the counts, the roles, [ids] (at most [idsPerRefresh]) and their role
+  /// chips. [unsupported] says the server has no such call yet, as distinct
+  /// from one that failed.
+  Future<({MembersRefresh? read, bool unsupported})> refresh(
+    List<String> ids,
+  ) async {
+    final server = _target.server;
+    if (server == null) return (read: null, unsupported: false);
+
+    final response = await _session.callFor(
+      server,
+      (token) => _repository.membersRefresh(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: token,
+        ids: ids,
+      ),
+    );
+    if (!response.success) {
+      return (read: null, unsupported: response.errorCode == 'PGRST202');
+    }
+
+    final read = MembersRefresh.fromJson(response.data as Map<String, dynamic>);
+    _session.members.remember(server.id, [
+      ...read.bots.members,
+      ...read.members,
+    ]);
+    return (read: read, unsupported: false);
   }
 
   // ── Resolving ───────────────────────────────────────────

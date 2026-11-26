@@ -29,4 +29,15 @@ class BroadcastPayload {
     if (value is num) return value.toString();
     return null;
   }
+
+  /// The members a ring names (`{"ids": [...]}`), or null when it names
+  /// nobody, which a `members` ring means as "anything may have moved".
+  static Set<String>? idsOf(Map<String, dynamic> message) {
+    final value = of(message)['ids'];
+    if (value is! List) return null;
+    return {
+      for (final id in value)
+        if (id is String) id,
+    };
+  }
 }

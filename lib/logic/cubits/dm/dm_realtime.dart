@@ -67,20 +67,38 @@ mixin _DmRealtimeMixin
           })
           ..onBroadcast(ServerEvent.typing, _onTyping);
     _serverFeed = _session.realtime.join(server, ServerTopics.server(server.id))
-      ?..onBroadcast(ServerEvent.members, (_) => _onMembersDoorbell());
+      ?..onBroadcast(ServerEvent.members, _onMembersDoorbell);
   }
 
   /// Somebody's `users` row moved — a name, an avatar, or a new chat key.
   /// The list carries each peer's key, so reading it again is what notices a
   /// change while the conversation is open, rather than at their next
   /// message or the next launch (`refreshConversations`).
-  void _onMembersDoorbell() {
+  ///
+  /// Only for a ring about one of our peers: one that names its members
+  /// (062) and none of them is somebody we talk to moved nothing here. A ring
+  /// that names nobody is heard by every app with DMs on the server, so those
+  /// answers are spread over two seconds rather than all landing at once.
+  void _onMembersDoorbell(Map<String, dynamic> message) {
     if (state.conversations.isEmpty) return;
+    final named = BroadcastPayload.idsOf(message);
+    if (named != null &&
+        !named.contains(state.openPeerId) &&
+        !state.conversations.any((c) => named.contains(c.peerId))) {
+      return;
+    }
     _membersDebounce?.cancel();
-    _membersDebounce = Timer(const Duration(milliseconds: 400), () {
-      if (!isClosed) unawaited(refreshConversations());
-    });
+    _membersDebounce = Timer(
+      Duration(
+        milliseconds: 400 + (named == null ? _membersSpread.nextInt(2000) : 0),
+      ),
+      () {
+        if (!isClosed) unawaited(refreshConversations());
+      },
+    );
   }
+
+  static final Random _membersSpread = Random();
 
   /// Reads the lists again once the inbox is back: whatever rang while the
   /// connection was down was never heard. The first join needs nothing —

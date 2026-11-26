@@ -196,6 +196,39 @@ mixin _MemberApiMixin {
     });
   }
 
+  /// What the member list re-reads when `members` rings, in one call: the
+  /// first page of bots, [ids] (up to 100), the counts, the roles, and who of
+  /// those holds which.
+  ///
+  /// Answers `PGRST202` from a server older than `members_refresh`, which is
+  /// the caller's cue to ask for them one by one.
+  Future<APIResponse> membersRefresh(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required List<String> ids,
+    int limit = MemberPage.pageSize,
+  }) {
+    return ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final row =
+          await db.rpc(
+                'members_refresh',
+                // One row past the page — see Paging.split.
+                params: {'p_ids': ids, 'p_limit': limit + 1},
+              )
+              as Map<String, dynamic>;
+      final bots = Paging.split(_members(row['bots']), limit: limit);
+      return {
+        'bots': {'users': bots.rows, 'has_more': bots.hasMore},
+        'members': {'users': _members(row['members'])},
+        'counts': row['counts'],
+        'roles': row['roles'],
+        'assignments': row['assignments'],
+      };
+    });
+  }
+
   /// Which roles these members hold, most senior first — the chips for the rows
   /// on screen rather than for everybody.
   ///
