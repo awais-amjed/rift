@@ -48,11 +48,20 @@ mixin _DmRequestsMixin on Cubit<DmState> {
   }
 
   /// Ask the server where we stand with the open conversation's peer. Called
-  /// on opening one, after sending into it, and when a request changes.
+  /// after sending into it and when a request changes; opening one takes it
+  /// from `dm_open`, and asks this only of a server from before it.
   Future<void> refreshOpenLinkState() async {
     final peerId = state.openPeerId;
     if (peerId == null) return;
-    final response = await _moderation.dmLinkState(peerId: peerId);
+    await _applyLinkState(
+      peerId,
+      await _moderation.dmLinkState(peerId: peerId),
+    );
+  }
+
+  /// Takes `dm_link_state`'s answer for [peerId], read on its own or as part
+  /// of `dm_open`.
+  Future<void> _applyLinkState(String peerId, APIResponse response) async {
     if (isClosed || state.openPeerId != peerId) return;
     // Not heard is not an answer: the banner or the request's lock stays
     // until the server can be asked, rather than the composer opening on a

@@ -87,6 +87,36 @@ class DmsApi {
     ),
   );
 
+  /// Everything the conversation with [peerId] shows when it opens, in one
+  /// request rather than three (self-host 086). Null from a server from
+  /// before it, which is then read the old way.
+  ///
+  /// A failed read answers its failure as [DmOpening.page], and nothing for
+  /// the rest: neither where the two stand nor the calls were heard.
+  Future<DmOpening?> openDm({required String peerId, int? limit}) async {
+    final response = await _target.call(
+      (server, token) => _repository.openDm(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        userId: server.user?.id ?? '',
+        peerId: peerId,
+        limit: limit,
+        bearerToken: token,
+      ),
+    );
+    if (response.errorCode == 'PGRST202') return null;
+    if (!response.success) {
+      return (page: response, linkState: null, calls: null, callsSinceId: null);
+    }
+    final data = response.data as Map<String, dynamic>;
+    return (
+      page: APIResponse.success(data['page']),
+      linkState: APIResponse.success(data['link_state']),
+      calls: data['calls'] as List?,
+      callsSinceId: (data['calls_since_id'] as num?)?.toString(),
+    );
+  }
+
   /// Re-read one server DM after a change doorbell named it. Answers
   /// `{message: …}`, or `{message: null}` when the row has been deleted.
   Future<APIResponse> getDmMessage({required int messageId}) => _target.call(
@@ -125,3 +155,13 @@ class DmsApi {
     ),
   );
 }
+
+/// What `dm_open` answers, each part in the shape its own read gives:
+/// [page] as [DmsApi.listDms], [linkState] as `dm_link_state`, [calls] as
+/// `dm_call_log` from the row [callsSinceId] names (null: from the start).
+typedef DmOpening = ({
+  APIResponse page,
+  APIResponse? linkState,
+  List<dynamic>? calls,
+  String? callsSinceId,
+});

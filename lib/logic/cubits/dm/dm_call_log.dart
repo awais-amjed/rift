@@ -7,13 +7,16 @@ part of 'dm_cubit.dart';
 /// — and read again whenever that stretch moves, a call changes, or another
 /// conversation opens. The answer is metadata the server already holds; the
 /// call itself was never anywhere it could read.
-mixin _DmCallLogMixin on Cubit<DmState> {
-  Server? get _server;
+mixin _DmCallLogMixin on Cubit<DmState>, _DmHistoryMixin {
   DmCallsApi get _calls;
 
   /// What the last read was for, so a state that moved nothing the log
   /// depends on — a keystroke's typing indicator, a reaction — asks nothing.
   String? _callLogFor;
+
+  static String _callLogKey(DmState s) =>
+      '${s.openPeerId}|${s.messages.firstOrNull?.id}|'
+      '${s.hasMoreHistory}|${s.hasNewerHistory}';
 
   /// Called on every change, from [DmCubit.onChange].
   void _followCallLog(DmState next) {
@@ -21,12 +24,27 @@ mixin _DmCallLogMixin on Cubit<DmState> {
       _callLogFor = null;
       return;
     }
-    final key =
-        '${next.openPeerId}|${next.messages.firstOrNull?.id}|'
-        '${next.hasMoreHistory}|${next.hasNewerHistory}';
+    final key = _callLogKey(next);
     if (key == _callLogFor) return;
     _callLogFor = key;
     unawaited(refreshCallLog());
+  }
+
+  /// The calls `dm_open` read beside the page just drawn, from the row
+  /// [sinceId] names (null: from the start). Kept, and not read again when
+  /// the conversation turns ready, only when that row is the oldest message
+  /// drawn: a row dropped as forged moves the stretch, and then the log is
+  /// read for the one on screen as usual.
+  @override
+  void _takeOpenedCalls(String peerId, List<dynamic>? calls, String? sinceId) {
+    if (calls == null || isClosed || state.openPeerId != peerId) return;
+    if (state.hasNewerHistory) return;
+    final oldest = state.messages.firstOrNull?.id;
+    final drawnFrom = state.hasMoreHistory ? oldest : null;
+    if (drawnFrom != sinceId) return;
+    emit(state.copyWith(calls: DmCall.listFrom(calls)));
+    // After the emit, which (still loading) cleared it.
+    _callLogFor = _callLogKey(state);
   }
 
   Future<void> refreshCallLog() async {

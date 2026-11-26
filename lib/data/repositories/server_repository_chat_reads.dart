@@ -389,6 +389,60 @@ mixin _ChatReadApiMixin {
     });
   }
 
+  /// Servers from before `dm_open` (self-host 086), by address: asked once,
+  /// then read in three.
+  final Set<String> _noDmOpen = {};
+
+  /// Everything the conversation with [peerId] shows when it opens, in one
+  /// request (`dm_open`): where the two stand, its newest page, and the calls
+  /// beside that page. Answers `{page: {messages, has_more}, link_state,
+  /// calls, calls_since_id}`, each part in the shape its own read answers.
+  /// The calls start at the row `calls_since_id` names when there is more
+  /// above the page. A server from before it answers `PGRST202`, once.
+  Future<APIResponse> openDm(
+    String supabaseUrl, {
+    required String anonKey,
+    required String userId,
+    String? bearerToken,
+    required String peerId,
+    int? limit,
+  }) async {
+    if (_noDmOpen.contains(supabaseUrl)) {
+      return APIResponse(
+        success: false,
+        error: 'This server has no dm_open',
+        errorCode: 'PGRST202',
+      );
+    }
+    final response = await ServerDb.run(() async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      final pageSize = limit ?? ChatMessageOps.pageSize;
+      final data = await db.rpc(
+        'dm_open',
+        // One row past the page — see Paging.split.
+        params: {'p_peer': peerId, 'p_limit': pageSize + 1},
+      );
+      final answer = data as Map<String, dynamic>;
+      final page = Paging.split(
+        (answer['messages'] as List).cast<Map<String, dynamic>>(),
+        limit: pageSize,
+      );
+      return {
+        'page': {
+          'messages': [
+            for (final r in page.rows) _flatten(r, userId: userId, dm: true),
+          ],
+          'has_more': page.hasMore,
+        },
+        'link_state': answer['link_state'],
+        'calls': answer['calls'],
+        'calls_since_id': answer['calls_since_id'],
+      };
+    });
+    if (response.errorCode == 'PGRST202') _noDmOpen.add(supabaseUrl);
+    return response;
+  }
+
   /// One channel message by id, or `{message: null}` when it is gone.
   ///
   /// The single-row half of the change doorbell: a ring names a message, and

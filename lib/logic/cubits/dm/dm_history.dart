@@ -28,6 +28,14 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
   void _joinPeerTopic(String peerId);
   void _leavePeerTopic();
 
+  /// Implemented by the requests mixin: where the two stand, read alone or
+  /// taken from `dm_open`.
+  Future<void> refreshOpenLinkState();
+  Future<void> _applyLinkState(String peerId, APIResponse response);
+
+  /// Implemented by the call log mixin.
+  void _takeOpenedCalls(String peerId, List<dynamic>? calls, String? sinceId);
+
   /// Implemented by the set-aside mixin: a conversation opened or closed on
   /// purpose replaces the one set aside.
   void _forgetSetAside();
@@ -106,7 +114,29 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
     if (state.openPeerId != peerId) return;
 
     _joinPeerTopic(peerId);
-    final fetched = await _fetchLatest(peerId);
+    // Where the two stand, the page and the calls beside it, in one request
+    // (self-host 086); a server before it is asked the three.
+    final opening = await _dms.openDm(
+      peerId: peerId,
+      limit: ChatMessageOps.pageSize,
+    );
+    if (state.openPeerId != peerId) return;
+    final bool fetched;
+    if (opening == null) {
+      unawaited(refreshOpenLinkState());
+      fetched = await _fetchLatest(peerId);
+    } else {
+      final linkState = opening.linkState;
+      unawaited(
+        linkState == null
+            ? refreshOpenLinkState()
+            : _applyLinkState(peerId, linkState),
+      );
+      fetched = await _showLatest(peerId, opening.page);
+      if (fetched) {
+        _takeOpenedCalls(peerId, opening.calls, opening.callsSinceId);
+      }
+    }
     if (state.openPeerId != peerId) return;
     // A saved copy is kept on screen when the page could not be fetched,
     // saying so in the composer's place. Without one there is nothing to
@@ -202,11 +232,15 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
   }
 
   /// Whether the newest page arrived. False leaves whatever was drawn.
-  Future<bool> _fetchLatest(String peerId) async {
-    final response = await _dms.listDms(
-      peerId: peerId,
-      limit: ChatMessageOps.pageSize,
-    );
+  Future<bool> _fetchLatest(String peerId) async => _showLatest(
+    peerId,
+    await _dms.listDms(peerId: peerId, limit: ChatMessageOps.pageSize),
+  );
+
+  /// Draws [response], the newest page of [peerId]'s conversation, over
+  /// whatever is on screen. False when it failed or another conversation
+  /// opened meanwhile.
+  Future<bool> _showLatest(String peerId, APIResponse response) async {
     if (!response.success || state.openPeerId != peerId) return false;
 
     final data = response.data as Map<String, dynamic>;

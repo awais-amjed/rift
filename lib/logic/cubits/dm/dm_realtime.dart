@@ -185,7 +185,6 @@ mixin _DmRealtimeMixin
   void _joinPeerTopic(String peerId) {
     _leavePeerTopic();
     _typingPeerId = peerId;
-    unawaited(refreshOpenLinkState());
   }
 
   @override

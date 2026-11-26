@@ -7,6 +7,7 @@ import 'package:rift/data/classes/server.dart';
 import 'package:rift/data/classes/server_user.dart';
 import 'package:rift/data/classes/user_permissions.dart';
 import 'package:rift/data/enums/auth_status.dart';
+import 'package:rift/data/enums/dm_link_state.dart';
 import 'package:rift/data/enums/error_code.dart';
 import 'package:rift/data/repositories/server_repository.dart';
 import 'package:rift/data/repositories/session_repository.dart';
@@ -74,6 +75,13 @@ class _DmServer extends ServerRepository {
   final List<Map<String, dynamic>> sent = [];
   APIResponse Function(Map<String, dynamic> envelope)? answerSend;
 
+  /// The reads a conversation's opening made, in order.
+  final List<String> asked = [];
+
+  /// A server from before self-host 086 answers `dm_open` with PGRST202.
+  bool hasDmOpen = true;
+  String linkState = 'open';
+
   @override
   Future<APIResponse> listDmConversations(
     String supabaseUrl, {
@@ -108,7 +116,10 @@ class _DmServer extends ServerRepository {
     required String anonKey,
     String? bearerToken,
     required String peerId,
-  }) async => APIResponse.success('open');
+  }) async {
+    asked.add('link');
+    return APIResponse.success(linkState);
+  }
 
   @override
   Future<APIResponse> dmCallLog(
@@ -117,7 +128,34 @@ class _DmServer extends ServerRepository {
     String? bearerToken,
     required String peerId,
     DateTime? since,
-  }) async => APIResponse.success(const []);
+  }) async {
+    asked.add('calls');
+    return APIResponse.success(const []);
+  }
+
+  /// `dm_open` (self-host 086): the same newest page, beside where the two
+  /// stand and no calls.
+  @override
+  Future<APIResponse> openDm(
+    String supabaseUrl, {
+    required String anonKey,
+    required String userId,
+    String? bearerToken,
+    required String peerId,
+    int? limit,
+  }) async {
+    asked.add('open');
+    if (!hasDmOpen) {
+      return APIResponse.error('no dm_open', errorCode: 'PGRST202');
+    }
+    if (!latest.success) return latest;
+    return APIResponse.success({
+      'page': latest.data,
+      'link_state': linkState,
+      'calls': const [],
+      'calls_since_id': null,
+    });
+  }
 
   @override
   Future<APIResponse> listDms(
@@ -130,7 +168,10 @@ class _DmServer extends ServerRepository {
     int? afterId,
     int? limit,
   }) async {
-    if (afterId == null) return latest;
+    if (afterId == null) {
+      asked.add('page');
+      return latest;
+    }
     return APIResponse.success({
       'messages': [
         for (final row in after)
@@ -235,6 +276,24 @@ void main() {
     );
     // Locked, the way a message waiting on a key is — not an error.
     expect(dms.state.conversations.first.lastMessage?.isLocked, isTrue);
+  });
+
+  test('a conversation opens in one request', () async {
+    server.linkState = 'waiting';
+    await open();
+    expect(dms.state.chatStatus, DmChatStatus.ready);
+    expect(dms.state.openLinkState, DmLinkState.waiting);
+    expect(server.asked, ['open']);
+  });
+
+  test('a server before dm_open is asked the three', () async {
+    server
+      ..hasDmOpen = false
+      ..linkState = 'waiting';
+    await open();
+    expect(dms.state.chatStatus, DmChatStatus.ready);
+    expect(dms.state.openLinkState, DmLinkState.waiting);
+    expect(server.asked, unorderedEquals(['open', 'link', 'page', 'calls']));
   });
 
   test(
