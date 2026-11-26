@@ -78,9 +78,11 @@ class VoiceListenersCubit extends Cubit<VoiceBotsState> {
   /// or a summon came or went (`voice_bots`, whoever changed it), and by the
   /// client that changed one, which need not wait for the ring.
   ///
-  /// Two round trips, started together: they are different tables and the
-  /// sidebar wants them at the same moment, so serialising them would show a
-  /// channel with its listeners and no summons for one frame.
+  /// One read where the server has `voice_bots` (self-host 084). Otherwise,
+  /// and on the first read, which may share `server_start`, two started
+  /// together: they are different tables and the sidebar wants them at the
+  /// same moment, so serialising them would show a channel with its
+  /// listeners and no summons for one frame.
   ///
   /// A read that fails keeps what is shown: an empty answer would take a
   /// bot's "can hear" marker down while it still hears, and nothing reads
@@ -94,10 +96,13 @@ class VoiceListenersCubit extends Cubit<VoiceBotsState> {
     if (serverId == null) return;
     final read = ++_reads;
     final api = VoiceBotsApi(_session.on(serverId));
-    final (listeners, summons) = await (
-      api.voiceListenersByChannel(first: first),
-      api.voiceSummonsByChannel(first: first),
-    ).wait;
+    final both = first ? null : await api.voiceBotsByChannel();
+    final (listeners, summons) = both != null
+        ? (both.listeners, both.summons)
+        : await (
+            api.voiceListenersByChannel(first: first),
+            api.voiceSummonsByChannel(first: first),
+          ).wait;
     if (isClosed || _watcher.serverId != serverId || read != _reads) return;
     emit(
       VoiceBotsState(

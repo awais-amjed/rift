@@ -173,6 +173,34 @@ mixin _BotApiMixin {
     });
   }
 
+  /// Servers from before `voice_bots` (self-host 084), by address.
+  final Set<String> _noVoiceBots = {};
+
+  /// [listVoiceListeners] and [listVoiceSummons] of the whole server in one
+  /// read (`voice_bots`): `{listeners: [...], summons: [...]}`. A server from
+  /// before it answers `PGRST202`, once.
+  Future<APIResponse> listVoiceBots(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+  }) async {
+    if (_noVoiceBots.contains(supabaseUrl)) {
+      return APIResponse(
+        success: false,
+        error: 'This server has no voice_bots',
+        errorCode: 'PGRST202',
+      );
+    }
+    final response = await ServerDb.run(() async {
+      final data = await _db
+          .client(supabaseUrl, anonKey, bearerToken)
+          .rpc('voice_bots');
+      return (data as Map).cast<String, dynamic>();
+    });
+    if (response.errorCode == 'PGRST202') _noVoiceBots.add(supabaseUrl);
+    return response;
+  }
+
   /// [first] as [listVoiceSummons].
   Future<APIResponse> listVoiceListeners(
     String supabaseUrl, {

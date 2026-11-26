@@ -213,15 +213,7 @@ class VoiceBotsApi {
   Future<Map<String, List<({String id, String name})>>?>
   voiceListenersByChannel({bool first = false}) async {
     final rows = await _voiceListenerRows(null, first: first);
-    if (rows == null) return null;
-    final byChannel = <String, List<({String id, String name})>>{};
-    for (final row in rows) {
-      (byChannel[row['channel_id'] as String] ??= []).add((
-        id: row['bot_id'] as String,
-        name: (row['bot_name'] as String?) ?? 'a bot',
-      ));
-    }
-    return byChannel;
+    return rows == null ? null : _byChannel(rows);
   }
 
   /// Bots summoned into each voice channel, by name (`bot_voice_summons`).
@@ -249,12 +241,45 @@ class VoiceBotsApi {
     );
     if (!response.success) return null;
 
-    final rows =
-        ((response.data as Map<String, dynamic>)['summons'] as List? ??
-                const [])
-            .cast<Map<String, dynamic>>();
+    return _byChannel((response.data as Map<String, dynamic>)['summons']);
+  }
+
+  /// [voiceListenersByChannel] and [voiceSummonsByChannel] in one read
+  /// (`voice_bots`, self-host 084), for a `voice_bots` ring. Null from a
+  /// server before it, which is then asked them apart; null parts are a
+  /// failed read, as there.
+  Future<
+    ({
+      Map<String, List<({String id, String name})>>? listeners,
+      Map<String, List<({String id, String name})>>? summons,
+    })?
+  >
+  voiceBotsByChannel() async {
+    final server = _target.server;
+    if (server == null) return (listeners: null, summons: null);
+    final response = await _session.callFor(
+      server,
+      (token) => _repository.listVoiceBots(
+        server.supabaseUrl,
+        anonKey: server.supabaseKey ?? '',
+        bearerToken: token,
+      ),
+    );
+    if (response.errorCode == 'PGRST202') return null;
+    if (!response.success) return (listeners: null, summons: null);
+    final data = response.data as Map<String, dynamic>;
+    return (
+      listeners: _byChannel(data['listeners']),
+      summons: _byChannel(data['summons']),
+    );
+  }
+
+  /// Rows of `{channel_id, bot_id, bot_name}`, by channel.
+  static Map<String, List<({String id, String name})>> _byChannel(
+    Object? rows,
+  ) {
     final byChannel = <String, List<({String id, String name})>>{};
-    for (final row in rows) {
+    for (final row in ((rows as List?) ?? const []).cast<Map>()) {
       (byChannel[row['channel_id'] as String] ??= []).add((
         id: row['bot_id'] as String,
         name: (row['bot_name'] as String?) ?? 'a bot',
