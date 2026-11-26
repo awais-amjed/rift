@@ -233,8 +233,9 @@ mixin _ChatReadApiMixin {
   /// Everything [channelId] shows when it opens, in one request
   /// (`channel_open`): its newest page, the bar's rows, the caller's keys or
   /// why there are none, the bots holding a key to it and the bots a `/`
-  /// there reaches. Answers `{page: {messages, has_more}, live: {messages},
-  /// key, key_error, listeners, bots: {users, has_more}}`, each part in the
+  /// there reaches, and how the polls among those rows stand. Answers
+  /// `{page: {messages, has_more}, live: {messages}, key, key_error,
+  /// listeners, bots: {users, has_more}, tallies}`, each part in the
   /// shape its own read answers. A server from before it answers `PGRST202`,
   /// once.
   Future<APIResponse> openChannel(
@@ -291,6 +292,8 @@ mixin _ChatReadApiMixin {
         'key_error': answer['key_error'],
         'listeners': answer['listeners'],
         'bots': {'users': bots.rows, 'has_more': bots.hasMore},
+        // Null from a server before self-host 083.
+        'tallies': answer['tallies'],
       };
     });
     if (response.errorCode == 'PGRST202') _noChannelOpen.add(supabaseUrl);

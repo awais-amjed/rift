@@ -3,6 +3,8 @@ part of 'channel_chat_cubit.dart';
 /// Polls in the open channel: posting one, voting, ending it, and keeping the
 /// counts current.
 ///
+/// Over the cubit-part budget and one job: a channel's polls.
+///
 /// A poll is two halves. Its question and options are sealed in the body
 /// like any message (in the clear where the channel's encryption is off); its rules — how many options, one pick or several, when
 /// it closes — are on the row in the clear, because the server enforces them.
@@ -23,6 +25,24 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
 
   /// Polls with a vote on its way — see [vote].
   final Set<String> _voting = {};
+
+  /// Polls whose counts came with the channel's opening (self-host 083), so
+  /// the rows' decrypting does not ask about them again. A vote's ring asks
+  /// regardless.
+  final Set<int> _talliesAnswered = {};
+
+  /// Keep the counts an opening brought, or forget the last channel's when
+  /// it brought none.
+  void _seedTallies(Map<String, dynamic>? answered) {
+    _talliesAnswered.clear();
+    if (answered == null || answered.isEmpty) return;
+    _talliesAnswered.addAll(answered.keys.map(int.tryParse).nonNulls);
+    emit(
+      state.copyWith(
+        pollTallies: PollOps.mergeTallies(state.pollTallies, answered),
+      ),
+    );
+  }
 
   /// Post a poll asking [body], open for [duration].
   ///
@@ -162,7 +182,7 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
     if (channelId == null || id == null || poll == null) return;
     final mine = state.pollTallies[messageId]?.mine;
     if (mine == null) {
-      unawaited(refreshTalliesFor([message!]));
+      unawaited(refreshTalliesFor([message!], again: true));
       return;
     }
     if (!_voting.add(messageId)) return;
@@ -217,10 +237,17 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
   ///
   /// Cubit-internal; public only because [_ChannelChatRowsMixin] calls it
   /// (CODE_STYLE §5). Called with every batch of rows decrypted, so it covers
-  /// a page of history, a catch-up and a single re-read alike.
-  Future<void> refreshTalliesFor(List<ChatMessage> messages) async {
+  /// a page of history, a catch-up and a single re-read alike; those leave
+  /// out the polls the opening answered. [again] asks about every one.
+  Future<void> refreshTalliesFor(
+    List<ChatMessage> messages, {
+    bool again = false,
+  }) async {
     final channelId = state.channelId;
-    final ids = PollOps.pollIds(messages);
+    final ids = [
+      for (final id in PollOps.pollIds(messages))
+        if (again || !_talliesAnswered.contains(id)) id,
+    ];
     if (channelId == null || ids.isEmpty) return;
     final response = await _pinsPolls.pollTallies(messageIds: ids);
     if (!response.success || isClosed || state.channelId != channelId) return;
@@ -239,6 +266,6 @@ mixin _ChannelChatPollsMixin on Cubit<ChannelChatState> {
     if (isClosed) return;
     final messageId = BroadcastPayload.stringOf(payload, 'message_id');
     final poll = messageId == null ? null : state.messageById(messageId);
-    if (poll != null) unawaited(refreshTalliesFor([poll]));
+    if (poll != null) unawaited(refreshTalliesFor([poll], again: true));
   }
 }

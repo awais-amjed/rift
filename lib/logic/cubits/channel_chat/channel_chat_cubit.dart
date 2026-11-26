@@ -438,6 +438,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     if (_isStale(generation)) return;
     emit(state.copyWith(bots: bots));
 
+    // The polls' counts, when the opening brought them, before the rows
+    // that would otherwise ask.
+    _seedTallies((await opening)?.tallies);
     await _showLatest(channelId, await pageRead);
     if (_isStale(generation)) return;
     _ringHeldDoorbells();

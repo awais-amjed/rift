@@ -21,10 +21,13 @@ import 'package:rift/logic/services/message_cache.dart';
 /// reaches); a server from before it is asked them apart. And keys asked for
 /// before this member's chat key was first published are asked again.
 class _Reads extends ServerRepository {
-  _Reads({required this.is066, this.newlyKeyed = false});
+  _Reads({required this.is066, this.newlyKeyed = false, this.tallies});
 
   final bool is066;
   final bool newlyKeyed;
+
+  /// What `channel_open` answers for its polls; null as before 083.
+  final Map<String, dynamic>? tallies;
   final List<String> asked = [];
 
   static final _key = APIResponse.success(const {
@@ -56,7 +59,19 @@ class _Reads extends ServerRepository {
       'key_error': null,
       'listeners': <dynamic>[],
       'bots': {'users': <dynamic>[], 'has_more': false},
+      'tallies': ?tallies,
     });
+  }
+
+  @override
+  Future<APIResponse> pollTallies(
+    String supabaseUrl, {
+    required String anonKey,
+    String? bearerToken,
+    required List<int> messageIds,
+  }) async {
+    asked.add('poll_tallies');
+    return APIResponse.success({'tallies': <String, dynamic>{}});
   }
 
   @override
@@ -239,6 +254,25 @@ void main() {
       ]),
     );
     expect(chat.state.status, ChannelChatStatus.ready);
+  });
+
+  test('the polls\' counts come with the opening (083)', () async {
+    final reads = await open(
+      _Reads(
+        is066: true,
+        tallies: {
+          '96603': {
+            'counts': [0, 1],
+            'voters': 1,
+            'mine': [1],
+          },
+        },
+      ),
+    );
+    expect(reads.asked, ['channel_open']);
+    final tally = chat.state.pollTallies['96603'];
+    expect(tally?.counts, [0, 1]);
+    expect(tally?.mine, {1});
   });
 
   test(

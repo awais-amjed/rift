@@ -42,7 +42,7 @@ mixin _ChannelChatRowsMixin on Cubit<ChannelChatState> {
 
   /// Implemented by [_ChannelChatPollsMixin]; public for the reason in
   /// CODE_STYLE §5.
-  Future<void> refreshTalliesFor(List<ChatMessage> messages);
+  Future<void> refreshTalliesFor(List<ChatMessage> messages, {bool again});
 
   Future<List<ChatMessage>> _decryptRows(
     String channelId,

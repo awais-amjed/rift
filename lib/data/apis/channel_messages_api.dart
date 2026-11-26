@@ -11,13 +11,16 @@ import 'bot_keys_api.dart';
 /// answers, [live] as `listLiveMessages`, [key] as `getChannelKey`, the
 /// [listeners] as `BotKeysApi.channelListeners` and the [bots] as
 /// `MembersApi.listBots`. Null [listeners] is a failed read, as there; null
-/// [bots] is one to read whole, failed or longer than a page.
+/// [bots] is one to read whole, failed or longer than a page. [tallies] is
+/// what `PinsPollsApi.pollTallies` answers for the polls among the rows, or
+/// null from a server before self-host 083, which is then asked.
 typedef ChannelOpening = ({
   APIResponse page,
   APIResponse live,
   APIResponse key,
   List<String>? listeners,
   List<ServerMember>? bots,
+  Map<String, dynamic>? tallies,
 });
 
 /// A channel's messages on a server: sending, editing, deleting and paging
@@ -165,6 +168,7 @@ class ChannelMessagesApi {
         key: response,
         listeners: null,
         bots: null,
+        tallies: null,
       );
     }
     final data = response.data as Map<String, dynamic>;
@@ -181,6 +185,7 @@ class ChannelMessagesApi {
       bots: bots['has_more'] == true || serverId == null
           ? null
           : _session.members.remember(serverId, ServerMember.listFrom(bots)),
+      tallies: (data['tallies'] as Map?)?.cast<String, dynamic>(),
     );
   }
 
