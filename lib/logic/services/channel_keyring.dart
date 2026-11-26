@@ -6,6 +6,7 @@ import 'package:rift_crypto/rift_crypto.dart';
 import '../../data/apis/channel_keys_api.dart';
 import '../../data/apis/voice_bots_api.dart';
 import '../../data/classes/api_response.dart';
+import '../../data/classes/sealed_keys.dart';
 import '../../data/classes/server.dart';
 import '../../data/enums/error_code.dart';
 import '../../data/repositories/server_repository.dart';
@@ -396,10 +397,12 @@ class ChannelKeyring with _KeyringSealingMixin {
     );
 
     final response = await _keysOn(serverId).postChannelKeys(
-      channelId: channelId,
-      keyVersion: 1,
-      entries: entries,
-      mint: true,
+      SealedKeys(
+        channelId: channelId,
+        keyVersion: 1,
+        entries: entries,
+        mint: true,
+      ),
     );
 
     // Minted all the same, and whoever opens the channel next is sealed it;

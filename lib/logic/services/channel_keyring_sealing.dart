@@ -87,10 +87,12 @@ mixin _KeyringSealingMixin {
         members: members,
       );
       final response = await _keysOn(serverId).postChannelKeys(
-        channelId: channelId,
-        keyVersion: keyVersion,
-        entries: entries,
-        mint: false,
+        SealedKeys(
+          channelId: channelId,
+          keyVersion: keyVersion,
+          entries: entries,
+          mint: false,
+        ),
       );
       // Wake the healed members so their waiting screens refetch.
       if (response.success) onHealed?.call();

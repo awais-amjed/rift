@@ -11,6 +11,7 @@ import '../../logic/services/reaction_ops.dart';
 import '../classes/api_response.dart';
 import '../classes/member_page.dart';
 import '../classes/resolved_invite.dart' show needsAccountIn;
+import '../classes/sealed_keys.dart';
 import '../classes/server_limits.dart';
 import '../device_id.dart';
 import '../enums/error_code.dart';
@@ -57,11 +58,11 @@ part 'server_repository_webhooks.dart';
 ///     GoTrue: [login]);
 ///   * it runs before the caller is a member, or before they have a key at all
 ///     — `resolve_invite`, `register`;
-///   * storing sealed keys (`post_channel_keys`), which enforces the
-///     channel-key version race. Reading them is database calls since
-///     self-host 063 (`my_channel_key`, `my_key_work`), with the edge
-///     functions `get_channel_key` and `sweep_channel_keys` kept for servers
-///     older than that.
+///   * the channel keys, for servers older than the database calls that
+///     replaced them: reading since self-host 063 (`my_channel_key`,
+///     `my_key_work` for `get_channel_key`, `sweep_channel_keys`), storing
+///     since 077 (`store_channel_keys`, `store_key_work` for
+///     `post_channel_keys`).
 ///
 /// Everything else was an endpoint that existed only because clients weren't
 /// trusted with the database — which was never a decision, just a consequence

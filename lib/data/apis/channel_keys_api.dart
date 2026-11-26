@@ -1,4 +1,5 @@
 import '../classes/api_response.dart';
+import '../classes/sealed_keys.dart';
 import '../repositories/server_repository.dart';
 import '../repositories/server_session.dart';
 import '../repositories/session_repository.dart';
@@ -50,23 +51,25 @@ class ChannelKeysApi {
     ),
   );
 
-  /// Store sealed keyring entries for a key version — a new one when [mint],
-  /// with the [link] that opens the version before it.
-  Future<APIResponse> postChannelKeys({
-    required String channelId,
-    required int keyVersion,
-    required List<Map<String, dynamic>> entries,
-    required bool mint,
-    ({String ciphertext, String nonce})? link,
-  }) => _target.call(
+  /// Store one channel's sealed keys — a new version when [SealedKeys.mint],
+  /// with the link that opens the version before it.
+  Future<APIResponse> postChannelKeys(SealedKeys keys) => _target.call(
     (server, token) => _repository.postChannelKeys(
       server.supabaseUrl,
-      channelId: channelId,
-      keyVersion: keyVersion,
-      entries: entries,
-      mint: mint,
-      link: link,
+      anonKey: server.supabaseKey ?? '',
       bearerToken: token,
+      keys: keys,
+    ),
+  );
+
+  /// Store a sweep pass, one answer for each of [batches] in order
+  /// (`{results: [{channel_id, key_version, success, code}]}`).
+  Future<APIResponse> storeKeyWork(List<SealedKeys> batches) => _target.call(
+    (server, token) => _repository.storeKeyWork(
+      server.supabaseUrl,
+      anonKey: server.supabaseKey ?? '',
+      bearerToken: token,
+      batches: batches,
     ),
   );
 

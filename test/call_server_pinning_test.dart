@@ -7,6 +7,7 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rift/data/classes/api_response.dart';
 import 'package:rift/data/classes/channel.dart';
 import 'package:rift/data/classes/dm_call_place.dart';
+import 'package:rift/data/classes/sealed_keys.dart';
 import 'package:rift/data/classes/server.dart';
 import 'package:rift/data/classes/server_user.dart';
 import 'package:rift/data/classes/user_permissions.dart';
@@ -91,12 +92,9 @@ class _RecordingServers extends ServerRepository {
   @override
   Future<APIResponse> postChannelKeys(
     String supabaseUrl, {
+    required String anonKey,
     String? bearerToken,
-    required String channelId,
-    required int keyVersion,
-    required List<Map<String, dynamic>> entries,
-    required bool mint,
-    ({String ciphertext, String nonce})? link,
+    required SealedKeys keys,
   }) async {
     calls.add(('post', supabaseUrl));
     return APIResponse.success(const {});

@@ -58,16 +58,20 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
         final data = response.data as Map<String, dynamic>;
         final work = (data['work'] as List).cast<Map<String, dynamic>>();
 
-        var stored = false;
+        // Every job sealed first, then the pass sent in one request: one
+        // a channel kept a newcomer's last channel locked until the server
+        // had answered for each before it.
+        final batches = <SealedKeys>[];
         for (final job in work) {
           try {
-            if (await _performSweepJob(job, identity, server.id)) {
-              stored = true;
-            }
+            final sealed = await _sealSweepJob(job, identity);
+            if (sealed != null) batches.add(sealed);
           } catch (e) {
             HelperMethods.printDebug('[Chat] sweep job failed: $e');
           }
         }
+        final stored =
+            batches.isNotEmpty && await _storeSweep(batches, server.id);
         healedAny |= stored;
         if (data['more'] != true || !stored) break;
       }
@@ -87,17 +91,17 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
     if (_sweepAgain && !isClosed) unawaited(_runKeySweep());
   }
 
-  /// Executes one unit of sweep work. Returns true if entries were stored.
-  Future<bool> _performSweepJob(
+  /// One unit of sweep work, sealed and ready to store: null when there is
+  /// nobody to seal for.
+  Future<SealedKeys?> _sealSweepJob(
     Map<String, dynamic> job,
     ChatIdentity identity,
-    String serverId,
   ) async {
     final channelId = job['channel_id'] as String;
     final version = job['key_version'] as int;
     final missing = (job['members_missing'] as List)
         .cast<Map<String, dynamic>>();
-    if (missing.isEmpty) return false;
+    if (missing.isEmpty) return null;
 
     // Bootstrapping an empty channel and rotating a compromised one are the
     // same act — mint a key nobody has yet and seal it to the people entitled
@@ -122,7 +126,7 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       members: missing,
     );
 
-    final posted = await ChannelKeysApi(_session.on(serverId)).postChannelKeys(
+    return SealedKeys(
       channelId: channelId,
       keyVersion: postVersion,
       entries: entries,
@@ -131,8 +135,31 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
           ? await _linkBack(job, identity, channelId, channelKey, postVersion)
           : null,
     );
-    // A conflict just means another client won the same race — fine.
-    return posted.success;
+  }
+
+  /// Stores a sealed pass on [serverId]. True if any of it was stored.
+  Future<bool> _storeSweep(List<SealedKeys> batches, String serverId) async {
+    final response = await ChannelKeysApi(
+      _session.on(serverId),
+    ).storeKeyWork(batches);
+    if (!response.success) {
+      HelperMethods.printDebug(
+        '[Chat] sweep store failed: ${response.errorCode}',
+      );
+      return false;
+    }
+    final results = ((response.data as Map<String, dynamic>)['results'] as List)
+        .cast<Map<String, dynamic>>();
+    var stored = false;
+    for (final result in results) {
+      if (result['success'] == true) {
+        stored = true;
+      } else if (result['code'] != ErrorCode.keyringConflict) {
+        // A conflict just means another client won the same race — fine.
+        HelperMethods.printDebug('[Chat] sweep job refused: ${result['code']}');
+      }
+    }
+    return stored;
   }
 
   /// The outgoing key sealed under the one this rotation mints, so whoever is
