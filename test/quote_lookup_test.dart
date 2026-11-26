@@ -91,4 +91,85 @@ void main() {
       expect(q.message!.id, '7');
     });
   });
+
+  group('QuotedMessage.settleMany', () {
+    test('found, deleted and unknown, each by its own id', () async {
+      // 1 opens, 2 has no row, 3 comes back and does not verify.
+      final answers = await QuotedMessage.settleMany(
+        APIResponse.success({
+          'messages': [
+            {'id': 1},
+            {'id': 3},
+          ],
+        }),
+        ids: ['1', '2', '3'],
+        stillOpen: () => true,
+        open: (rows) async => [
+          for (final r in rows)
+            if (r['id'] == 1) msg('1'),
+        ],
+      );
+      expect(answers['1']!.isFound, isTrue);
+      expect(answers['2']!.deleted, isTrue);
+      expect(answers['3']!.isFound, isFalse);
+      expect(answers['3']!.deleted, isFalse);
+    });
+
+    test('a failed read claims nothing about any of them', () async {
+      final answers = await QuotedMessage.settleMany(
+        APIResponse.error('offline'),
+        ids: ['1', '2'],
+        stillOpen: () => true,
+        open: (_) async => [],
+      );
+      expect(answers.values.any((q) => q.isFound || q.deleted), isFalse);
+    });
+  });
+
+  group('QuoteBatcher', () {
+    test('one frame\'s lookups are one read per conversation', () async {
+      final reads = <String>[];
+      final batcher = QuoteBatcher<String>((key, ids) async {
+        reads.add('$key: ${ids.join(',')}');
+        return {for (final id in ids) id: QuotedMessage.found(msg(id))};
+      });
+      final answers = await Future.wait([
+        batcher.lookUp('c1', '1'),
+        batcher.lookUp('c1', '2'),
+        batcher.lookUp('c1', '1'),
+        batcher.lookUp('c2', '9'),
+      ]);
+      expect(reads, ['c1: 1,2', 'c2: 9']);
+      expect(answers.map((q) => q.message!.id), ['1', '2', '1', '9']);
+
+      // A later frame is a read of its own.
+      await batcher.lookUp('c1', '3');
+      expect(reads.last, 'c1: 3');
+    });
+
+    test('a big frame is read in chunks', () async {
+      final sizes = <int>[];
+      final batcher = QuoteBatcher<String>((key, ids) async {
+        sizes.add(ids.length);
+        return {};
+      }, chunk: 2);
+      await Future.wait([
+        for (var i = 0; i < 5; i++) batcher.lookUp('c', '$i'),
+      ]);
+      expect(sizes, [2, 2, 1]);
+    });
+
+    test('a read that throws, or leaves an id out, is unknown', () async {
+      final batcher = QuoteBatcher<String>((key, ids) async {
+        if (key == 'bad') throw StateError('offline');
+        return {};
+      });
+      final (thrown, missing) = await (
+        batcher.lookUp('bad', '1'),
+        batcher.lookUp('ok', '2'),
+      ).wait;
+      expect(thrown.isFound || thrown.deleted, isFalse);
+      expect(missing.isFound || missing.deleted, isFalse);
+    });
+  });
 }

@@ -1,7 +1,9 @@
 part of 'chat_message_list.dart';
 
-/// The messages replies point at that are not in the loaded page: asking the
-/// server for them once each, and saying what a quote should draw meanwhile.
+/// The messages replies point at that are not in the loaded page: asking
+/// about each once, and saying what a quote should draw meanwhile. The
+/// cubit behind [ChatMessageList.onLookUpOriginal] reads one frame's asks
+/// together (`QuoteBatcher`).
 mixin _MessageListQuotesMixin on State<ChatMessageList> {
   /// Messages fetched only to render a quote, by id.
   ///

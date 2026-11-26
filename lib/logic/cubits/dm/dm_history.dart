@@ -15,6 +15,9 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
   /// See [OffPageChanges].
   Stream<String> get quoteChanges => _offPage.stream;
 
+  /// The quotes a frame asks about, read at once per conversation.
+  late final QuoteBatcher<String> _quotes = QuoteBatcher(_readQuoted);
+
   /// See the send mixin. Read here to put failed sends back under a freshly
   /// fetched page, and to forget one the server turns out to have stored.
   Outbox get _outbox;
@@ -338,16 +341,29 @@ mixin _DmHistoryMixin on Cubit<DmState>, _DmDecryptMixin {
   /// comes back and fails verification answers `unknown` rather than
   /// `deleted`: it is dropped like any other forgery, and "deleted" would be
   /// a claim about a message this client refuses to believe in.
+  ///
+  /// Asked together with the other quotes the same frame asks about
+  /// ([QuoteBatcher]): a page of replies is one read, not one each.
   Future<QuotedMessage> fetchQuoted(String messageId) async {
     final peerId = state.openPeerId;
-    final id = int.tryParse(messageId);
-    if (peerId == null || id == null) return const QuotedMessage.unknown();
+    if (peerId == null || int.tryParse(messageId) == null) {
+      return const QuotedMessage.unknown();
+    }
+    return _quotes.lookUp(peerId, messageId);
+  }
 
-    final response = await _dms.getDmMessage(messageId: id);
-    return QuotedMessage.settle(
+  Future<Map<String, QuotedMessage>> _readQuoted(
+    String peerId,
+    List<String> ids,
+  ) async {
+    final response = await _dms.getDmMessages(
+      messageIds: [for (final id in ids) int.parse(id)],
+    );
+    return QuotedMessage.settleMany(
       response,
+      ids: ids,
       stillOpen: () => state.openPeerId == peerId,
-      open: (row) async => (await _decryptRows(peerId, [row])).firstOrNull,
+      open: (rows) => _decryptRows(peerId, rows),
     );
   }
 

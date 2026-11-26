@@ -50,6 +50,100 @@ class QuotedMessage {
         ? const QuotedMessage.unknown()
         : QuotedMessage.found(message);
   }
+
+  /// [settle] for a batch: what one read of several ids, `{messages: […]}`,
+  /// says about each of [ids].
+  ///
+  /// An id the answer has no row for is [QuotedMessage.deleted], as a
+  /// single read's `{message: null}` was; one whose row [open] did not turn
+  /// into a message is [QuotedMessage.unknown].
+  static Future<Map<String, QuotedMessage>> settleMany(
+    APIResponse response, {
+    required List<String> ids,
+    required bool Function() stillOpen,
+    required Future<List<ChatMessage>> Function(List<Map<String, dynamic>> rows)
+    open,
+  }) async {
+    const unknown = QuotedMessage.unknown();
+    if (!response.success || !stillOpen()) {
+      return {for (final id in ids) id: unknown};
+    }
+    final rows = ((response.data as Map<String, dynamic>)['messages'] as List)
+        .map((r) => (r as Map).cast<String, dynamic>())
+        .toList();
+    final present = {for (final r in rows) '${r['id']}'};
+    final opened = {for (final m in await open(rows)) m.id: m};
+    return {
+      for (final id in ids)
+        id: opened[id] != null
+            ? QuotedMessage.found(opened[id]!)
+            : present.contains(id)
+            ? unknown
+            : const QuotedMessage.deleted(),
+    };
+  }
+}
+
+/// Quote lookups made together, asked together.
+///
+/// A list asks about each reply's original as it builds the row, so a page
+/// with ten replies to older messages asked ten single-row reads. Lookups
+/// made in the same turn of the event loop — one frame's rows — are held
+/// until it ends and sent as one read per conversation [K], in chunks of
+/// [chunk]. Each caller still gets its own answer.
+class QuoteBatcher<K> {
+  QuoteBatcher(this._fetch, {this.chunk = 100});
+
+  /// What one read says about each id it was asked, for conversation [K].
+  final Future<Map<String, QuotedMessage>> Function(K key, List<String> ids)
+  _fetch;
+
+  final int chunk;
+
+  final Map<K, Map<String, Completer<QuotedMessage>>> _waiting = {};
+  bool _scheduled = false;
+
+  Future<QuotedMessage> lookUp(K key, String id) {
+    final forKey = _waiting.putIfAbsent(key, () => {});
+    final waiting = forKey[id];
+    if (waiting != null) return waiting.future;
+    final completer = Completer<QuotedMessage>();
+    forKey[id] = completer;
+    if (!_scheduled) {
+      _scheduled = true;
+      scheduleMicrotask(_flush);
+    }
+    return completer.future;
+  }
+
+  void _flush() {
+    _scheduled = false;
+    final batches = Map.of(_waiting);
+    _waiting.clear();
+    for (final MapEntry(key: key, value: waiting) in batches.entries) {
+      final ids = waiting.keys.toList();
+      for (var i = 0; i < ids.length; i += chunk) {
+        final part = ids.sublist(i, (i + chunk).clamp(0, ids.length));
+        unawaited(_answer(key, part, waiting));
+      }
+    }
+  }
+
+  Future<void> _answer(
+    K key,
+    List<String> ids,
+    Map<String, Completer<QuotedMessage>> waiting,
+  ) async {
+    Map<String, QuotedMessage> answers;
+    try {
+      answers = await _fetch(key, ids);
+    } catch (_) {
+      answers = const {};
+    }
+    for (final id in ids) {
+      waiting[id]!.complete(answers[id] ?? const QuotedMessage.unknown());
+    }
+  }
 }
 
 /// Messages a change doorbell named that are not in the loaded page.

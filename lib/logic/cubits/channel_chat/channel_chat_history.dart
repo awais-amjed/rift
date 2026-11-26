@@ -30,6 +30,9 @@ mixin _ChannelChatHistoryMixin
   /// See [OffPageChanges].
   Stream<String> get quoteChanges => _offPage.stream;
 
+  /// The quotes a frame asks about, read at once per channel.
+  late final QuoteBatcher<String> _quotes = QuoteBatcher(_readQuoted);
+
   Future<void> _fetchLatest(String channelId) async =>
       _showLatest(channelId, await _readLatest(channelId));
 
@@ -210,19 +213,30 @@ mixin _ChannelChatHistoryMixin
   /// comes back and fails verification is `unknown`, not `deleted`: it is
   /// dropped like any other forgery, and saying "deleted" would be claiming
   /// something about a message this client refuses to believe in.
+  ///
+  /// Asked together with the other quotes the same frame asks about
+  /// ([QuoteBatcher]): a page of replies is one read, not one each.
   Future<QuotedMessage> fetchQuoted(String messageId) async {
     final channelId = state.channelId;
-    final id = int.tryParse(messageId);
-    if (channelId == null || id == null) return const QuotedMessage.unknown();
+    if (channelId == null || int.tryParse(messageId) == null) {
+      return const QuotedMessage.unknown();
+    }
+    return _quotes.lookUp(channelId, messageId);
+  }
 
-    final response = await _channelMessages.getChatMessage(
+  Future<Map<String, QuotedMessage>> _readQuoted(
+    String channelId,
+    List<String> ids,
+  ) async {
+    final response = await _channelMessages.getChatMessages(
       channelId: channelId,
-      messageId: id,
+      messageIds: [for (final id in ids) int.parse(id)],
     );
-    return QuotedMessage.settle(
+    return QuotedMessage.settleMany(
       response,
+      ids: ids,
       stillOpen: () => state.channelId == channelId,
-      open: (row) async => (await _decryptRows(channelId, [row])).firstOrNull,
+      open: (rows) => _decryptRows(channelId, rows),
     );
   }
 

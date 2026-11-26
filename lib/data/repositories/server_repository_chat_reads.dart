@@ -426,6 +426,42 @@ mixin _ChatReadApiMixin {
     messageId: messageId,
   );
 
+  /// Several channel messages by id, `{messages: […]}`: the quotes of a
+  /// page's replies, read at once. An id with no row (deleted, or not this
+  /// member's to see) is simply absent.
+  Future<APIResponse> getMessages(
+    String supabaseUrl, {
+    required String anonKey,
+    required String userId,
+    String? bearerToken,
+    required String channelId,
+    required List<int> messageIds,
+  }) => _getRows(
+    supabaseUrl,
+    anonKey: anonKey,
+    userId: userId,
+    bearerToken: bearerToken,
+    dm: false,
+    messageIds: messageIds,
+    channelId: channelId,
+  );
+
+  /// Several server DMs by id, `{messages: […]}`, as [getMessages].
+  Future<APIResponse> getDms(
+    String supabaseUrl, {
+    required String anonKey,
+    required String userId,
+    String? bearerToken,
+    required List<int> messageIds,
+  }) => _getRows(
+    supabaseUrl,
+    anonKey: anonKey,
+    userId: userId,
+    bearerToken: bearerToken,
+    dm: true,
+    messageIds: messageIds,
+  );
+
   /// The few columns a `message` or `dm` doorbell speaks about, as the
   /// database has them — `{message: null}` for a row that is not there or
   /// that this member may not see.
@@ -473,6 +509,29 @@ mixin _ChatReadApiMixin {
       final row = await query.maybeSingle();
       return {
         'message': row == null ? null : _flatten(row, userId: userId, dm: dm),
+      };
+    });
+  }
+
+  Future<APIResponse> _getRows(
+    String supabaseUrl, {
+    required String anonKey,
+    required String userId,
+    String? bearerToken,
+    required bool dm,
+    required List<int> messageIds,
+    String? channelId,
+  }) {
+    return _readRows((columns) async {
+      final db = _db.client(supabaseUrl, anonKey, bearerToken);
+      var query = db
+          .from(dm ? 'dm_messages' : 'messages')
+          .select(dm ? columns.dms : columns.messages)
+          .inFilter('id', messageIds);
+      if (channelId != null) query = query.eq('channel_id', channelId);
+      final rows = await query;
+      return {
+        'messages': [for (final r in rows) _flatten(r, userId: userId, dm: dm)],
       };
     });
   }

@@ -239,4 +239,20 @@ class ChannelMessagesApi {
       bearerToken: token,
     ),
   );
+
+  /// Several channel messages at once, for the quotes of a page's replies.
+  /// Answers `{messages: […]}`; an id that is gone is left out.
+  Future<APIResponse> getChatMessages({
+    required String channelId,
+    required List<int> messageIds,
+  }) => _target.call(
+    (server, token) => _repository.getMessages(
+      server.supabaseUrl,
+      anonKey: server.supabaseKey ?? '',
+      userId: server.user?.id ?? '',
+      channelId: channelId,
+      messageIds: messageIds,
+      bearerToken: token,
+    ),
+  );
 }

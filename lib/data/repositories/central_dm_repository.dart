@@ -354,6 +354,22 @@ class CentralDmRepository
     }
   }
 
+  /// Several DMs by id, `{messages: […]}`: the quotes of a page's replies,
+  /// read at once. An id that is gone is left out.
+  Future<APIResponse> getDms({required List<int> messageIds}) async {
+    try {
+      final rows = await _client
+          .from('dm_messages')
+          .select('*, ${_CentralDmPinsMixin.pinEmbed}')
+          .inFilter('id', messageIds);
+      return APIResponse.success({
+        'messages': [for (final r in rows) _CentralDmPinsMixin.liftPin(r)],
+      });
+    } catch (e) {
+      return CentralFailure.response(e);
+    }
+  }
+
   Future<void> unsubscribe(RealtimeChannel channel) async {
     try {
       await _client.removeChannel(channel);

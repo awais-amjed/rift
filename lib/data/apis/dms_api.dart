@@ -99,6 +99,19 @@ class DmsApi {
     ),
   );
 
+  /// Several server DMs at once, for the quotes of a page's replies.
+  /// Answers `{messages: […]}`; an id that is gone is left out.
+  Future<APIResponse> getDmMessages({required List<int> messageIds}) =>
+      _target.call(
+        (server, token) => _repository.getDms(
+          server.supabaseUrl,
+          anonKey: server.supabaseKey ?? '',
+          userId: server.user?.id ?? '',
+          messageIds: messageIds,
+          bearerToken: token,
+        ),
+      );
+
   /// One page of the local user's DM conversations, newest activity first.
   ///
   /// [before] is the cursor: the newest message id of the last row already
