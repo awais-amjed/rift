@@ -46,4 +46,23 @@ class BroadcastPayload {
   /// row changed. What draws no roles lets it go.
   static bool aboutRoles(Map<String, dynamic> message) =>
       of(message)['roles'] == true;
+
+  /// The channels a `sweep` ring names (`{"channels": [...]}`), or null when
+  /// it names none, which means "look": the database's own rings, a member
+  /// asking to be sealed a key, and every app older than the naming. A list
+  /// longer than [KeySweepDoorbell] would ever send counts as none too.
+  static Set<String>? channelsOf(Map<String, dynamic> message) {
+    final value = of(message)['channels'];
+    if (value is! List || value.isEmpty || value.length > maxNamedChannels) {
+      return null;
+    }
+    final channels = {
+      for (final id in value)
+        if (id is String) id,
+    };
+    return channels.length == value.length ? channels : null;
+  }
+
+  /// The most channels one ring names. A sweep that sealed more says "look".
+  static const maxNamedChannels = 50;
 }

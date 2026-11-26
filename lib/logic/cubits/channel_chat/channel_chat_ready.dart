@@ -98,9 +98,16 @@ mixin _ChatReadyMixin on Cubit<ChannelChatState>, _ChatSweepMixin {
 
   Future<void> _teardownSweepRealtime() => _sweepDoorbell.stop();
 
-  void _onKeySweepDoorbell() {
+  void _onKeySweepDoorbell(Set<String>? channels) {
     if (isClosed) return;
-    // Someone published a key or healed entries: do our share of wrapping,
+    // A ring naming channels announces keys already sealed there, by the
+    // client that sealed them, which did all there was: only a channel
+    // named is worth a read here, and there is no sweep to share.
+    if (channels != null) {
+      if (channels.contains(state.channelId)) _followNewKeys();
+      return;
+    }
+    // Someone published a key, or asks for one: do our share of wrapping,
     // and if we're the one waiting for access, refetch our keyring.
     unawaited(_runKeySweep());
     _followNewKeys();

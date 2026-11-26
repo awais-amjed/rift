@@ -738,6 +738,9 @@ and iOS leave out of backups; not on the web.
   doorbells at most every two seconds (`RingThrottle`, and `ServerTopicWatcher`'s gap): a flood
   costs each app one re-read in that time, and cannot hold off the answer to a real change either
   (security re-review, Nov 26).
+  A `sweep` that announces keys already sealed names their channels, and an app showing none of
+  them, or in another call, lets it go; one naming nothing still means "look" (`KeySweepDoorbell`,
+  call-count review, Nov 26). A forged name only makes apps skip that one ring.
 
 ---
 

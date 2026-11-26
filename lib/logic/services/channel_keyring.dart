@@ -45,10 +45,10 @@ class ChannelKeyring with _KeyringSealingMixin {
   final CryptoRepository _crypto;
 
   /// Called after this client seals the current key to members who lacked it,
-  /// so their waiting screens refetch. Optional: a caller that has no doorbell
-  /// to ring simply heals quietly.
+  /// with the channel, so their waiting screens refetch. Optional: a caller
+  /// that has no doorbell to ring simply heals quietly.
   @override
-  final void Function()? onHealed;
+  final void Function(String channelId)? onHealed;
 
   ChannelKeyring({
     required SessionRepository session,

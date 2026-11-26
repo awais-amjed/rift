@@ -22,7 +22,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
   /// Implemented by the cubit class, like [_ChatSweepMixin]'s copy — see the
   /// note in `channel_chat_ready.dart` for why it lives there rather than in a
   /// mixin of its own.
-  void _ringKeySweepDoorbell();
+  void _ringKeySweepDoorbell({Iterable<String>? channels});
 
   /// Sends that did not get out. On the class rather than here because the
   /// history mixin restores from it too (CODE_STYLE §5).
@@ -374,7 +374,7 @@ mixin _ChannelChatSendMixin on Cubit<ChannelChatState> {
         // once a song.
         // The doorbell is the open server's, so only while still here.
         if (summoned.success && summoned.needsKey && open()) {
-          _ringKeySweepDoorbell();
+          _ringKeySweepDoorbell(channels: [inVoiceChannel]);
         }
       }
 

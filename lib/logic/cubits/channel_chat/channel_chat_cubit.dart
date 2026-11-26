@@ -207,7 +207,7 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
     session: _session,
     vaultCubit: _vaultCubit,
     crypto: _crypto,
-    onHealed: _ringKeySweepDoorbell,
+    onHealed: (channelId) => _ringKeySweepDoorbell(channels: [channelId]),
   );
 
   /// Unwrapped channel keys for the open channel, by key version.
@@ -617,9 +617,9 @@ class ChannelChatCubit extends Cubit<ChannelChatState>
   }
 
   @override
-  void _ringKeySweepDoorbell() {
+  void _ringKeySweepDoorbell({Iterable<String>? channels}) {
     try {
-      _sweepDoorbell.ring();
+      _sweepDoorbell.ring(channels: channels);
     } catch (_) {}
   }
 

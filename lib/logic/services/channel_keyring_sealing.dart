@@ -12,7 +12,7 @@ mixin _KeyringSealingMixin {
   ChannelKeysApi _keysOn(String serverId);
   VoiceBotsApi _botsOn(String serverId);
   CryptoRepository get _crypto;
-  void Function()? get onHealed;
+  void Function(String channelId)? get onHealed;
   Map<int, Uint8List> get keys;
 
   /// The server the keys came from — see [ChannelKeyring._serverId]. Read once
@@ -106,7 +106,7 @@ mixin _KeyringSealingMixin {
         ),
       );
       // Wake the healed members so their waiting screens refetch.
-      if (response.success) onHealed?.call();
+      if (response.success) onHealed?.call(channelId);
     } catch (e) {
       HelperMethods.printDebug('[Keyring] heal failed: $e');
     }

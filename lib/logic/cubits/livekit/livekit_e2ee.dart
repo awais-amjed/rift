@@ -246,11 +246,13 @@ mixin _E2EEMixin on Cubit<LiveKitState> {
   void _watchKeyRotations(Server server, String channelId) {
     final realtime = _session?.realtime;
     if (realtime == null) return;
-    _rotations.listen(
-      realtime,
-      server,
-      () => unawaited(_onKeyDoorbell(channelId)),
-    );
+    // A ring naming other channels sealed keys there, which this call has
+    // no use for.
+    _rotations.listen(realtime, server, (channels) {
+      if (channels == null || channels.contains(channelId)) {
+        unawaited(_onKeyDoorbell(channelId));
+      }
+    });
     unawaited(_realtimeBack?.cancel());
     _realtimeBack = realtime.returned.listen(
       (_) => unawaited(_onKeyDoorbell(channelId)),

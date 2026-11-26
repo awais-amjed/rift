@@ -13,7 +13,7 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
 
   /// The server chat is set up on — see `_ChatReadyMixin`.
   Server? get _readyServer;
-  void _ringKeySweepDoorbell();
+  void _ringKeySweepDoorbell({Iterable<String>? channels});
 
   /// Implemented by [_ChatReadyMixin]: what this client does on hearing
   /// that keys moved.
@@ -43,7 +43,7 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       final identity = await _chatIdentity(server);
       if (identity == null) return;
 
-      var healedAny = false;
+      final healed = <String>{};
       // The server hands out work 500 entries at a time and says `more` when
       // it held some back: the rest of a big channel's new key, or old
       // versions. A pass that stored nothing ends it, so a batch that keeps
@@ -70,19 +70,21 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
             HelperMethods.printDebug('[Chat] sweep job failed: $e');
           }
         }
-        final stored =
-            batches.isNotEmpty && await _storeSweep(batches, server.id);
-        healedAny |= stored;
-        if (data['more'] != true || !stored) break;
+        final stored = batches.isEmpty
+            ? const <String>{}
+            : await _storeSweep(batches, server.id);
+        healed.addAll(stored);
+        if (data['more'] != true || stored.isEmpty) break;
       }
-      // Wake waiting members so they refetch their (now healed) keyring.
-      // And this client too: a ring is not echoed to the cubit that rang it,
+      // Wake waiting members so they refetch their (now healed) keyring —
+      // the channels named, so the apps showing others need not read. And
+      // this client too: a ring is not echoed to the cubit that rang it,
       // so the one that minted a rotation kept sealing the open channel
       // under the version before it — readable to whoever the rotation was
       // for keeping out, and locked to whoever it let in (found in review,
       // Nov 21).
-      if (healedAny) {
-        _ringKeySweepDoorbell();
+      if (healed.isNotEmpty) {
+        _ringKeySweepDoorbell(channels: healed);
         _followNewKeys();
       }
     } finally {
@@ -137,8 +139,12 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
     );
   }
 
-  /// Stores a sealed pass on [serverId]. True if any of it was stored.
-  Future<bool> _storeSweep(List<SealedKeys> batches, String serverId) async {
+  /// Stores a sealed pass on [serverId]. The channels any of it was stored
+  /// in, empty when none was.
+  Future<Set<String>> _storeSweep(
+    List<SealedKeys> batches,
+    String serverId,
+  ) async {
     final response = await ChannelKeysApi(
       _session.on(serverId),
     ).storeKeyWork(batches);
@@ -146,14 +152,15 @@ mixin _ChatSweepMixin on Cubit<ChannelChatState> {
       HelperMethods.printDebug(
         '[Chat] sweep store failed: ${response.errorCode}',
       );
-      return false;
+      return const {};
     }
     final results = ((response.data as Map<String, dynamic>)['results'] as List)
         .cast<Map<String, dynamic>>();
-    var stored = false;
-    for (final result in results) {
+    final stored = <String>{};
+    for (var i = 0; i < results.length && i < batches.length; i++) {
+      final result = results[i];
       if (result['success'] == true) {
-        stored = true;
+        stored.add(batches[i].channelId);
       } else if (result['code'] != ErrorCode.keyringConflict) {
         // A conflict just means another client won the same race — fine.
         HelperMethods.printDebug('[Chat] sweep job refused: ${result['code']}');
