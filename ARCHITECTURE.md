@@ -1076,7 +1076,7 @@ two-factor sign-in (`rift-admin`). Admin tools never ship in the app: a client
 anyone can download is the wrong place for a door only moderators should see.
 The same site lists every Rift account, for the same moderators: handle, the
 sign-up email, when it signed up and was last active (a sign-in or a session
-refresh), and what it lists in the directory (`moderation_accounts`). That is
+refresh), and what it lists in the directory (`moderation_accounts_page`). That is
 what central already holds about an account; nothing is collected for it.
 
 ---
