@@ -589,7 +589,18 @@ frame cryptor is created when its track is published and keeps the index it was 
 (`livekit_e2ee.dart`) rather than from its version's slot. It costs nothing — the slot is only an
 agreement about where to look, and the key at it is still per-bot and per-version — except across a
 rotation, where slot 0 is overwritten rather than added beside and the frames in flight under the
-old key are lost. That is the beat of silence already recorded above.
+old key are lost: a beat of silence.
+
+**A bot follows a rotation mid-call.** The members in the call move to the new version within a
+second and seal each bot there its media key under it (`livekit_e2ee.dart`), and from then on read
+the bot from slot 0 with that key. Each row sealed rings the bot `voice_key` on its own topic,
+`user:<bot id>` (self-host 088), with the channel and the version and nothing of the key; the SDK
+reads its row again through `my_channel_key`, takes it only if it is newer, and overwrites slot 0
+(`follow_media_key` / `followMediaKey`). A ring lost on the way is caught by a re-read every 30
+seconds. Before this a bot read its key once, at the join, and one playing through a rotation was
+heard by nobody until it was summoned again (found live Nov 27 2026). The ring adds no way to give
+a bot a bad key: who may seal a row is still `bot_voice_keys_insert`, a member holding the room's
+newest version, once a version.
 
 Getting this wrong looked like nothing at all: the bot published happily, its own log said it was
 fine, and every member's client reported `FrameCryptorStateMissingKey` about a participant it could
