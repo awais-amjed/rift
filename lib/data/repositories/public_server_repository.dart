@@ -49,11 +49,16 @@ class PublicServerRepository {
     int offset = 0,
   }) async {
     try {
+      // Whether this account liked each row comes with it: the caller's own
+      // like, embedded and filtered to them, so a page is one request and
+      // not two. Signed out there is no "mine", and likes are not readable.
+      final uid = _uid;
       var request = _client
           .from(_table)
-          .select()
+          .select(uid == null ? '*' : '*, mine:$_likes(user_id)')
           .eq('is_listed', true)
           .isFilter('hidden_at', null);
+      if (uid != null) request = request.eq('mine.user_id', uid);
 
       final trimmed = query?.trim() ?? '';
       if (trimmed.isNotEmpty) {
@@ -78,11 +83,10 @@ class PublicServerRepository {
       final rows = await ordered.range(offset, offset + limit);
 
       final page = Paging.split(rows, limit: limit);
-      final liked = await _likedAmong([for (final r in page.rows) r['id']]);
       return APIResponse.success({
         'results': [
           for (final r in page.rows)
-            PublicServer.fromJson(r, likedByMe: liked.contains(r['id'])),
+            PublicServer.fromJson(r, likedByMe: _likedByMe(r)),
         ],
         'has_more': page.hasMore,
       });
@@ -91,24 +95,10 @@ class PublicServerRepository {
     }
   }
 
-  /// Which of [listingIds] this account has already liked: one query for the
-  /// page, as the bot browser does, because "have *I* liked this" is per
-  /// reader and a listing is shared.
-  Future<Set<String>> _likedAmong(List<dynamic> listingIds) async {
-    final uid = _uid;
-    if (uid == null || listingIds.isEmpty) return const {};
-    try {
-      final rows = await _client
-          .from(_likes)
-          .select('listing_id')
-          .eq('user_id', uid)
-          .inFilter('listing_id', listingIds);
-      return {for (final r in rows) r['listing_id'] as String};
-    } catch (_) {
-      // A directory that renders without hearts is worth more than one that
-      // refuses to render.
-      return const {};
-    }
+  /// Whether the embedded `mine` (this account's like, if any) holds a row.
+  static bool _likedByMe(Map<String, dynamic> row) {
+    final mine = row['mine'];
+    return mine is List && mine.isNotEmpty;
   }
 
   /// The caller's own listings, delisted ones included — this is the list the

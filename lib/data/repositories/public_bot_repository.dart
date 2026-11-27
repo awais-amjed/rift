@@ -42,11 +42,16 @@ class PublicBotRepository {
     int offset = 0,
   }) async {
     try {
+      // Whether this account liked each row comes with it: the caller's own
+      // like, embedded and filtered to them, so a page is one request and
+      // not two. Signed out there is no "mine", and likes are not readable.
+      final uid = _uid;
       var request = _client
           .from(_table)
-          .select()
+          .select(uid == null ? '*' : '*, mine:$_likes(user_id)')
           .eq('is_listed', true)
           .isFilter('hidden_at', null);
+      if (uid != null) request = request.eq('mine.user_id', uid);
 
       final trimmed = query?.trim() ?? '';
       if (trimmed.isNotEmpty) {
@@ -66,15 +71,17 @@ class PublicBotRepository {
       if (sort != DirectorySort.fresh) {
         ordered = ordered.order('created_at', ascending: false);
       }
+      // Last, so rows that tie on everything keep one order from page to
+      // page, and none is read twice or skipped — as the server browser.
+      ordered = ordered.order('id');
       final rows = await ordered.range(offset, offset + limit);
 
       final page = Paging.split(rows, limit: limit);
-      final liked = await _likedAmong([for (final r in page.rows) r['id']]);
 
       return APIResponse.success({
         'results': [
           for (final r in page.rows)
-            PublicBot.fromJson(r, likedByMe: liked.contains(r['id'])),
+            PublicBot.fromJson(r, likedByMe: _likedByMe(r)),
         ],
         'has_more': page.hasMore,
       });
@@ -83,27 +90,10 @@ class PublicBotRepository {
     }
   }
 
-  /// Which of [botIds] this account has already liked.
-  ///
-  /// One query for the page rather than a column on the listing, because
-  /// "have *I* liked this" is per-reader and a listing is shared. Signed out,
-  /// or asked about nothing, it is the empty set — a heart that is never
-  /// filled in is the right answer then.
-  Future<Set<String>> _likedAmong(List<dynamic> botIds) async {
-    final uid = _uid;
-    if (uid == null || botIds.isEmpty) return const {};
-    try {
-      final rows = await _client
-          .from(_likes)
-          .select('bot_id')
-          .eq('user_id', uid)
-          .inFilter('bot_id', botIds);
-      return {for (final r in rows) r['bot_id'] as String};
-    } catch (_) {
-      // A directory that renders without hearts is worth more than one that
-      // refuses to render.
-      return const {};
-    }
+  /// Whether the embedded `mine` (this account's like, if any) holds a row.
+  static bool _likedByMe(Map<String, dynamic> row) {
+    final mine = row['mine'];
+    return mine is List && mine.isNotEmpty;
   }
 
   /// The caller's own listings, delisted ones included — the list the publish
