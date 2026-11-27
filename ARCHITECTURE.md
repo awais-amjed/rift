@@ -1306,7 +1306,8 @@ only under the uploader's own report, within an hour of filing it and four
 files to a report, so a report id is not somewhere to keep putting bytes. Only
 a moderator with a second factor reads them, on `rift-admin`'s Bug reports
 page; central deletes a report after 90 days, or sooner when a moderator deletes
-it there (`moderation_delete_bug_report`), and the nightly sweep its files. A
+it there (`moderation_delete_bug_report`, or several at once with
+`moderation_delete_bug_reports`), and the nightly sweep its files. A
 report's words, without its logs or who sent it, can also post to the moderators'
 private channel (`report_webhook_config`, in `rift-central`'s HOSTING.md).
 The dialog says what goes with it before anything is sent. On a desktop,
