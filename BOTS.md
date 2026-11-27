@@ -597,10 +597,12 @@ the bot from slot 0 with that key. Each row sealed rings the bot `voice_key` on 
 `user:<bot id>` (self-host 088), with the channel and the version and nothing of the key; the SDK
 reads its row again through `my_channel_key`, takes it only if it is newer, and overwrites slot 0
 (`follow_media_key` / `followMediaKey`). A ring lost on the way is caught by a re-read every 30
-seconds. Before this a bot read its key once, at the join, and one playing through a rotation was
-heard by nobody until it was summoned again (found live Nov 27 2026). The ring adds no way to give
-a bot a bad key: who may seal a row is still `bot_voice_keys_insert`, a member holding the room's
-newest version, once a version.
+seconds. What a member misses is the moment between their client moving and the bot taking its new
+row: measured Nov 27 2026 from a member's output in 10 ms windows, nothing that showed for the Rust
+SDK and 390 ms for the Node SDK, one rotation each. Before this a bot read its key once, at the
+join, and one playing through a rotation was heard by nobody until it was summoned again (found live
+Nov 27 2026). The ring adds no way to give a bot a bad key: who may seal a row is still
+`bot_voice_keys_insert`, a member holding the room's newest version, once a version.
 
 Getting this wrong looked like nothing at all: the bot published happily, its own log said it was
 fine, and every member's client reported `FrameCryptorStateMissingKey` about a participant it could
