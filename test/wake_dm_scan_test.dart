@@ -2,7 +2,9 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rift/data/classes/message_body.dart';
+import 'package:rift/data/enums/notification_level.dart';
 import 'package:rift/logic/services/notification_ids.dart';
+import 'package:rift/logic/services/push_wake/wake_central_reader.dart';
 import 'package:rift/logic/services/push_wake/wake_dm_scan.dart';
 import 'package:rift/logic/services/push_wake/wake_marks.dart';
 import 'package:rift_crypto/rift_crypto.dart';
@@ -147,5 +149,55 @@ void main() {
       limit: 2,
     );
     expect(items, hasLength(2));
+  });
+
+  group('central\'s own answer', () {
+    /// A row as central's `dm_conversations` sends it: the peer named as
+    /// central's `users` names them, with the count and level on the row.
+    Future<Map<String, dynamic>> centralRow({
+      int unread = 2,
+      String? level,
+    }) async {
+      final server = await conversation(text: 'from central');
+      return {
+        'peer_id': peerId,
+        'handle': 'noor',
+        'chat_public_key': server['peer_chat_public_key'],
+        'signing_public_key': server['peer_public_key'],
+        'state': 'friends',
+        'level': level,
+        'latest_inbound': 10,
+        'unread': unread,
+        'last_message': server['last_message'],
+      };
+    }
+
+    test('is read and spoken about', () async {
+      final page = WakeCentralReader.scanPage({
+        'conversations': [await centralRow()],
+        'has_more': false,
+      })!;
+      expect(page.unread, {peerId: 2});
+      final items = await scan(page.rows, unread: page.unread);
+      expect(items, hasLength(1));
+      expect(items.single.notice.title, 'noor (2)');
+      expect(items.single.notice.body, 'from central');
+    });
+
+    test('a bare list is not its shape', () {
+      expect(WakeCentralReader.scanPage([]), isNull);
+      expect(WakeCentralReader.scanPage(null), isNull);
+    });
+
+    test(
+      'carries each row\'s level, and nothing unread is not counted',
+      () async {
+        final page = WakeCentralReader.scanPage({
+          'conversations': [await centralRow(unread: 0, level: 'none')],
+        })!;
+        expect(page.unread, isEmpty);
+        expect(page.levels, {peerId: NotificationLevel.none});
+      },
+    );
   });
 }

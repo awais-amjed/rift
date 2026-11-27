@@ -74,21 +74,13 @@ class WakeCentralReader {
       },
     );
     try {
-      final counts = await client.rpc('unread_counts');
-      final unread = _unreadDms(counts);
-      if (unread.isEmpty) return emptyHarvest;
-
-      // Levels arrive with the counts, so a muted
-      // conversation is dropped here as well as at the ring trigger — a wake
-      // caused by somebody else must not speak for it on the way past.
-      final prefs = counts is Map ? counts['prefs'] : null;
-      final levels = NotificationLevel.mapFrom(
-        prefs is Map ? prefs['dms'] : null,
-        fallback: NotificationLevel.dmDefault,
-      );
-
-      final conversations = await client.rpc('dm_conversations');
-      if (conversations is! List) return failedHarvest;
+      // One read. Each row carries its unread count and its level, which
+      // `unread_counts` used to be asked for first. Bounded, since a wake
+      // that hangs holds the phone awake for nothing.
+      final answer = await client.rpc('dm_conversations').timeout(_deadline);
+      final page = scanPage(answer);
+      if (page == null) return failedHarvest;
+      if (page.unread.isEmpty) return emptyHarvest;
 
       final identity = await _crypto.deriveChatIdentity(
         masterSeed: seed,
@@ -98,13 +90,16 @@ class WakeCentralReader {
 
       return (
         items: await _dms.scan(
-          conversations: conversations.cast<Map<String, dynamic>>(),
-          unread: unread,
+          conversations: page.rows,
+          unread: page.unread,
           myUserId: session.userId,
           myChatKeyPair: identity.keyPair,
           targetFor: ConversationNotificationPayload.centralDm,
           marks: marks,
-          levels: levels,
+          // A muted conversation is dropped here as well as at the ring
+          // trigger: a wake caused by somebody else must not speak for it
+          // on the way past.
+          levels: page.levels,
           limit: maxScopes,
         ),
         failed: false,
@@ -116,14 +111,50 @@ class WakeCentralReader {
     }
   }
 
-  static Map<String, int> _unreadDms(dynamic counts) {
-    final dms = counts is Map ? counts['dms'] : null;
-    if (dms is! Map) return const {};
-    return {
-      for (final entry in dms.entries)
-        if (entry.value is int && (entry.value as int) > 0)
-          '${entry.key}': entry.value as int,
-    };
+  static const _deadline = Duration(seconds: 10);
+
+  /// Central's `dm_conversations` answer, put in the shape [WakeDmScan]
+  /// reads, with the unread counts and levels its rows carry. Null when it is
+  /// not one.
+  ///
+  /// The answer is `{conversations, has_more}`, and a row names the peer's
+  /// keys and handle as central's `users` does, where a server's names them
+  /// `peer_*`. Read as a bare list with the server's names, as it was until
+  /// Nov 27, every central wake failed and said only that something arrived.
+  static ({
+    List<Map<String, dynamic>> rows,
+    Map<String, int> unread,
+    Map<String, NotificationLevel> levels,
+  })?
+  scanPage(Object? answer) {
+    final list = answer is Map ? answer['conversations'] : null;
+    if (list is! List) return null;
+    final rows = <Map<String, dynamic>>[];
+    final unread = <String, int>{};
+    final levels = <String, Object?>{};
+    for (final row in list) {
+      if (row is! Map) continue;
+      final peerId = row['peer_id'];
+      if (peerId is! String) continue;
+      final count = row['unread'];
+      if (count is int && count > 0) unread[peerId] = count;
+      levels[peerId] = row['level'];
+      rows.add({
+        'peer_id': peerId,
+        'peer_name': row['handle'],
+        'peer_chat_public_key': row['chat_public_key'],
+        'peer_public_key': row['signing_public_key'],
+        'last_message': row['last_message'],
+      });
+    }
+    return (
+      rows: rows,
+      unread: unread,
+      levels: NotificationLevel.mapFrom(
+        levels,
+        fallback: NotificationLevel.dmDefault,
+      ),
+    );
   }
 
   /// The stored session, if there is one and it is still good for a moment
