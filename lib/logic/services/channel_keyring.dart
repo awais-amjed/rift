@@ -246,12 +246,28 @@ class ChannelKeyring with _KeyringSealingMixin {
     if (version > currentVersion && keys.containsKey(version)) {
       currentVersion = version;
     }
-    // After the move, not before: a rotation changes which version a bot
-    // should be sealed under, and the answer lists who is short of this one.
-    if (sealBots && version == currentVersion && keys.containsKey(version)) {
+    if (version == currentVersion && keys.containsKey(version)) {
+      // The read took the channel's lease when somebody lacks this version
+      // (`channel_key_state`): the server hands them to whoever asked and
+      // keeps every other member's sweep off the channel meanwhile. So whoever
+      // asked heals them, as a load does. Left to the sweep, the channel a
+      // member had open, or was in a call in, was healed by nobody for as long
+      // as they stayed (live test, Nov 27: an unban healed the member back
+      // everywhere but there).
+      final missing = (data['members_missing'] as List? ?? const [])
+          .cast<Map<String, dynamic>>();
+      if (missing.isNotEmpty) {
+        unawaited(
+          healMembers(channelId, version, missing, serverId: server.id),
+        );
+      }
+      // After the move, not before: a rotation changes which version a bot
+      // should be sealed under, and the answer lists who is short of this one.
       final bots = (data['bots_missing'] as List? ?? const [])
           .cast<Map<String, dynamic>>();
-      if (bots.isNotEmpty) unawaited(sealBotKeys(channelId, version, bots));
+      if (sealBots && bots.isNotEmpty) {
+        unawaited(sealBotKeys(channelId, version, bots));
+      }
     }
     return gained;
   }

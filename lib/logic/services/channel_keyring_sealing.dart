@@ -84,13 +84,17 @@ mixin _KeyringSealingMixin {
 
   /// Seal the current channel key to members who lack an entry. Conflicts are
   /// fine — another client healed them first.
+  ///
+  /// [serverId] is the server the keys were read from, for a ring absorbed
+  /// there without ever being loaded; null is the one it was loaded from.
   Future<void> healMembers(
     String channelId,
     int keyVersion,
-    List<Map<String, dynamic>> members,
-  ) async {
+    List<Map<String, dynamic>> members, {
+    String? serverId,
+  }) async {
     final channelKey = keys[keyVersion];
-    final serverId = _serverId;
+    serverId ??= _serverId;
     if (channelKey == null || serverId == null) return;
     try {
       final entries = await _crypto.sealKeyringEntries(
