@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:equatable/equatable.dart';
@@ -36,6 +37,7 @@ import '../../services/before_quit.dart';
 import '../../services/central_handle.dart';
 import '../../services/chat_attachment_uploader.dart';
 import '../../services/chat_message_ops.dart';
+import '../../services/coalesced_refresh.dart';
 import '../../services/conversation_splice.dart';
 import '../../services/link_preview_fetcher.dart';
 import '../../services/media_store.dart';
@@ -151,7 +153,9 @@ class CentralDmCubit extends Cubit<CentralDmState>
     CentralDmRepository? repo,
     SupabaseBackupRepository? backups,
     CryptoRepository? crypto,
+    Duration rejoinSpread = const Duration(seconds: 3),
   }) : _vaultCubit = vaultCubit,
+       _rejoinSpread = rejoinSpread,
        _appCubit = appCubit,
        _lastSurface = appCubit.state.surface,
        _repo = repo ?? CentralDmRepository(),
@@ -211,11 +215,13 @@ class CentralDmCubit extends Cubit<CentralDmState>
   ///
   /// Both lists are re-read, because most changes here move a row between
   /// them and two of them (declining, and the peer deleting their request)
-  /// remove messages.
+  /// remove messages. A ring naming this device's own session is the echo of
+  /// a change made here, which re-read when it was answered (`_change`).
   @override
-  void _onGraphChanged() {
+  void _onGraphChanged(String? session) {
     if (isClosed) return;
-    unawaited(loadFriends().then((_) => refreshConversations()));
+    if (session != null && session == _repo.currentSessionId) return;
+    unawaited(_graphReread());
   }
 
   /// A DM arrived from [senderId]. Only their conversation can have moved, so
@@ -282,7 +288,28 @@ class CentralDmCubit extends Cubit<CentralDmState>
     final rejoin = _incomingJoinedBefore;
     _incomingJoinedBefore = true;
     if (!rejoin) return;
-    unawaited(loadFriends().then((_) => refreshConversations()));
+    unawaited(_afterRejoinPause().then((_) => _readMissed()));
+  }
+
+  /// A Realtime or gateway restart drops every client at once, and each
+  /// rejoins within the same second. Without a pause the reads below all
+  /// landed on central together, three to five a client.
+  Future<void> _afterRejoinPause() => _rejoinSpread == Duration.zero
+      ? Future.value()
+      : Future.delayed(
+          Duration(
+            milliseconds: _rejoinJitter.nextInt(_rejoinSpread.inMilliseconds),
+          ),
+        );
+
+  /// How widely rejoins are spread — see [_afterRejoinPause]. A test sets it
+  /// to nothing.
+  final Duration _rejoinSpread;
+  static final _rejoinJitter = Random();
+
+  void _readMissed() {
+    if (isClosed || state.status != CentralDmStatus.ready) return;
+    unawaited(_graphReread());
     if (state.openPeerId == null) return;
     if (state.chatStatus == DmChatStatus.error &&
         (state.showingSaved || state.loadFailed)) {

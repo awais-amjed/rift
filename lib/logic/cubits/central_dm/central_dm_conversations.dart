@@ -67,8 +67,13 @@ mixin _CentralDmConversationsMixin on Cubit<CentralDmState> {
   /// account was set up. [listed] waits on it.
   bool _conversationsListed = false;
 
+  /// Each peer's row re-read, coalesced: a burst of ten messages was ten
+  /// reads of the same row, one per ring. See [CoalescedRefresh].
+  final Map<String, CoalescedRefresh<void>> _peerReads = {};
+
   /// Forget where the list had got to — on teardown, with the account.
   void _resetConversationReads() {
+    _peerReads.clear();
     _conversationsCursor = null;
     _conversationReads++;
     _conversationsListed = false;
@@ -129,7 +134,10 @@ mixin _CentralDmConversationsMixin on Cubit<CentralDmState> {
   /// which rebuilds the first page out of every message the account has
   /// exchanged in thirty days — on every device the account is signed in on,
   /// for every message.
-  Future<void> refreshConversation(String peerId) async {
+  Future<void> refreshConversation(String peerId) => (_peerReads[peerId] ??=
+      CoalescedRefresh(() => _readConversation(peerId)))();
+
+  Future<void> _readConversation(String peerId) async {
     if (_myUserId == null) return;
     final page = await _fetchConversations(peer: peerId);
     if (isClosed || page == null) return;

@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:cryptography/cryptography.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide ErrorCode;
 
 import '../../logic/services/broadcast_payload.dart';
@@ -66,6 +69,21 @@ class CentralDmRepository
   final AttachmentRepository _attachments = AttachmentRepository();
 
   User? get currentUser => _client.auth.currentUser;
+
+  /// The auth session this device signed in with, as its token names it. The
+  /// same across token refreshes, and another device's is another one — which
+  /// is what lets a `graph` ring this device caused be told from one it did
+  /// not (central's `graph_ring`).
+  String? get currentSessionId {
+    final token = _client.auth.currentSession?.accessToken;
+    if (token == null) return null;
+    try {
+      final id = decodeJwt(token).payload.claims['session_id'];
+      return id is String ? id : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   Stream<AuthState> get authChanges => _client.auth.onAuthStateChange;
 
@@ -261,7 +279,8 @@ class CentralDmRepository
   /// [onUpdate] for one its sender edited or deleted, [onPrefsChanged] for a
   /// notification level set on another device, [onRead] for a read cursor
   /// moved on one, [onGraphChanged] for a
-  /// friendship or a block, and [onPinChanged] for a pin either side moved.
+  /// friendship or a block (with the session that made it, when it was one of
+  /// this account's), and [onPinChanged] for a pin either side moved.
   ///
   /// [onStatus] hears each join, so a rejoin can read what was missed.
   ///
@@ -278,7 +297,7 @@ class CentralDmRepository
     required void Function(String messageId, String senderId) onUpdate,
     required void Function() onPrefsChanged,
     required void Function(String? peerId) onRead,
-    required void Function() onGraphChanged,
+    required void Function(String? session) onGraphChanged,
     required void Function(String peerId, String messageId) onPinChanged,
     void Function(RealtimeSubscribeStatus status)? onStatus,
   }) {
@@ -327,7 +346,11 @@ class CentralDmRepository
             callback: (message) =>
                 onRead(BroadcastPayload.stringOf(message, 'scope_id')),
           )
-          ..onBroadcast(event: 'graph', callback: (_) => onGraphChanged())
+          ..onBroadcast(
+            event: 'graph',
+            callback: (message) =>
+                onGraphChanged(BroadcastPayload.stringOf(message, 'session')),
+          )
           // Each join, the first and every one after a dropped connection.
           // A microtask later: realtime_client calls this from inside its
           // walk over the socket's channels (see `ServerRealtime._sendJoin`).

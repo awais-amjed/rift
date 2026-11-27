@@ -31,7 +31,7 @@ mixin _CentralDmReadyMixin
   Future<void> _teardown();
   void _onIncoming(String senderId);
   void _onMessageUpdated(String messageId, String senderId);
-  void _onGraphChanged();
+  void _onGraphChanged(String? session);
   void _onIncomingStatus(RealtimeSubscribeStatus status);
   @override
   void _onReadElsewhere(String? peerId);
@@ -324,11 +324,9 @@ mixin _CentralDmReadyMixin
       onStatus: _onIncomingStatus,
     );
     emit(state.copyWith(status: CentralDmStatus.ready, myHandle: handle));
-    // Before the conversations: the graph is what decides whether each of them
-    // is a conversation or a request, and loading them the other way round
-    // shows every request in the conversation list for one frame.
-    await loadFriends();
-    unawaited(refreshConversations());
-    unawaited(refreshQuota());
+    // All three at once. The graph used to go first, because it decided
+    // whether a row was a conversation or a request; each row carries its
+    // own state now, so nothing waits on it.
+    await Future.wait([loadFriends(), refreshConversations(), refreshQuota()]);
   }
 }

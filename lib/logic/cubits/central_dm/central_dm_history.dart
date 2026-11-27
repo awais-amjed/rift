@@ -23,7 +23,7 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
   CentralDmRepository get _repo;
 
   /// Implemented by the send mixin.
-  Future<void> refreshQuota();
+  Future<void> refreshStaleQuota();
 
   /// Implemented by the unread mixin.
   void markOpenConversationRead();
@@ -79,7 +79,12 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
         clearOpenPeerState: !samePeer,
       ),
     );
-    unawaited(_refreshOpenPeerState());
+    // A listed conversation's row says where the two of you stand
+    // ([CentralDmState.stateFor] reads it first), so only somebody with no
+    // row yet — opened from the friends page — has to be asked.
+    if (!state.conversations.any((c) => c.peerId == peerId)) {
+      unawaited(_refreshOpenPeerState());
+    }
 
     final key = await _dmKeyFor(peerId, _peerChatKeys[peerId]);
     if (state.openPeerId != peerId) return;
@@ -114,7 +119,7 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     }
     emit(state.copyWith(chatStatus: DmChatStatus.ready));
     markOpenConversationRead();
-    unawaited(refreshQuota());
+    unawaited(refreshStaleQuota());
     if (_rangWhileOpening) {
       _rangWhileOpening = false;
       unawaited(_fetchAfterLatest());
@@ -227,7 +232,16 @@ mixin _CentralDmHistoryMixin on Cubit<CentralDmState>, _CentralDmDecryptMixin {
     return true;
   }
 
-  Future<void> _fetchAfterLatest() async {
+  /// What is newer than the newest message held, read once however many
+  /// rings ask while a read is out ([CoalescedRefresh]): a burst of messages
+  /// was a read each.
+  Future<void> _fetchAfterLatest() => _afterLatest();
+
+  late final CoalescedRefresh<void> _afterLatest = CoalescedRefresh(
+    _readAfterLatest,
+  );
+
+  Future<void> _readAfterLatest() async {
     final peerId = state.openPeerId;
     if (peerId == null) return;
     // Not while the list is a window into history: "newer than the newest

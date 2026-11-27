@@ -14,7 +14,7 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
   Future<ServerIdentity> _signingIdentity();
 
   /// Implemented by the conversations mixin.
-  Future<void> refreshConversations();
+  Future<void> refreshConversation(String peerId);
 
   /// Implemented by the friends mixin.
   Future<void> loadFriends();
@@ -31,10 +31,31 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
 
   int _pendingCounter = 0;
 
+  /// When the meter was last answered, by a read or by a send (each send
+  /// answers with what is left).
+  DateTime? _quotaAt;
+
+  /// The meter, read again only if nothing has answered it lately. Opening a
+  /// conversation asked every time, for a number the last send had just
+  /// given; a few minutes old is close enough for a meter another device's
+  /// sends can move anyway.
+  Future<void> refreshStaleQuota() async {
+    final at = _quotaAt;
+    if (at != null &&
+        state.quota != null &&
+        DateTime.now().difference(at) < _quotaFresh) {
+      return;
+    }
+    await refreshQuota();
+  }
+
+  static const _quotaFresh = Duration(minutes: 5);
+
   Future<void> refreshQuota() async {
     final response = await _repo.getQuota();
     if (isClosed || !response.success) return;
     final data = response.data as Map<String, dynamic>;
+    _quotaAt = DateTime.now();
     emit(
       state.copyWith(
         quota: data['quota'] as int?,
@@ -268,11 +289,13 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
             remaining: data['remaining'] as int?,
           ),
         );
+        _quotaAt = DateTime.now();
         unawaited(returnToPresent());
-        unawaited(refreshConversations());
+        unawaited(refreshConversation(peerId));
         return false;
       }
       final here = open();
+      _quotaAt = DateTime.now();
       emit(
         state.copyWith(
           // Away, there is nothing to swap: the next open's page has it.
@@ -300,7 +323,8 @@ mixin _CentralDmSendMixin on Cubit<CentralDmState> {
       if (FriendshipState.parse(data['state']) != state.stateFor(peerId)) {
         unawaited(loadFriends());
       }
-      unawaited(refreshConversations());
+      // Only this row can have moved: it goes to the top with the send.
+      unawaited(refreshConversation(peerId));
       return false;
     } on AttachmentUploadException catch (e) {
       HelperMethods.printDebug('[CentralDM] attachment upload failed: $e');

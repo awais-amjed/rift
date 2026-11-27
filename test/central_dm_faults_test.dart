@@ -82,9 +82,25 @@ class _Central extends CentralDmRepository {
   APIResponse Function(Map<String, dynamic> envelope)? answerSend;
 
   FriendshipState? standing = FriendshipState.friends;
+  int standingReads = 0;
+  int countReads = 0;
+
+  /// The conversation list's rows, and the reads of it: whole pages, and
+  /// one peer's row.
+  List<Map<String, dynamic>> rows = const [];
+  int pageReads = 0;
+  int rowReads = 0;
+
+  /// This device's auth session, as a graph ring would name it.
+  String? session = 'this-device';
 
   int joins = 0;
   void Function(RealtimeSubscribeStatus status)? joined;
+  void Function(String senderId)? rang;
+  void Function(String? session)? graph;
+
+  @override
+  String? get currentSessionId => session;
 
   @override
   User? get currentUser => const User(
@@ -117,19 +133,41 @@ class _Central extends CentralDmRepository {
   }
 
   @override
-  Future<APIResponse> friendCounts() async =>
-      APIResponse.success((friends: 0, incoming: 0, outgoing: 0, blocked: 0));
+  Future<APIResponse> friendCounts() async {
+    countReads++;
+    return APIResponse.success((
+      friends: 0,
+      incoming: 0,
+      outgoing: 0,
+      blocked: 0,
+    ));
+  }
 
   @override
-  Future<FriendshipState?> friendshipState(String peerId) async => standing;
+  Future<FriendshipState?> friendshipState(String peerId) async {
+    standingReads++;
+    return standing;
+  }
 
   @override
   Future<APIResponse> listConversations({
     int limit = 30,
     int? before,
     String? peer,
-  }) async =>
-      APIResponse.success({'conversations': const [], 'has_more': false});
+  }) async {
+    if (peer == null) {
+      pageReads++;
+    } else {
+      rowReads++;
+    }
+    return APIResponse.success({
+      'conversations': [
+        for (final row in rows)
+          if (peer == null || row['peer_id'] == peer) row,
+      ],
+      'has_more': false,
+    });
+  }
 
   @override
   Future<APIResponse> getQuota() async =>
@@ -182,12 +220,14 @@ class _Central extends CentralDmRepository {
     required void Function(String messageId, String senderId) onUpdate,
     required void Function() onPrefsChanged,
     required void Function(String? peerId) onRead,
-    required void Function() onGraphChanged,
+    required void Function(String? session) onGraphChanged,
     required void Function(String peerId, String messageId) onPinChanged,
     void Function(RealtimeSubscribeStatus status)? onStatus,
   }) {
     joins++;
     joined = onStatus;
+    rang = onInsert;
+    graph = onGraphChanged;
     return RealtimeChannel('user:$_me', RealtimeClient('ws://dms.invalid'));
   }
 
@@ -235,6 +275,7 @@ void main() {
       appCubit: AppCubit(),
       repo: central,
       backups: backups,
+      rejoinSpread: Duration.zero,
     );
     await _settle();
   }
@@ -412,5 +453,79 @@ void main() {
     await _settle();
     expect(dms.state.chatStatus, DmChatStatus.ready);
     expect(central.afterReads, greaterThanOrEqualTo(1));
+  });
+
+  group('what a change costs (review, Nov 27)', () {
+    test('a graph ring this device caused is not read twice', () async {
+      await start();
+      final before = central.countReads;
+
+      central.graph!('this-device');
+      await _settle();
+      expect(central.countReads, before, reason: 'its own echo');
+
+      central.graph!('another-device');
+      await _settle();
+      expect(central.countReads, before + 1);
+
+      // No session behind it: a moderator, an account deleted.
+      central.graph!(null);
+      await _settle();
+      expect(central.countReads, before + 2);
+    });
+
+    test('a burst of messages reads the row and the chat once more', () async {
+      await start();
+      await open();
+      final rows = central.rowReads;
+      final after = central.afterReads;
+
+      for (var i = 0; i < 10; i++) {
+        central.rang!(_peer);
+      }
+      await _settle();
+
+      // One read running and one turn after it, for everyone who rang.
+      expect(central.rowReads - rows, lessThanOrEqualTo(2));
+      expect(central.afterReads - after, lessThanOrEqualTo(2));
+      expect(central.rowReads - rows, greaterThanOrEqualTo(1));
+    });
+
+    test('a send re-reads its own row, not the whole page', () async {
+      await start();
+      await open();
+      final pages = central.pageReads;
+      final rows = central.rowReads;
+
+      await dms.sendDm('hello');
+      await _settle();
+
+      expect(central.pageReads, pages);
+      expect(central.rowReads, rows + 1);
+    });
+
+    test(
+      'a listed conversation opens without asking where you stand',
+      () async {
+        central.rows = [
+          {
+            'peer_id': _peer,
+            'handle': 'peer',
+            'chat_public_key': _seed(5),
+            'signing_public_key': _seed(6),
+            'state': 'friends',
+            'unread': 0,
+            'latest_inbound': 0,
+            'last_message': null,
+          },
+        ];
+        await start();
+        final asked = central.standingReads;
+
+        await open();
+        expect(central.standingReads, asked);
+        expect(dms.state.canSendToOpen, isTrue);
+      },
+    );
   });
 }

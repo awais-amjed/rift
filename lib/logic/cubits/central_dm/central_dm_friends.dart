@@ -21,6 +21,15 @@ mixin _CentralDmFriendsMixin on Cubit<CentralDmState> {
   /// Implemented by the history mixin.
   void closeConversation();
 
+  /// The graph and the conversation list, read again together: what every
+  /// change to the graph costs, here or announced. One ring is often several
+  /// (a block ends the friendship too), so the reads are coalesced
+  /// ([CoalescedRefresh]); and the two run side by side, since each list row
+  /// carries its own state and neither has to wait for the other.
+  late final CoalescedRefresh<void> _graphReread = CoalescedRefresh(
+    () => Future.wait([loadFriends(), refreshConversations()]),
+  );
+
   /// Load how many people are in each part of the graph — and, with that, drop
   /// every page loaded from the old ones.
   ///
@@ -134,7 +143,7 @@ mixin _CentralDmFriendsMixin on Cubit<CentralDmState> {
     }
 
     final result = response.data as ({String handle, FriendshipState state});
-    await loadFriends();
+    await _graphReread();
     emit(
       state.copyWith(
         notice: Notice.success(
@@ -192,7 +201,9 @@ mixin _CentralDmFriendsMixin on Cubit<CentralDmState> {
 
   /// One shape for all six: run it, say why if it failed, then re-read the
   /// graph *and* the conversations — most of these move a row between the two
-  /// sidebar sections, and a couple delete messages outright.
+  /// sidebar sections, and a couple delete messages outright. The `graph`
+  /// ring the change causes is let pass on this device (central's
+  /// `graph_ring` names the session), so this read is the only one.
   Future<bool> _change(
     Future<APIResponse> Function() call, {
     String? closeIfOpen,
@@ -206,8 +217,7 @@ mixin _CentralDmFriendsMixin on Cubit<CentralDmState> {
     if (closeIfOpen != null && state.openPeerId == closeIfOpen) {
       closeConversation();
     }
-    await loadFriends();
-    unawaited(refreshConversations());
+    await _graphReread();
     return true;
   }
 
