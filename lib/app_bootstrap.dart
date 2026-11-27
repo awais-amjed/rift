@@ -120,8 +120,12 @@ class AppBootstrap {
       await TrayService.instance.init();
       // The runner left the window hidden for a start at sign-in. With no
       // tray to come back from, it waits on the taskbar instead.
-      if (LoginLaunch.startedMinimized && !TrayService.instance.isShowing) {
-        AppWindow.showMinimized();
+      if (LoginLaunch.startedMinimized) {
+        // Out of sight either way, and nothing says so until it is shown,
+        // when its focus sets this back: left at focused, a call rang with
+        // no notice and messages came unannounced.
+        WindowFocusService.instance.setFocused(false);
+        if (!TrayService.instance.isShowing) AppWindow.showMinimized();
       }
     }
     // Rewritten at every start, so the entry follows the program if it
@@ -132,8 +136,7 @@ class AppBootstrap {
     // the home screen). Not awaited: nothing here waits on the menu.
     if (!kIsWeb &&
         Platform.isLinux &&
-        (LinuxDesktopEntry.isAppImage ||
-            appCubit.state.addToAppMenu == true)) {
+        (LinuxDesktopEntry.isAppImage || appCubit.state.addToAppMenu == true)) {
       unawaited(LinuxDesktopEntry.ensure());
     }
     // Not desktop-only any more: Android posts these too, and the web posts

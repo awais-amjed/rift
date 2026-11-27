@@ -12,7 +12,8 @@ import '../helper_methods.dart';
 /// returns to the window.
 ///
 /// Defaults to focused: the window is visible and focused at launch, and on web
-/// (where there are no window events) we simply never notify.
+/// (where there are no window events) we simply never notify. A start at
+/// sign-in, which leaves the window hidden, sets it false (`AppBootstrap`).
 class WindowFocusService {
   WindowFocusService._();
   static final WindowFocusService instance = WindowFocusService._();
