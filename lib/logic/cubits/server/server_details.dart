@@ -13,14 +13,21 @@ mixin _ServerDetailsMixin on Cubit<ServerState> {
   });
   void removeServer(String serverId);
   void noteServerGone({required String supabaseUrl, required String id});
+  bool isServerGone({required String supabaseUrl, required String id});
 
   /// Drop a server that answered as though it had never heard of us, and say
-  /// so.
+  /// so — unless this device is leaving or deleting it, which noted it gone
+  /// before asking. A delete rings every member's app, the owner's own among
+  /// them, and the owner's request answers only after its first purge pass:
+  /// the ring won, and the owner was told "deleted, or you were removed"
+  /// while their own delete was still spinning (seen live Nov 27).
   void _forgetGoneServer(Server server) {
+    final ours = isServerGone(supabaseUrl: server.supabaseUrl, id: server.id);
     // Before the removal, because the removal is what schedules the backup
     // that would otherwise bring it straight back.
     noteServerGone(supabaseUrl: server.supabaseUrl, id: server.id);
     removeServer(server.id);
+    if (ours) return;
     emit(
       state.copyWith(
         notice: Notice.info(

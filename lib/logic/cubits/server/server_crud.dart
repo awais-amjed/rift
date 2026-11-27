@@ -195,6 +195,25 @@ mixin _ServerCrudMixin on Cubit<ServerState> {
     return result.outcome;
   }
 
+  /// Delete [server] for everybody (the owner's `delete_server`), then forget
+  /// it here.
+  ///
+  /// Noted gone before asking, as a leave is: the delete rings every member's
+  /// app, this one too, and a re-read landing before the answer finds the
+  /// server gone. Noted, that re-read drops it quietly instead of telling the
+  /// owner they were removed. A refusal takes the note back and keeps it.
+  Future<({bool success, String? error})> deleteServer(Server server) async {
+    noteServerGone(supabaseUrl: server.supabaseUrl, id: server.id);
+    final result = await _ownershipOn(server.id).deleteServer();
+    if (!result.success) {
+      _clearServerGone(supabaseUrl: server.supabaseUrl, id: server.id);
+      return result;
+    }
+    // The ring may already have taken it.
+    if (state.servers.any((s) => s.id == server.id)) removeServer(server.id);
+    return result;
+  }
+
   void removeServer(String serverId) {
     // Before the server leaves the list, while there is still a session to say
     // it with: a device that stays registered on a server you have left goes

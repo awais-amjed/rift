@@ -1,14 +1,12 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../../../../data/apis/ownership_api.dart';
 import '../../../../../../data/classes/server.dart';
 import '../../../../../../logic/cubits/server/server_cubit.dart';
 import '../../../../../../logic/helper_methods.dart';
 import '../../../../../common/app_button.dart';
 import '../../../../../common/confirm_dialog.dart';
 import '../../../../../common/hint_card.dart';
-import '../../../../../common/server_scope.dart';
 import '../widgets/danger_row.dart';
 import '../widgets/manage_panel.dart';
 
@@ -45,22 +43,17 @@ class _DangerZonePanelState extends State<DangerZonePanel> {
     if (!confirmed || !mounted) return;
 
     setState(() => _isBusy = true);
-    final servers = context.read<ServerCubit>();
-    final result = await OwnershipApi(ServerScope.read(context)).deleteServer();
+    // The cubit forgets the server once it has said yes, whether or not this
+    // page is still open to hear it.
+    final result = await context.read<ServerCubit>().deleteServer(
+      widget.server,
+    );
     if (!result.success) {
       if (!mounted) return;
       setState(() => _isBusy = false);
       HelperMethods.showError(error: result.error ?? 'Could not delete');
       return;
     }
-    // Forgotten here only once the server has said yes, and whether or not
-    // this page is still open to hear it. Noted gone first, as a leave is, or
-    // the backup that follows pulls the cloud's copy back into the rail.
-    servers.noteServerGone(
-      supabaseUrl: widget.server.supabaseUrl,
-      id: widget.server.id,
-    );
-    servers.removeServer(widget.server.id);
     if (!mounted) return;
     setState(() => _isBusy = false);
     HelperMethods.showSuccess(message: '${widget.server.name} is gone');
