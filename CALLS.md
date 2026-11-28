@@ -793,7 +793,9 @@ screens the Windows 10 way (`RIFT_SCREENS_ON_DXGI=1`), with Heaven running and
 the pointer circling (`live_dxgi_moving_cursor_leaves_every_picture_whole`),
 beta.9's DLL sent 10 black and 7 grey pictures of 1,776 in 30 s, and the fixed
 one none of 1,793 in 30 s and of 3,585 in 60 s, at 60 fps, the cursor drawn
-about twice a picture (Nov 28 2026). Verified Nov 19 2026 in the Windows 10 VM beside
+about twice a picture (Nov 28 2026). In the Windows 10 VM, on Windows 10's own
+duplication, beta.9's DLL sent 12 black and 56 grey of 1,800 in 30 s and the
+fixed one none of 3,593 in 60 s (Nov 28 2026). Verified Nov 19 2026 in the Windows 10 VM beside
 Heaven: 57–60 fps with the pointer on the desktop, draws under 2 ms. Verified
 again with the shape from DXGI on Nov 20 2026, in the same VM: the busy cursor turned, a
 144-pixel pointer was drawn at that size, an inverting one inverted, and the
