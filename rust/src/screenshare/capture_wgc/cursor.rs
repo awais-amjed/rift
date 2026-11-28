@@ -244,9 +244,9 @@ impl CursorDrawer {
             // The encoder reads the picture next; it must not stay bound here.
             context.PSSetShaderResources(0, Some(&[None]));
             context.OMSetRenderTargets(None, None);
-            // The encoder's conversion (`d3d11_nv12.c`) draws on this context
-            // without setting either: left inverting, it turned every picture
-            // grey once the text cursor had been drawn.
+            // Left inverting, an older conversion (`d3d11_nv12.c`), which set
+            // neither, turned every picture grey once the text cursor had been
+            // drawn. It sets both now, but nothing else should meet these.
             context.OMSetBlendState(None, None, u32::MAX);
             context.RSSetState(None);
         }

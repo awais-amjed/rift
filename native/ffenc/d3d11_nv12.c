@@ -10,6 +10,16 @@
  * device's own queue, in order, ahead of the encoder, and OBS's winrt-capture.cpp
  * lets a WGC frame go straight after queueing its copy the same way.
  *
+ * The capture draws on the same immediate context from threads of its own: a
+ * Windows 10 screen's cursor (capture_wgc/cursor.rs) and an HDR screen's
+ * picture brought down to SDR (capture_wgc/hdr.rs). The device's lock makes
+ * each call alone safe, not a run of them, so a draw here took up another's
+ * states half-way: one landing between the picture bound and the planes drawn
+ * unbound it, and the picture went out black or grey. A Windows 10 whole-screen
+ * share flickered so at its viewer (Nov 27 2026). A conversion holds the lock
+ * from its first state to its flush, as those draws hold it for theirs, and
+ * sets every state it draws with, blend and rasterizer too.
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, version 3.
@@ -30,6 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <d3d10.h>
 #include <d3d11.h>
 #include <d3dcompiler.h>
 #include <windows.h>
@@ -68,6 +79,8 @@ struct D3d11Nv12 {
   int height;
   ID3D11Device* device;
   ID3D11DeviceContext* context;
+  // The device's lock, held across a conversion; NULL if it has none.
+  ID3D10Multithread* lock;
   ID3D11VertexShader* vertex;
   ID3D11PixelShader* pixel_y;
   ID3D11PixelShader* pixel_uv;
@@ -249,6 +262,10 @@ D3d11Nv12* d3d11_nv12_open(void* device, int width, int height, char* error,
   path->device = device;
   ID3D11Device_AddRef(path->device);
   ID3D11Device_GetImmediateContext(path->device, &path->context);
+  if (FAILED(ID3D11Device_QueryInterface(path->device, &IID_ID3D10Multithread,
+                                         (void**)&path->lock))) {
+    path->lock = NULL;
+  }
 
   D3D11_SAMPLER_DESC sampler = {
       .Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR,
@@ -408,6 +425,8 @@ static HRESULT draw(D3d11Nv12* path, ID3D11Texture2D* texture, int source_width,
                                               BLACK_UV);
   }
   ID3D11DeviceContext* c = path->context;
+  ID3D11DeviceContext_OMSetBlendState(c, NULL, NULL, 0xffffffff);
+  ID3D11DeviceContext_RSSetState(c, NULL);
   ID3D11DeviceContext_IASetInputLayout(c, NULL);
   ID3D11DeviceContext_IASetPrimitiveTopology(
       c, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -435,10 +454,12 @@ int d3d11_nv12_run(D3d11Nv12* path, void* texture, int source_width,
                    int source_height, const RiftRect* place, AVFrame* frame) {
   int err = av_hwframe_get_buffer(path->frames, frame, 0);
   if (err < 0) return err;
-  HRESULT hr = path->fail_after && ++path->drawn > path->fail_after
-                   ? E_FAIL
-                   : draw(path, texture, source_width, source_height, place,
-                          frame);
+  HRESULT hr = E_FAIL;
+  if (!path->fail_after || ++path->drawn <= path->fail_after) {
+    if (path->lock) ID3D10Multithread_Enter(path->lock);
+    hr = draw(path, texture, source_width, source_height, place, frame);
+    if (path->lock) ID3D10Multithread_Leave(path->lock);
+  }
   if (SUCCEEDED(hr)) {
     path->passing_failures = 0;
     return 0;
@@ -476,6 +497,7 @@ void d3d11_nv12_free(D3d11Nv12** at) {
   if (path->pixel_uv) ID3D11PixelShader_Release(path->pixel_uv);
   if (path->pixel_y) ID3D11PixelShader_Release(path->pixel_y);
   if (path->vertex) ID3D11VertexShader_Release(path->vertex);
+  if (path->lock) ID3D10Multithread_Release(path->lock);
   if (path->context) ID3D11DeviceContext_Release(path->context);
   if (path->device) ID3D11Device_Release(path->device);
   free(path);

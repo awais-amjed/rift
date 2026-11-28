@@ -2070,3 +2070,192 @@ async fn live_wgc_silent_from_the_start_moves_to_libwebrtc() {
     assert_eq!(stopped.unwrap(), "Stopped successfully");
     viewer.close().await.unwrap();
 }
+
+/// How a picture looks, broadly: its mean luma, and how far its chroma
+/// strays from grey on average.
+#[cfg(target_os = "windows")]
+#[derive(Clone, Copy, Debug)]
+struct Look {
+    luma: f32,
+    colour: f32,
+}
+
+#[cfg(target_os = "windows")]
+fn look_of(picture: &I420Buffer) -> Look {
+    let (y, u, v) = picture.data();
+    let (sy, su, sv) = picture.strides();
+    let (w, h) = (picture.width() as usize, picture.height() as usize);
+    let (cw, ch) = (w.div_ceil(2), h.div_ceil(2));
+    let mut luma = 0u64;
+    for row in (0..h).step_by(4) {
+        luma += y[row * sy as usize..row * sy as usize + w]
+            .iter()
+            .step_by(4)
+            .map(|&b| u64::from(b))
+            .sum::<u64>();
+    }
+    let mut colour = 0u64;
+    for row in (0..ch).step_by(2) {
+        let us = &u[row * su as usize..row * su as usize + cw];
+        let vs = &v[row * sv as usize..row * sv as usize + cw];
+        colour += us
+            .iter()
+            .zip(vs)
+            .step_by(2)
+            .map(|(&a, &b)| u64::from(a.abs_diff(128)) + u64::from(b.abs_diff(128)))
+            .sum::<u64>();
+    }
+    Look {
+        luma: luma as f32 / ((h.div_ceil(4) * w.div_ceil(4)) as f32),
+        colour: colour as f32 / ((ch.div_ceil(2) * cw.div_ceil(2)) as f32),
+    }
+}
+
+/// Whether a picture came out as the race between the cursor's draw and the
+/// encoder's conversion made it: black where the screen is not, or grey
+/// where the screen has colour.
+#[cfg(target_os = "windows")]
+fn torn(now: Look, before: Look) -> bool {
+    let black = now.luma < 20.0 && before.luma > 30.0;
+    let grey = before.colour > 4.0 && now.colour < before.colour / 4.0;
+    black || grey
+}
+
+/// A whole Windows 10 screen, duplicated on the share's device with its cursor
+/// drawn on the GPU, reaches a viewer with no picture black or grey while the
+/// cursor moves. The cursor is drawn on the duplication's thread while the
+/// encoder's thread makes NV12 of the picture before (`d3d11_nv12.c`), both on
+/// the device's one context; a draw of one between the other's states and its
+/// draws unbound the picture, and a friend's whole-screen share flashed black
+/// and grey at its viewer while he switched windows (Nov 27 2026, reports
+/// bc334918 and 51ecda83). Needs Windows 10 or `RIFT_SCREENS_ON_DXGI=1`, a
+/// screen with colour on the encoder's GPU (`RIFT_TEST_SCREEN`, the share
+/// list's index, 0 if unset), better moving and the GPU busy (Heaven), and a
+/// pointer Windows shows.
+#[cfg(target_os = "windows")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a Windows 10 screen share, a LiveKit server, a colourful screen on a GPU with a hardware H264 encoder, and a pointer"]
+async fn live_dxgi_moving_cursor_leaves_every_picture_whole() {
+    use super::capture_wgc::counts;
+    use std::sync::atomic::AtomicBool;
+    use std::sync::Arc;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN,
+    };
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    let server = Server::from_env();
+    let room = live_room("dxgi-cursor");
+    let (viewer, mut events) = viewer_as(&server, &room, "viewer").await;
+    let mut config = h264_share(&server, &room);
+    config.fps = 60;
+    config.selected_video_source_index = Some(
+        std::env::var("RIFT_TEST_SCREEN")
+            .ok()
+            .and_then(|index| index.parse().ok())
+            .unwrap_or(0),
+    );
+    let duplications = counts::DUPLICATIONS.load(Ordering::Relaxed);
+    session::start(config).await.expect("share starts");
+    assert_eq!(
+        counts::DUPLICATIONS.load(Ordering::Relaxed),
+        duplications + 1,
+        "the screen was not duplicated on the share's device"
+    );
+
+    // Round the middle of the primary screen, in its logical pixels, faster
+    // than the share's pictures come, so nearly every one has a cursor drawn.
+    let moving = Arc::new(AtomicBool::new(true));
+    let mover = std::thread::spawn({
+        let moving = moving.clone();
+        move || {
+            // SAFETY: plain queries and a cursor move.
+            let (w, h) = unsafe { (GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)) };
+            let radius = f64::from(h) / 3.0;
+            let mut angle = 0.0f64;
+            while moving.load(Ordering::Relaxed) {
+                let x = f64::from(w) / 2.0 + radius * angle.cos();
+                let y = f64::from(h) / 2.0 + radius * angle.sin();
+                // SAFETY: as above.
+                let _ = unsafe { SetCursorPos(x as i32, y as i32) };
+                angle += 0.05;
+                std::thread::sleep(Duration::from_millis(4));
+            }
+        }
+    });
+
+    let track = next_video_track(&mut events).await;
+    let mut stream = NativeVideoStream::new(track.rtc_track());
+    let settle = Instant::now() + Duration::from_secs(3);
+    let seconds = std::env::var("RIFT_TEST_SECONDS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(30u64);
+    let end = settle + Duration::from_secs(seconds);
+    let drawn = counts::CURSORS_DRAWN.load(Ordering::Relaxed);
+    let mut before: Option<Look> = None;
+    let (mut pictures, mut black, mut grey, mut colourful) = (0u32, 0u32, 0u32, 0u32);
+    let _ = timeout(end - Instant::now(), async {
+        while let Some(frame) = stream.next().await {
+            let now = look_of(&frame.buffer.to_i420());
+            if Instant::now() < settle {
+                before = Some(now);
+                continue;
+            }
+            pictures += 1;
+            let Some(last) = before else {
+                before = Some(now);
+                continue;
+            };
+            if last.colour > 4.0 {
+                colourful += 1;
+            }
+            if torn(now, last) {
+                if now.luma < 20.0 {
+                    black += 1;
+                } else {
+                    grey += 1;
+                }
+                if black + grey <= 10 {
+                    log::warn!(
+                        "dxgi share: picture {pictures} is {}: luma {:.0}, colour {:.1} \
+                         (the one before {:.0}, {:.1})",
+                        if now.luma < 20.0 { "black" } else { "grey" },
+                        now.luma,
+                        now.colour,
+                        last.luma,
+                        last.colour
+                    );
+                }
+                // The next is held to the last good one.
+                continue;
+            }
+            before = Some(now);
+        }
+    })
+    .await;
+    moving.store(false, Ordering::Relaxed);
+    mover.join().unwrap();
+    let cursors = counts::CURSORS_DRAWN.load(Ordering::Relaxed) - drawn;
+    log::info!(
+        "dxgi share, moving cursor: {pictures} pictures in {seconds} s ({colourful} after one with colour), \
+         {cursors} cursors drawn, {black} black and {grey} grey"
+    );
+    assert_eq!(session::stop().await.unwrap(), "Stopped successfully");
+    viewer.close().await.unwrap();
+    assert!(
+        pictures > seconds as u32 * 30,
+        "{pictures} pictures in {seconds} s"
+    );
+    assert!(
+        cursors > seconds as u32 * 30,
+        "only {cursors} cursors drawn: is a pointer shown?"
+    );
+    assert!(
+        colourful > pictures / 2,
+        "only {colourful} of {pictures} pictures followed one with colour: a grey one would not show"
+    );
+    assert_eq!((black, grey), (0, 0), "pictures black and grey");
+}

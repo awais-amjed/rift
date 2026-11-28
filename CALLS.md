@@ -775,10 +775,25 @@ shape handed over, an animated cursor's every frame among them, makes a new
 picture. Of the two textures, one is drawn with straight alpha,
 and one, white where the cursor inverts what is under it (the text cursor), drawn
 with a blend that turns the screen inside out, as Sunshine draws them. The
-encoder's conversion (`d3d11_nv12.c`) draws on the same device without setting
-a blend, so the cursor's draw puts the default back: left inverting, it turned
+cursor's draw puts the default blend back after: left inverting, it once turned
 every picture grey. A draw of 2 ms or more is still logged (`capture: drawing
-the cursor took up to`). Verified Nov 19 2026 in the Windows 10 VM beside
+the cursor took up to`).
+
+The cursor is drawn on the duplication's thread, and the encoder's conversion
+into NV12 (`d3d11_nv12.c`) runs on the encoder's, both on the device's one
+immediate context; an HDR screen's picture brought down to SDR (`hdr.rs`) is a
+third. The device's lock makes each call alone safe, not a run of them, and
+until Nov 28 2026 the conversion set its states and drew without holding it. A
+cursor drawn in between unbound the picture it was reading, and that picture
+went out black, or grey when it fell between the luma and the chroma: a
+friend's whole-screen share flashed both at its viewer while he switched
+windows (Nov 27 2026). Now the conversion holds the lock from its first state
+to its flush, and sets every state it draws with. In the Windows 11 VM taking
+screens the Windows 10 way (`RIFT_SCREENS_ON_DXGI=1`), with Heaven running and
+the pointer circling (`live_dxgi_moving_cursor_leaves_every_picture_whole`),
+beta.9's DLL sent 10 black and 7 grey pictures of 1,776 in 30 s, and the fixed
+one none of 1,793 in 30 s and of 3,585 in 60 s, at 60 fps, the cursor drawn
+about twice a picture (Nov 28 2026). Verified Nov 19 2026 in the Windows 10 VM beside
 Heaven: 57–60 fps with the pointer on the desktop, draws under 2 ms. Verified
 again with the shape from DXGI on Nov 20 2026, in the same VM: the busy cursor turned, a
 144-pixel pointer was drawn at that size, an inverting one inverted, and the

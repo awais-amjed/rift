@@ -1253,6 +1253,10 @@ pub(super) mod counts {
     /// Encoders handed a picture on the GPU, each counted once: one opened on
     /// the share's device, which FFmpeg's AMF logs as "AMF via D3D11.".
     pub(in super::super) static TEXTURE_FEEDS: AtomicU32 = AtomicU32::new(0);
+    /// Windows 10 screens duplicated on the share's device.
+    pub(in super::super) static DUPLICATIONS: AtomicU32 = AtomicU32::new(0);
+    /// Cursors drawn into a duplicated screen's pictures.
+    pub(in super::super) static CURSORS_DRAWN: AtomicU32 = AtomicU32::new(0);
     /// Shared windows heard closing.
     pub(in super::super) static CLOSED: AtomicU32 = AtomicU32::new(0);
     /// New sessions opened on a quiet source.

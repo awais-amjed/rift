@@ -149,6 +149,8 @@ impl Duplication {
                 }
             })
             .map_err(|_| Error::from_hresult(E_FAIL))?;
+        #[cfg(test)]
+        super::counts::DUPLICATIONS.fetch_add(1, Ordering::Relaxed);
         Ok(Duplication {
             stop,
             cursor: shown,
@@ -398,6 +400,8 @@ impl Screen {
             drawer.draw(&self.context, &copy.1, corner);
             self.lock.Leave();
         }
+        #[cfg(test)]
+        super::counts::CURSORS_DRAWN.fetch_add(1, Ordering::Relaxed);
     }
 }
 
